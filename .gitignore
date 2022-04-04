@@ -137,7 +137,7 @@ saved_profiling_objects/
 templates/
 {dest}/
 .idea/
-.data/
+data/
 __pycache__
 *.csv
 *.xlsx
