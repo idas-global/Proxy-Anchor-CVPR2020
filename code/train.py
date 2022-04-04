@@ -47,7 +47,7 @@ parser.add_argument('--epochs', default = 60, type = int,
 parser.add_argument('--gpu-id', default = 0, type = int,
     help = 'ID of GPU that is used for training.'
 )
-parser.add_argument('--workers', default = 4, type = int,
+parser.add_argument('--workers', default = 0, type = int,
     dest = 'nb_workers',
     help = 'Number of workers for dataloader.'
 )
@@ -95,14 +95,15 @@ parser.add_argument('--remark', default = '',
 )
 
 args = parser.parse_args()
-
-if args.gpu_id != -1:
-    torch.cuda.set_device(args.gpu_id)
+#
+# if args.gpu_id != -1:
+#     torch.cuda.set_device(args.gpu_id)
 
 # Directory for Log
 LOG_DIR = args.LOG_DIR + '/logs_{}/{}_{}_embedding{}_alpha{}_mrg{}_{}_lr{}_batch{}{}'.format(args.dataset, args.model, args.loss, args.sz_embedding, args.alpha, 
                                                                                             args.mrg, args.optimizer, args.lr, args.sz_batch, args.remark)
 # Wandb Initialization
+wandb.login(key='f0a1711b34f7b07e32150c85c67697eb82c5120f')
 wandb.init(project=args.dataset + '_ProxyAnchor', notes=LOG_DIR)
 wandb.config.update(args)
 
@@ -213,24 +214,24 @@ elif args.model.find('resnet50')+1:
     model = Resnet50(embedding_size=args.sz_embedding, pretrained=True, is_norm=args.l2_norm, bn_freeze = args.bn_freeze)
 elif args.model.find('resnet101')+1:
     model = Resnet101(embedding_size=args.sz_embedding, pretrained=True, is_norm=args.l2_norm, bn_freeze = args.bn_freeze)
-model = model.cuda()
+# model = model
 
 if args.gpu_id == -1:
     model = nn.DataParallel(model)
 
 # DML Losses
 if args.loss == 'Proxy_Anchor':
-    criterion = losses.Proxy_Anchor(nb_classes = nb_classes, sz_embed = args.sz_embedding, mrg = args.mrg, alpha = args.alpha).cuda()
+    criterion = losses.Proxy_Anchor(nb_classes = nb_classes, sz_embed = args.sz_embedding, mrg = args.mrg, alpha = args.alpha)
 elif args.loss == 'Proxy_NCA':
-    criterion = losses.Proxy_NCA(nb_classes = nb_classes, sz_embed = args.sz_embedding).cuda()
+    criterion = losses.Proxy_NCA(nb_classes = nb_classes, sz_embed = args.sz_embedding)
 elif args.loss == 'MS':
-    criterion = losses.MultiSimilarityLoss().cuda()
+    criterion = losses.MultiSimilarityLoss()
 elif args.loss == 'Contrastive':
-    criterion = losses.ContrastiveLoss().cuda()
+    criterion = losses.ContrastiveLoss()
 elif args.loss == 'Triplet':
-    criterion = losses.TripletLoss().cuda()
+    criterion = losses.TripletLoss()
 elif args.loss == 'NPair':
-    criterion = losses.NPairLoss().cuda()
+    criterion = losses.NPairLoss()
 
 # Train Parameters
 param_groups = [
@@ -289,8 +290,8 @@ for epoch in range(0, args.nb_epochs):
     pbar = tqdm(enumerate(dl_tr))
 
     for batch_idx, (x, y) in pbar:                         
-        m = model(x.squeeze().cuda())
-        loss = criterion(m, y.squeeze().cuda())
+        m = model(x.squeeze())
+        loss = criterion(m, y.squeeze())
         
         opt.zero_grad()
         loss.backward()
@@ -325,13 +326,13 @@ for epoch in range(0, args.nb_epochs):
         # Logging Evaluation Score
         if args.dataset == 'Inshop':
             for i, K in enumerate([1,10,20,30,40,50]):    
-                wandb.log({"R@{}".format(K): Recalls[i]}, step=epoch)
+                wandb.log({"Accuracy@{}".format(K): Recalls[i]}, step=epoch)
         elif args.dataset != 'SOP':
-            for i in range(6):
-                wandb.log({"R@{}".format(2**i): Recalls[i]}, step=epoch)
+            for i in range(7):
+                wandb.log({"Accuracy@{}".format(2**i): Recalls[i]}, step=epoch)
         else:
             for i in range(4):
-                wandb.log({"R@{}".format(10**i): Recalls[i]}, step=epoch)
+                wandb.log({"Accuracy@{}".format(10**i): Recalls[i]}, step=epoch)
         
         # Best model save
         if best_recall[0] < Recalls[0]:

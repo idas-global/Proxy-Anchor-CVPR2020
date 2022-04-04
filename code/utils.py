@@ -6,6 +6,7 @@ import json
 from tqdm import tqdm
 import torch.nn.functional as F
 import math
+import matplotlib.pyplot as plt
 
 def l2_norm(input):
     input_size = input.size()
@@ -25,9 +26,10 @@ def calc_recall_at_k(T, Y, k):
 
     s = 0
     for t,y in zip(T,Y):
-        if t in torch.Tensor(y).long()[:k]:
+        if t == torch.mode(torch.Tensor(y).long()[:k]).values:
             s += 1
     return s / (1. * len(T))
+
 
 
 def predict_batchwise(model, dataloader):
@@ -46,7 +48,7 @@ def predict_batchwise(model, dataloader):
                 # i = 2: sz_batch * indices
                 if i == 0:
                     # move images to device of model (approximate device)
-                    J = model(J.cuda())
+                    J = model(J)
 
                 for j in J:
                     A[i].append(j)
@@ -71,7 +73,7 @@ def evaluate_cos(model, dataloader):
     X = l2_norm(X)
 
     # get predictions by assigning nearest 8 neighbors with cosine
-    K = 32
+    K = 128
     Y = []
     xs = []
     
@@ -80,10 +82,10 @@ def evaluate_cos(model, dataloader):
     Y = Y.float().cpu()
     
     recall = []
-    for k in [1, 2, 4, 8, 16, 32]:
+    for k in [1, 2, 4, 8, 16, 32, 64, 128]:
         r_at_k = calc_recall_at_k(T, Y, k)
         recall.append(r_at_k)
-        print("R@{} : {:.3f}".format(k, 100 * r_at_k))
+        print("Accuracy@{} : {:.3f}".format(k, 100 * r_at_k))
 
     return recall
 

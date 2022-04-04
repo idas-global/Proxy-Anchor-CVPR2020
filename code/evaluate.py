@@ -127,7 +127,7 @@ elif args.model.find('resnet50')+1:
     model = Resnet50(embedding_size=args.sz_embedding, pretrained=True, is_norm=args.l2_norm, bn_freeze = 1)
 elif args.model.find('resnet101')+1:
     model = Resnet101(embedding_size=args.sz_embedding, pretrained=True, is_norm=args.l2_norm, bn_freeze = 1)
-model = model.cuda()
+model = model
 
 if args.gpu_id == -1:
     model = nn.DataParallel(model)

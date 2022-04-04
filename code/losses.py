@@ -11,7 +11,7 @@ def binarize(T, nb_classes):
     T = sklearn.preprocessing.label_binarize(
         T, classes = range(0, nb_classes)
     )
-    T = torch.FloatTensor(T).cuda()
+    T = torch.FloatTensor(T)
     return T
 
 def l2_norm(input):
@@ -27,7 +27,7 @@ class Proxy_Anchor(torch.nn.Module):
     def __init__(self, nb_classes, sz_embed, mrg = 0.1, alpha = 32):
         torch.nn.Module.__init__(self)
         # Proxy Anchor Initialization
-        self.proxies = torch.nn.Parameter(torch.randn(nb_classes, sz_embed).cuda())
+        self.proxies = torch.nn.Parameter(torch.randn(nb_classes, sz_embed))
         nn.init.kaiming_normal_(self.proxies, mode='fan_out')
 
         self.nb_classes = nb_classes
@@ -65,7 +65,7 @@ class Proxy_NCA(torch.nn.Module):
         self.nb_classes = nb_classes
         self.sz_embed = sz_embed
         self.scale = scale
-        self.loss_func = losses.ProxyNCALoss(num_classes = self.nb_classes, embedding_size = self.sz_embed, softmax_scale = self.scale).cuda()
+        self.loss_func = losses.ProxyNCALoss(num_classes = self.nb_classes, embedding_size = self.sz_embed, softmax_scale = self.scale)
 
     def forward(self, embeddings, labels):
         loss = self.loss_func(embeddings, labels)
