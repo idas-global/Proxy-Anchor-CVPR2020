@@ -149,3 +149,4 @@ __pycache__
 *.pkl
 templates/temp_score_frame.csv
 *.pkl
+*.pth
