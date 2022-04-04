@@ -137,9 +137,12 @@ saved_profiling_objects/
 templates/
 {dest}/
 .idea/
+./data
 __pycache__
 *.csv
 *.xlsx
+*.wandb
+*.yaml
 *.txt
 *.json
 *.pickle
