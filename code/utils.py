@@ -92,10 +92,14 @@ def proxy_init_calc(model, dataloader):
     return proxy_mean
 
 
-def parse_im_name(specific_species):
+def parse_im_name(specific_species, exclude_trailing_consonants=False):
     coarse_filter = os.path.split(os.path.split(specific_species)[0])[1].split('_')[-1].lower()
     if '.' in coarse_filter:
         coarse_filter = coarse_filter.split('.')[-1]
+
+    if exclude_trailing_consonants:
+        if coarse_filter[-1].isalpha():
+            coarse_filter = coarse_filter[0:-1]
     return coarse_filter
 
 
@@ -140,7 +144,7 @@ def evaluate_cos(model, dataloader, epoch):
 def get_accuracies(T, X, dataloader, neighbors):
     pictures_to_predict = random.choices(range(len(X)), k=2000)
     ground_truth = T[pictures_to_predict]
-    coarse_filter_dict = {class_num: parse_im_name(specific_species)
+    coarse_filter_dict = {class_num: parse_im_name(specific_species, exclude_trailing_consanants='Rupert_Book_Augmented' in dataloader.dataset.root)
                           for class_num, specific_species in zip(np.array(T), dataloader.dataset.im_paths)}
     y_preds = []
     for pic in tqdm(pictures_to_predict, desc='Accuracy Analysis'):

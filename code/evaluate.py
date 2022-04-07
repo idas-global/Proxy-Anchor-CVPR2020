@@ -141,7 +141,7 @@ else:
     sys.exit(0)
                     
 with torch.no_grad():
-   if args.dataset == 'Inshop':
+    if args.dataset == 'Inshop':
         Recalls = utils.evaluate_cos_Inshop(model, dl_query, dl_gallery)
 
     elif args.dataset != 'SOP':

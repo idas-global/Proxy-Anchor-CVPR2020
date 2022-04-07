@@ -26,7 +26,7 @@ def main():
         denom_key, series_key = key
         if denom_key != 100:
             continue
-            
+
         dest = get_filepath(aug_rupert_location, denom_key, series_key)
         os.makedirs(dest, exist_ok=True)
 
