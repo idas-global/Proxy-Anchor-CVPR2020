@@ -1,14 +1,11 @@
-import torch, math, time, argparse, os
-import random, dataset, utils, losses, net
-import numpy as np
-
+import argparse, os
+import random, dataset, utils, losses
 from dataset.Inshop import Inshop_Dataset
 from net.resnet import *
 from net.googlenet import *
 from net.bn_inception import *
 from dataset import sampler
 from torch.utils.data.sampler import BatchSampler
-from torch.utils.data.dataloader import default_collate
 
 from tqdm import *
 import wandb
@@ -110,7 +107,17 @@ wandb.config.update(args)
 os.chdir('../data/')
 data_root = os.getcwd()
 # Dataset Loader and Sampler
-if args.dataset != 'Inshop':
+if args.dataset == 'note_styles':
+    trn_dataset = dataset.load(
+        name=args.dataset,
+        root=data_root,
+        mode='train',
+        transform=dataset.utils.make_transform(
+            is_train=True,
+            is_inception=(args.model == 'bn_inception'),
+            crop=False
+        ))
+elif args.dataset != 'Inshop':
     trn_dataset = dataset.load(
             name = args.dataset,
             root = data_root,
@@ -313,26 +320,26 @@ for epoch in range(0, args.nb_epochs):
     wandb.log({'loss': losses_list[-1]}, step=epoch)
     scheduler.step()
     
-    if(epoch >= 0):
+    if epoch % 3 == 0:
         with torch.no_grad():
             print("**Evaluating...**")
             if args.dataset == 'Inshop':
                 Recalls = utils.evaluate_cos_Inshop(model, dl_query, dl_gallery)
             elif args.dataset != 'SOP':
-                Recalls = utils.evaluate_cos(model, dl_ev)
+                Recalls = utils.evaluate_cos(model, dl_ev, epoch)
             else:
                 Recalls = utils.evaluate_cos_SOP(model, dl_ev)
                 
         # Logging Evaluation Score
         if args.dataset == 'Inshop':
             for i, K in enumerate([1,10,20,30,40,50]):    
-                wandb.log({"Accuracy@{}".format(K): Recalls[i]}, step=epoch)
+                wandb.log({"f1score@{}".format(K): Recalls[i]}, step=epoch)
         elif args.dataset != 'SOP':
-            for i in range(7):
-                wandb.log({"Accuracy@{}".format(2**i): Recalls[i]}, step=epoch)
+            for i in range(len(Recalls)):
+                wandb.log({"f1score@{}".format(2**i): Recalls[i]}, step=epoch)
         else:
             for i in range(4):
-                wandb.log({"Accuracy@{}".format(10**i): Recalls[i]}, step=epoch)
+                wandb.log({"f1score@{}".format(10**i): Recalls[i]}, step=epoch)
         
         # Best model save
         if best_recall[0] < Recalls[0]:
@@ -347,7 +354,7 @@ for epoch in range(0, args.nb_epochs):
                     for i, K in enumerate([1,10,20,30,40,50]):    
                         f.write("Best Recall@{}: {:.4f}\n".format(K, best_recall[i] * 100))
                 elif args.dataset != 'SOP':
-                    for i in range(6):
+                    for i in range(len(Recalls)):
                         f.write("Best Recall@{}: {:.4f}\n".format(2**i, best_recall[i] * 100))
                 else:
                     for i in range(4):
