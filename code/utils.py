@@ -1,4 +1,5 @@
 import os
+import functools
 
 import mplcursors
 import numpy as np
@@ -40,6 +41,16 @@ def calc_recall_at_k(T, Y, k):
             s += 1
     return s / (1. * len(T))
 
+def combine_dims(a, i=0, n=1):
+  """
+  Combines dimensions of numpy array `a`,
+  starting at index `i`,
+  and combining `n` dimensions
+  """
+  s = list(a.shape)
+  combined = functools.reduce(lambda x,y: x*y, s[i:i+n+1])
+  return np.reshape(a, s[:i] + [combined] + s[i+n+1:])
+
 
 def predict_batchwise(model, dataloader, return_images=False):
     model_is_training = model.training
@@ -55,7 +66,8 @@ def predict_batchwise(model, dataloader, return_images=False):
 
     if return_images:
         # TODO add a attribute to dataloader that gives the shape
-        image_array = np.zeros((len(dataloader.dataset.im_paths), 3, 224, 224))
+        #image_array = np.zeros((len(dataloader.dataset.im_paths), 3, 224, 224))
+        image_array = np.zeros((num_batches, batch_sz, 3, 224, 224))
 
     with torch.no_grad():
         # extract batches (A becomes list of samples)
@@ -67,20 +79,22 @@ def predict_batchwise(model, dataloader, return_images=False):
 
                 if i == 0:
                     if return_images:
-                        image_array[(idx*batch_sz):((idx+1)*batch_sz)] = J
-
-                    # move images to device of model (approximate device)
-                    J = model(J)
-                    predictions[(idx*batch_sz):((idx+1)*batch_sz)] = J
-                else:
-                    labels[(idx * batch_sz):((idx + 1) * batch_sz)] = J
-
-    model.train()
-    model.train(model_is_training) # revert to previous training state
-
-    if return_images:
-        return [torch.from_numpy(predictions), torch.from_numpy(labels), torch.from_numpy(image_array)]
-    return [torch.from_numpy(predictions), torch.from_numpy(labels)]
+                        image_array[i, :] = J
+    image_array = combine_dims(image_array, 0, 1)
+    print(image_array.shape)
+    print(len(dataloader.dataset.im_paths))
+    #                 # move images to device of model (approximate device)
+    #                 J = model(J)
+    #                 predictions[(idx*batch_sz):((idx+1)*batch_sz)] = J
+    #             else:
+    #                 labels[(idx * batch_sz):((idx + 1) * batch_sz)] = J
+    #
+    # model.train()
+    # model.train(model_is_training) # revert to previous training state
+    #
+    # if return_images:
+    #     return [torch.from_numpy(predictions), torch.from_numpy(labels), torch.from_numpy(image_array)]
+    # return [torch.from_numpy(predictions), torch.from_numpy(labels)]
 
 
 def proxy_init_calc(model, dataloader):
