@@ -183,80 +183,80 @@ def evaluate_cos(model, dataloader, epoch, args):
         if epoch % 2 == 0:
             metrics[f'f1score@{k}'] = r_at_k*100
 
-    data_viz_frame = pd.DataFrame(y_true.astype(int), columns=['truth'])
-    data_viz_frame['prediction'] = y_preds
-    data_viz_frame['truth_label_coarse'] = data_viz_frame['truth'].map(coarse_filter_dict, y_true)
-    data_viz_frame['prediction_label_coarse'] = data_viz_frame['prediction'].map(coarse_filter_dict, y_preds)
-
-    data_viz_frame['truth_label_fine'] = data_viz_frame['truth'].map(fine_filter_dict, y_true)
-    data_viz_frame['prediction_label_fine'] = data_viz_frame['prediction'].map(fine_filter_dict, y_preds)
-    
-    if 'Rupert_Book' in dataloader.dataset.im_paths[0]:
-        data_viz_frame['truth_denom'] = [label.split('_')[0] for label in data_viz_frame['truth_label_fine']]
-        data_viz_frame['prediction_denom'] = [label.split('_')[0] for label in data_viz_frame['prediction_label_fine']]
-
-    data_viz_frame['mean_coarse'] = X.mean(axis=1)
-
-    params = ['prediction', 'truth']
-    degrees = ['fine', 'coarse']
-    for deg in degrees:
-        for para in params:
-            centroids = plot_node_graph(X, data_viz_frame, para, deg, dest)
-    #
-    # distance = []
-    # for idx, bird in data_viz_frame.iterrows():
-    #     distance.append(sum(abs(X[idx] - centroids[bird['truth_label_coarse']])))
-    #
-    # data_viz_frame['distance_from_center_coarse'] = np.array(distance)
-    # ax = sns.violinplot(x="truth_label_coarse", y="distance_from_center_coarse",
-    #                     data=data_viz_frame, palette="muted")
-    #
-    # fig = plt.Figure(figsize=(12,12))
-    # #ax = plt.axes(projection='3d')
-    # ax = plt.axes()
-    # pca = KernelPCA(n_components=2, kernel='linear')
-    # new_x = pca.fit_transform(X)
-    #
-    # for idx, (coarse, frame) in enumerate(data_viz_frame.groupby('truth_label_coarse')):
-    #     ax.scatter(new_x[frame.index][:,0],
-    #                new_x[frame.index][:,1],
-    #                #new_x[frame.index][:,2],
-    #                label=coarse, s=40)
-    # mplcursors.cursor(ax).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))
-    # ax.legend()
-    # plt.show(block=True)
-
-    # f, (ax) = plt.subplots(1, 1, figsize=(12, 4))
-    # f.suptitle('Bird Dataset Metric Learning', fontsize=14)
-    #
-    # sns.boxplot(x="Birds", y="alcohol", data=wines, ax=ax)
-    # ax.set_xlabel("Wine Quality", size=12, alpha=0.8)
-    # ax.set_ylabel("Wine Alcohol %", size=12, alpha=0.8)
-
-    params = ['label_coarse', 'label_fine', 'denom']
-    if 'Rupert_Book' not in dataloader.dataset.im_paths[0]:
-        params = ['label_coarse', 'label_fine']
-
-    for param in params:
-        fig = plt.Figure(figsize=(48, 48))
-        ax = plt.subplot()
-        annot = True
-        if param == 'label_fine':
-            annot = False
-        sns.heatmap(confusion_matrix(data_viz_frame[f'prediction_{param}'].values,
-                                     data_viz_frame[f'truth_{param}'].values),
-                    annot=annot, fmt='g', ax=ax, annot_kws={"size" : 4}) # annot=True to annotate cells, ftm='g' to disable scientific notation
-    
-        # labels, title and ticks
-        ax.set_xlabel('Predicted labels')
-        ax.set_ylabel('True labels')
-        ax.set_title(f'Confusion Matrix for {param}')
-        ax.xaxis.set_ticklabels(np.unique(data_viz_frame[f'prediction_{param}'].values))
-        ax.yaxis.set_ticklabels(np.unique(data_viz_frame[f'truth_{param}'].values))
-        plt.savefig(dest + f'Confusion_{param}.png', bbox_inches='tight', dpi=300)
-        plt.close()
-
     if epoch % 2 == 0:
+        data_viz_frame = pd.DataFrame(y_true.astype(int), columns=['truth'])
+        data_viz_frame['prediction'] = y_preds
+        data_viz_frame['truth_label_coarse'] = data_viz_frame['truth'].map(coarse_filter_dict, y_true)
+        data_viz_frame['prediction_label_coarse'] = data_viz_frame['prediction'].map(coarse_filter_dict, y_preds)
+
+        data_viz_frame['truth_label_fine'] = data_viz_frame['truth'].map(fine_filter_dict, y_true)
+        data_viz_frame['prediction_label_fine'] = data_viz_frame['prediction'].map(fine_filter_dict, y_preds)
+
+        if 'Rupert_Book' in dataloader.dataset.im_paths[0]:
+            data_viz_frame['truth_denom'] = [label.split('_')[0] for label in data_viz_frame['truth_label_fine']]
+            data_viz_frame['prediction_denom'] = [label.split('_')[0] for label in data_viz_frame['prediction_label_fine']]
+
+        data_viz_frame['mean_coarse'] = X.mean(axis=1)
+
+        params = ['prediction', 'truth']
+        degrees = ['fine', 'coarse']
+        for deg in degrees:
+            for para in params:
+                centroids = plot_node_graph(X, data_viz_frame, para, deg, dest)
+        #
+        # distance = []
+        # for idx, bird in data_viz_frame.iterrows():
+        #     distance.append(sum(abs(X[idx] - centroids[bird['truth_label_coarse']])))
+        #
+        # data_viz_frame['distance_from_center_coarse'] = np.array(distance)
+        # ax = sns.violinplot(x="truth_label_coarse", y="distance_from_center_coarse",
+        #                     data=data_viz_frame, palette="muted")
+        #
+        # fig = plt.Figure(figsize=(12,12))
+        # #ax = plt.axes(projection='3d')
+        # ax = plt.axes()
+        # pca = KernelPCA(n_components=2, kernel='linear')
+        # new_x = pca.fit_transform(X)
+        #
+        # for idx, (coarse, frame) in enumerate(data_viz_frame.groupby('truth_label_coarse')):
+        #     ax.scatter(new_x[frame.index][:,0],
+        #                new_x[frame.index][:,1],
+        #                #new_x[frame.index][:,2],
+        #                label=coarse, s=40)
+        # mplcursors.cursor(ax).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))
+        # ax.legend()
+        # plt.show(block=True)
+
+        # f, (ax) = plt.subplots(1, 1, figsize=(12, 4))
+        # f.suptitle('Bird Dataset Metric Learning', fontsize=14)
+        #
+        # sns.boxplot(x="Birds", y="alcohol", data=wines, ax=ax)
+        # ax.set_xlabel("Wine Quality", size=12, alpha=0.8)
+        # ax.set_ylabel("Wine Alcohol %", size=12, alpha=0.8)
+
+        params = ['label_coarse', 'label_fine', 'denom']
+        if 'Rupert_Book' not in dataloader.dataset.im_paths[0]:
+            params = ['label_coarse', 'label_fine']
+
+        for param in params:
+            fig = plt.Figure(figsize=(48, 48))
+            ax = plt.subplot()
+            annot = True
+            if param == 'label_fine':
+                annot = False
+            sns.heatmap(confusion_matrix(data_viz_frame[f'prediction_{param}'].values,
+                                         data_viz_frame[f'truth_{param}'].values),
+                        annot=annot, fmt='g', ax=ax, annot_kws={"size" : 4}) # annot=True to annotate cells, ftm='g' to disable scientific notation
+
+            # labels, title and ticks
+            ax.set_xlabel('Predicted labels')
+            ax.set_ylabel('True labels')
+            ax.set_title(f'Confusion Matrix for {param}')
+            ax.xaxis.set_ticklabels(np.unique(data_viz_frame[f'prediction_{param}'].values))
+            ax.yaxis.set_ticklabels(np.unique(data_viz_frame[f'truth_{param}'].values))
+            plt.savefig(dest + f'Confusion_{param}.png', bbox_inches='tight', dpi=300)
+            plt.close()
+
         metrics.to_csv(dest + 'metrics.csv')
     return recall
 
