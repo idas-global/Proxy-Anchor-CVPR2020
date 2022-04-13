@@ -326,7 +326,7 @@ for epoch in range(0, args.nb_epochs):
             if args.dataset == 'Inshop':
                 Recalls = utils.evaluate_cos_Inshop(model, dl_query, dl_gallery)
             elif args.dataset != 'SOP':
-                Recalls = utils.evaluate_cos(model, dl_ev, epoch)
+                Recalls = utils.evaluate_cos(model, dl_ev, epoch, args)
             else:
                 Recalls = utils.evaluate_cos_SOP(model, dl_ev)
                 

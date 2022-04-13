@@ -71,8 +71,9 @@ if args.dataset != 'Inshop':
             root = data_root,
             mode = 'eval',
             transform = dataset.utils.make_transform(
-                is_train = False, 
-                is_inception = (args.model == 'bn_inception')
+                is_train = False,
+                is_inception = (args.model == 'bn_inception'),
+                crop=False
             ))
 
     dl_ev = torch.utils.data.DataLoader(
@@ -145,7 +146,7 @@ with torch.no_grad():
         Recalls = utils.evaluate_cos_Inshop(model, dl_query, dl_gallery)
 
     elif args.dataset != 'SOP':
-        Recalls = utils.evaluate_cos(model, dl_ev)
+        Recalls = utils.evaluate_cos(model, dl_ev, 0, args)
 
     else:
         Recalls = utils.evaluate_cos_SOP(model, dl_ev)

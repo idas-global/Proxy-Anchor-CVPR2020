@@ -24,8 +24,6 @@ def main():
     notes_per_denom_and_series = rupert_data.groupby(['denom', 'series'])
     for key, notes_frame in tqdm(notes_per_denom_and_series, desc='Unique Series and Denom Pairs'):
         denom_key, series_key = key
-        if denom_key != 100:
-            continue
 
         dest = get_filepath(aug_rupert_location, denom_key, series_key)
         os.makedirs(dest, exist_ok=True)
@@ -44,6 +42,7 @@ def main():
                         iters = aug_fac - len(frames)
                         if iters <= 0:
                             os.makedirs(dest, exist_ok=True)
+                            note_image = cv2.resize(note_image, (int(note_image.shape[1]/10), int(note_image.shape[0]/10)))
                             cv2.imwrite(dest + f'/{note}_{spec}_{side}.bmp', note_image)
                         else:
                             aug_obj = augment()
@@ -52,6 +51,7 @@ def main():
                                 aug_image = aug_obj(image=note_image)['image']
                                 # plt.imshow(aug_image)
                                 # plt.show()
+                                aug_image = cv2.resize(aug_image, (int(aug_image.shape[1] / 10), int(aug_image.shape[0] / 10)))
                                 cv2.imwrite(dest + f'/{aug_key}_{spec}_{side}.bmp', aug_image)
 
 
@@ -86,6 +86,6 @@ if __name__ == '__main__':
     aug_rupert_location = 'D:/Rupert_Book_Augmented/'
     sides_wanted = [0] # (0 / 1)
     specs_wanted = ['RGB']
-    aug_fac = 30
+    aug_fac = 40
     # TODO make it work for non rgb/nir
     main()
