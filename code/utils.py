@@ -102,8 +102,9 @@ def predict_batchwise(model, dataloader, return_images=False):
     model.train()
     model.train(model_is_training) # revert to previous training state
 
-    image_array = combine_dims(image_array, 0, 1)
-    image_array = image_array[0:-missing_batch, :]
+    if return_images:
+        image_array = combine_dims(image_array, 0, 1)
+        image_array = image_array[0:-missing_batch, :]
 
     predictions = combine_dims(predictions, 0, 1)
     predictions = predictions[0:-missing_batch, :]
