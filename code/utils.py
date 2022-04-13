@@ -179,7 +179,9 @@ def evaluate_cos(model, dataloader, epoch, args):
         r_at_k = f1_score(y_true, y_preds, average='weighted')
         recall.append(r_at_k)
         print("f1score@{} : {:.3f}".format(k, 100 * r_at_k))
-        metrics[f'f1score@{k}'] = r_at_k*100
+
+        if epoch % 2 == 0:
+            metrics[f'f1score@{k}'] = r_at_k*100
 
     data_viz_frame = pd.DataFrame(y_true.astype(int), columns=['truth'])
     data_viz_frame['prediction'] = y_preds
@@ -253,7 +255,9 @@ def evaluate_cos(model, dataloader, epoch, args):
         ax.yaxis.set_ticklabels(np.unique(data_viz_frame[f'truth_{param}'].values))
         plt.savefig(dest + f'Confusion_{param}.png', bbox_inches='tight', dpi=300)
         plt.close()
-    metrics.to_csv(dest + 'metrics.csv')
+
+    if epoch % 2 == 0:
+        metrics.to_csv(dest + 'metrics.csv')
     return recall
 
 
