@@ -53,23 +53,32 @@ def main():
                     valid_notes.append((side, spec, pack, note_num,
                                         f'{location_1604_notes}Pack_{pack}/{note_num}/{note_num}_{spec}_{side}.bmp'))
 
-            iters = min(int(np.ceil((aug_fac - len(valid_notes)) / len(valid_notes))), 1)
+            if len(valid_notes) > 0:
+                iters = aug_fac - len(valid_notes)
+                extra_notes_per_note = iters/len(valid_notes)
 
-            for (side, spec, pack, note_num, note_dir) in tqdm(valid_notes, desc=f'Augmenting each one {iters} times'):
-                os.makedirs(dest, exist_ok=True)
-                note_object = ImageBMP(f'{location_1604_notes}Pack_{pack}/{note_num}/{note_num}_{spec}_{side}.bmp',
-                                       straighten=True, rotation=180)
-                note_image = note_object.array
+                for iter, (side, spec, pack, note_num, note_dir) in tqdm(enumerate(valid_notes), desc=f'{len(valid_notes)} Originals'):
+                    os.makedirs(dest, exist_ok=True)
+                    note_object = ImageBMP(f'{location_1604_notes}Pack_{pack}/{note_num}/{note_num}_{spec}_{side}.bmp',
+                                           straighten=True, rotation=180)
+                    note_image = note_object.array
 
-                aug_obj = augment()
-                for aug_num in range(iters):
-                    print(iters)
-                    aug_key = note_num + '0000' + str(aug_num)
-                    aug_image = aug_obj(image=note_image)['image']
-                    # plt.imshow(aug_image)
-                    # plt.show()
-                    aug_image = cv2.resize(aug_image, (int(aug_image.shape[1] / 10), int(aug_image.shape[0] / 10)))
-                    cv2.imwrite(dest + f'/{aug_key}_{spec}_{side}.bmp', aug_image)
+                    if extra_notes_per_note >= 1:
+                        iters = int(np.ceil(extra_notes_per_note))
+                    else:
+                        iters = 1
+                        if np.isclose(iter * extra_notes_per_note, 1):
+                            iters = 2
+
+                    aug_obj = augment()
+                    for aug_num in range(iters):
+
+                        aug_key = note_num + '0000' + str(aug_num)
+                        aug_image = aug_obj(image=note_image)['image']
+                        # plt.imshow(aug_image)
+                        # plt.show()
+                        aug_image = cv2.resize(aug_image, (int(aug_image.shape[1] / 10), int(aug_image.shape[0] / 10)))
+                        cv2.imwrite(dest + f'/{aug_key}_{spec}_{side}.bmp', aug_image)
 
 
 def get_filepath(location_1604_notes, circ_key):
