@@ -167,8 +167,8 @@ def evaluate_cos(model, dataloader, epoch, args):
 
     if epoch % 2 == 0:
         coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors)
-        recall['specific_accuracy'] = metrics['specific_accuracy']
-        recall['coarse_accuracy'] = metrics['coarse_accuracy']
+        recall['specific_accuracy'] = metrics['specific_accuracy'].values[0]
+        recall['coarse_accuracy'] = metrics['coarse_accuracy'].values[0]
     #plot_feature_space(X, dataloader)
 
     for k in [1, 2, 4, 8, 16, 32]:

@@ -1,9 +1,9 @@
 from .base import *
 
 
-class Notes(BaseDataset):
+class NoteFamilies(BaseDataset):
     def __init__(self, root, mode, transform=None):
-        self.root = "D:/Rupert_Book_Augmented"
+        self.root = "D:/1604_notes_augmented"
         self.mode = mode
         self.transform = transform
         if self.mode == 'train':

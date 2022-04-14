@@ -27,10 +27,13 @@ def main():
 
     empty_aug_dir()
 
-    notes_per_family = global_csv.groupby(['parent note'])
+    notes_per_family = global_csv.groupby(['circular 1'])
     for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
+        pnt_key = notes_frame["parent note"].values[0]
 
-        dest = get_filepath(aug_location_1604_notes, circ_key)
+        if pnt_key == 'NO DATA': pnt_key = circ_key
+
+        dest = get_filepath(aug_location_1604_notes, f'{pnt_key}_{circ_key}')
 
         for idx, note in notes_frame.iterrows():
             if isinstance(note, pd.Series): # Consistent Datatype
@@ -61,6 +64,7 @@ def main():
 
                 aug_obj = augment()
                 for aug_num in range(iters):
+                    print(iters)
                     aug_key = note_num + '0000' + str(aug_num)
                     aug_image = aug_obj(image=note_image)['image']
                     # plt.imshow(aug_image)
