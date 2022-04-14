@@ -53,14 +53,13 @@ def main():
                     valid_notes.append((side, spec, pack, note_num,
                                         f'{location_1604_notes}Pack_{pack}/{note_num}/{note_num}_{spec}_{side}.bmp'))
 
+            iters = min(int(np.ceil((aug_fac - len(valid_notes)) / len(valid_notes))), 1)
 
-            for (side, spec, pack, note_num, note_dir) in valid_notes:
+            for (side, spec, pack, note_num, note_dir) in tqdm(valid_notes, desc=f'Augmenting each one {iters} times'):
                 os.makedirs(dest, exist_ok=True)
                 note_object = ImageBMP(f'{location_1604_notes}Pack_{pack}/{note_num}/{note_num}_{spec}_{side}.bmp',
                                        straighten=True, rotation=180)
                 note_image = note_object.array
-
-                iters = int(np.ceil((aug_fac - len(valid_notes)) / len(valid_notes)))
 
                 aug_obj = augment()
                 for aug_num in range(iters):

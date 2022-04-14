@@ -266,7 +266,7 @@ scheduler = torch.optim.lr_scheduler.StepLR(opt, step_size=args.lr_decay_step, g
 print("Training parameters: {}".format(vars(args)))
 print("Training for {} epochs.".format(args.nb_epochs))
 losses_list = []
-best_recall=[0]
+best_recall = {"f1score@16": 0}
 best_epoch = 0
 
 for epoch in range(0, args.nb_epochs):
@@ -342,7 +342,7 @@ for epoch in range(0, args.nb_epochs):
                 wandb.log({"f1score@{}".format(10**i): Recalls[i]}, step=epoch)
         
         # Best model save
-        if best_recall[0] < Recalls[0]:
+        if best_recall["f1score@16"] < Recalls["f1score@16"]:
             best_recall = Recalls
             best_epoch = epoch
             if not os.path.exists('{}'.format(LOG_DIR)):
@@ -354,10 +354,8 @@ for epoch in range(0, args.nb_epochs):
                     for i, K in enumerate([1,10,20,30,40,50]):    
                         f.write("Best Recall@{}: {:.4f}\n".format(K, best_recall[i] * 100))
                 elif args.dataset != 'SOP':
-                    for i in range(len(Recalls)):
-                        f.write("Best Recall@{}: {:.4f}\n".format(2**i, best_recall[i] * 100))
+                    for key, val in Recalls.items():
+                        f.write(f'{key} : {val}')
                 else:
                     for i in range(4):
                         f.write("Best Recall@{}: {:.4f}\n".format(10**i, best_recall[i] * 100))
-
-    
