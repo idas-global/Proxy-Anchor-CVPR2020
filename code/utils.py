@@ -163,12 +163,14 @@ def evaluate_cos(model, dataloader, epoch, args):
     Y = T[neighbors]
     Y = Y.float().cpu()
 
+    recall = {}
+
     if epoch % 2 == 0:
         coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors)
-
+        recall['specific_accuracy'] = metrics['specific_accuracy']
+        recall['coarse_accuracy'] = metrics['coarse_accuracy']
     #plot_feature_space(X, dataloader)
 
-    recall = []
     for k in [1, 2, 4, 8, 16, 32]:
         y_preds = []
         for t, y in zip(T, Y):
@@ -177,7 +179,7 @@ def evaluate_cos(model, dataloader, epoch, args):
         y_preds = np.array(y_preds).astype(int)
         y_true = np.array(T)
         r_at_k = f1_score(y_true, y_preds, average='weighted')
-        recall.append(r_at_k)
+        recall[f"f1score@{k}"] = r_at_k
         print("f1score@{} : {:.3f}".format(k, 100 * r_at_k))
 
         if epoch % 2 == 0:

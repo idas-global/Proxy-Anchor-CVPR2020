@@ -335,8 +335,8 @@ for epoch in range(0, args.nb_epochs):
             for i, K in enumerate([1,10,20,30,40,50]):    
                 wandb.log({"f1score@{}".format(K): Recalls[i]}, step=epoch)
         elif args.dataset != 'SOP':
-            for i in range(len(Recalls)):
-                wandb.log({"f1score@{}".format(2**i): Recalls[i]}, step=epoch)
+            for key, val in Recalls.items():
+                wandb.log({key: val}, step=epoch)
         else:
             for i in range(4):
                 wandb.log({"f1score@{}".format(10**i): Recalls[i]}, step=epoch)
