@@ -5,6 +5,7 @@ class Notes(BaseDataset):
     def __init__(self, root, mode, transform=None):
         self.root = "D:/Rupert_Book_Augmented"
         self.mode = mode
+        self.name = 'Note Styles'
         self.transform = transform
         if self.mode == 'train':
             self.classes = range(0, 57)

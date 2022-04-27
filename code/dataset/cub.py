@@ -4,6 +4,7 @@ class CUBirds(BaseDataset):
     def __init__(self, root, mode, transform = None):
         self.root = root + '/CUB_200_2011'
         self.mode = mode
+        self.name = 'CUB'
         self.transform = transform
         if self.mode == 'train':
             self.classes = range(0,100)

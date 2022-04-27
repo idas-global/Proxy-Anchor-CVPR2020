@@ -134,6 +134,7 @@ dmypy.json
 # User defined
 diagnostics/
 /training
+/code/dsprofiling/
 /misc
 saved_profiling_objects/
 templates/

@@ -5,6 +5,7 @@ class NoteFamilies(BaseDataset):
     def __init__(self, root, mode, transform=None):
         self.root = "D:/1604_notes_augmented"
         self.mode = mode
+        self.name = 'Note Families'
         self.transform = transform
         if self.mode == 'train':
             self.classes = range(0, 57)
@@ -26,5 +27,6 @@ class NoteFamilies(BaseDataset):
                 index += 1
 
         self.class_names = [os.path.split(os.path.split(item)[0])[-1] for item in self.im_paths]
-        self.class_names_coarse = [name.split('_')[0] for name in self.class_names]
-        self.class_names_fine = [i[0:-1] if i[-1].isalpha() else i for i in self.class_names]
+        self.class_names_coarse = [i[0:-1] if i[-1].isalpha() and 'GENUINE' not in i else i
+                                   for i in [name.split('_')[0] for name in self.class_names]]
+        self.class_names_fine = [i[0:-1] if i[-1].isalpha() and 'GENUINE' not in i else i for i in self.class_names]
