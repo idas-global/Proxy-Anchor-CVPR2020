@@ -21,7 +21,7 @@ import torch.nn.functional as F
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from dsprofiling.src.clustering_tools import break_down_clusters
+#from dsprofiling.src.clustering_tools import break_down_clusters
 
 plt.ioff()
 import mplcursors
@@ -272,14 +272,14 @@ def plot_node_graph(X, data_viz_frame, dataloader, para, deg, dest):
     full_items = []
     for idx, (coarse, frame) in enumerate(data_viz_frame.groupby(f'{para}_label_{deg}')):
 
-        clusters, idNo = break_down_clusters(pd.DataFrame(np.array(X[frame.index]).astype(np.float64)),
-                            f'./dsprofiling/saved_profiling_objects/{dataloader.dataset.name}/',
-                            dataloader.dataset.name)
+        # clusters, idNo = break_down_clusters(pd.DataFrame(np.array(X[frame.index]).astype(np.float64)),
+        #                     f'./dsprofiling/saved_profiling_objects/{dataloader.dataset.name}/',
+        #                     dataloader.dataset.name)
+        #
+        # for idx, internal_cluster in enumerate(clusters):
+        #     centroids[coarse + '_' + str(idx + 1)] = internal_cluster.mean()
 
-        for idx, internal_cluster in enumerate(clusters):
-            centroids[coarse + '_' + str(idx + 1)] = internal_cluster.mean()
-
-        #centroids[coarse] = X[frame.index].mean(axis=0)
+        centroids[coarse] = X[frame.index].mean(axis=0)
 
         for note in frame.index:
             full_items.append((coarse, *X[note]))
