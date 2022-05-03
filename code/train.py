@@ -1,9 +1,9 @@
 import argparse, os
 import random, dataset, utils, losses
 
+import numpy as np
 import tensorflow
 
-from net.bn_inception import get_bn_inception
 from dataset.Inshop import Inshop_Dataset
 from net.resnet import *
 from net.googlenet import *
@@ -216,15 +216,14 @@ nb_classes = trn_dataset.nb_classes()
 
 # model = model
 model = tensorflow.keras.applications.inception_resnet_v2.InceptionResNetV2(
-    include_top=True,
+    include_top=False,
     weights='imagenet',
     input_tensor=None,
-    input_shape=None,
+    input_shape=(224, 224, 3),
     pooling=None,
     classes=1000,
     classifier_activation='softmax')
 
-from tensorflow_addons.optimizers import AdamW
 model.compile(loss=losses.proxy_anchor_loss, optimizer='adam')
 
 print("Training parameters: {}".format(vars(args)))
@@ -237,30 +236,18 @@ for epoch in range(0, args.nb_epochs):
     bn_freeze = args.bn_freeze
     if bn_freeze:
         for layer in model.layers:
-            if layer['name'] == 'batch_normalization':
+            if layer.name == 'batch_normalization':
                 layer.trainable = False
 
     losses_per_epoch = []
-    
-    # Warmup: Train only new params, helps stabilize learning.
-    if args.warm > 0:
-        if args.gpu_id != -1:
-            unfreeze_model_param = list(model.model.embedding.parameters()) + list(criterion.parameters())
-        else:
-            unfreeze_model_param = list(model.module.model.embedding.parameters()) + list(criterion.parameters())
-
-        if epoch == 0:
-            for param in list(set(model.parameters()).difference(set(unfreeze_model_param))):
-                param.requires_grad = False
-        if epoch == args.warm:
-            for param in list(set(model.parameters()).difference(set(unfreeze_model_param))):
-                param.requires_grad = True
 
     pbar = tqdm(enumerate(dl_tr))
 
-    for batch_idx, (x, y) in pbar:                         
-        m = model(x.squeeze())
-        loss = criterion(m, y.squeeze())
+    for batch_idx, (x, y) in pbar:
+        x = np.moveaxis((np.array(x.squeeze())), 1, -1).astype(np.float32)
+        y = np.array(y).astype(np.float32).reshape(-1, 1)
+        m = model.fit(x, y)
+        loss = criterion(m, y)
         
         opt.zero_grad()
         loss.backward()
