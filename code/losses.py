@@ -5,6 +5,36 @@ import math
 import random
 from pytorch_metric_learning import miners, losses
 
+
+import tensorflow as tf
+
+# use tensorflow graph with tf 1.xx version
+
+def proxy_anchor_loss(y_true, y_pred, margin=0.1, alpha=32):
+    cosine_similarity = y_pred
+    class_num = cosine_similarity.get_shape().as_list()[1]
+    P_one_hot = tf.one_hot(indices=tf.argmax(y_true, axis=1),
+                           depth=class_num,
+                           on_value=None,
+                           off_value=None)
+    N_one_hot = 1.0 - P_one_hot
+
+    pos_exp = tf.exp(-alpha * (cosine_similarity - margin))
+    neg_exp = tf.exp(alpha * (cosine_similarity + margin))
+
+    P_sim_sum = tf.reduce_sum(pos_exp * P_one_hot, axis=0)
+    N_sim_sum = tf.reduce_sum(neg_exp * N_one_hot, axis=0)
+
+    num_valid_proxies = tf.math.count_nonzero(tf.reduce_sum(P_one_hot, axis=0),
+                                              dtype=tf.dtypes.float32)
+
+    pos_term = tf.reduce_sum(tf.math.log(1.0 + P_sim_sum)) / num_valid_proxies
+    neg_term = tf.reduce_sum(tf.math.log(1.0 + N_sim_sum)) / class_num
+    loss = pos_term + neg_term
+
+    return loss
+
+
 def binarize(T, nb_classes):
     T = T.cpu().numpy()
     import sklearn.preprocessing

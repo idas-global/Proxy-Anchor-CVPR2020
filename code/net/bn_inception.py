@@ -14,6 +14,13 @@ PyTorch 0.4 for the Proxy-NCA implementation, see
 https://github.com/dichotomies/proxy-nca.
 """
 
+from tf2cv.model_provider import get_model as tf2cv_get_model
+import tensorflow as tf
+
+def get_bn_inception():
+    net = tf2cv_get_model("BNInception", pretrained=True, data_format="channels_last")
+    return net
+
 class bn_inception(nn.Module):
     def __init__(self, embedding_size, pretrained = True, is_norm=True, bn_freeze = True):
         super(bn_inception, self).__init__()
@@ -26,11 +33,11 @@ class bn_inception(nn.Module):
 
         self.model.gap = nn.AdaptiveAvgPool2d(1)
         self.model.gmp = nn.AdaptiveMaxPool2d(1)
-        
+
         self.model.embedding = nn.Linear(self.model.num_ftrs, self.model.embedding_size)
         init.kaiming_normal_(self.model.embedding.weight, mode='fan_out')
         init.constant_(self.model.embedding.bias, 0)
-        
+
         if bn_freeze:
             for m in self.model.modules():
                 if isinstance(m, nn.BatchNorm2d):
@@ -38,7 +45,7 @@ class bn_inception(nn.Module):
                     m.weight.requires_grad_(False)
                     m.bias.requires_grad_(False)
 
-                
+
     def forward(self, input):
         return self.model.forward(input)
 
@@ -274,7 +281,7 @@ class BNInception(nn.Module):
         self.inception_5b_relu_pool_proj = nn.ReLU (inplace)
         self.global_pool = nn.AvgPool2d(7, stride=1, padding=0, ceil_mode=True, count_include_pad=True)
         self.last_linear = nn.Linear(1024, 1000)
-        
+
     def features(self, input):
         conv1_7x7_s2_out = self.conv1_7x7_s2(input)
         conv1_7x7_s2_bn_out = self.conv1_7x7_s2_bn(conv1_7x7_s2_out)
@@ -506,7 +513,7 @@ class BNInception(nn.Module):
         inception_5b_relu_pool_proj_out = self.inception_5b_relu_pool_proj(inception_5b_pool_proj_bn_out)
         inception_5b_output_out = torch.cat([inception_5b_1x1_bn_out,inception_5b_3x3_bn_out,inception_5b_double_3x3_2_bn_out,inception_5b_pool_proj_bn_out], 1)
         return inception_5b_output_out
-    
+
     def l2_norm(self,input):
         input_size = input.size()
         buffer = torch.pow(input, 2)
@@ -515,16 +522,16 @@ class BNInception(nn.Module):
         _output = torch.div(input, norm.view(-1, 1).expand_as(input))
         output = _output.view(input_size)
         return output
-    
+
     def forward(self, input):
         x = self.features(input)
         avg_x = self.gap(x)
         max_x = self.gmp(x)
-    
+
         x = avg_x + max_x
         x = x.view(x.size(0), -1)
         x = self.embedding(x)
-        
+
         if self.is_norm:
             x = self.l2_norm(x)
         return x

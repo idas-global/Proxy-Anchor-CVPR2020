@@ -1,5 +1,9 @@
 import argparse, os
 import random, dataset, utils, losses
+
+import tensorflow
+
+from net.bn_inception import get_bn_inception
 from dataset.Inshop import Inshop_Dataset
 from net.resnet import *
 from net.googlenet import *
@@ -210,58 +214,18 @@ else:
 
 nb_classes = trn_dataset.nb_classes()
 
-# Backbone Model
-if args.model.find('googlenet')+1:
-    model = googlenet(embedding_size=args.sz_embedding, pretrained=True, is_norm=args.l2_norm, bn_freeze = args.bn_freeze)
-elif args.model.find('bn_inception')+1:
-    model = bn_inception(embedding_size=args.sz_embedding, pretrained=True, is_norm=args.l2_norm, bn_freeze = args.bn_freeze)
-elif args.model.find('resnet18')+1:
-    model = Resnet18(embedding_size=args.sz_embedding, pretrained=True, is_norm=args.l2_norm, bn_freeze = args.bn_freeze)
-elif args.model.find('resnet50')+1:
-    model = Resnet50(embedding_size=args.sz_embedding, pretrained=True, is_norm=args.l2_norm, bn_freeze = args.bn_freeze)
-elif args.model.find('resnet101')+1:
-    model = Resnet101(embedding_size=args.sz_embedding, pretrained=True, is_norm=args.l2_norm, bn_freeze = args.bn_freeze)
 # model = model
+model = tensorflow.keras.applications.inception_resnet_v2.InceptionResNetV2(
+    include_top=True,
+    weights='imagenet',
+    input_tensor=None,
+    input_shape=None,
+    pooling=None,
+    classes=1000,
+    classifier_activation='softmax')
 
-if args.gpu_id == -1:
-    model = nn.DataParallel(model)
-
-# DML Losses
-if args.loss == 'Proxy_Anchor':
-    criterion = losses.Proxy_Anchor(nb_classes = nb_classes, sz_embed = args.sz_embedding, mrg = args.mrg, alpha = args.alpha)
-elif args.loss == 'Proxy_NCA':
-    criterion = losses.Proxy_NCA(nb_classes = nb_classes, sz_embed = args.sz_embedding)
-elif args.loss == 'MS':
-    criterion = losses.MultiSimilarityLoss()
-elif args.loss == 'Contrastive':
-    criterion = losses.ContrastiveLoss()
-elif args.loss == 'Triplet':
-    criterion = losses.TripletLoss()
-elif args.loss == 'NPair':
-    criterion = losses.NPairLoss()
-
-# Train Parameters
-param_groups = [
-    {'params': list(set(model.parameters()).difference(set(model.model.embedding.parameters()))) if args.gpu_id != -1 else 
-                 list(set(model.module.parameters()).difference(set(model.module.model.embedding.parameters())))},
-    {'params': model.model.embedding.parameters() if args.gpu_id != -1 else model.module.model.embedding.parameters(), 'lr':float(args.lr) * 1},
-]
-if args.loss == 'Proxy_Anchor':
-    param_groups.append({'params': criterion.parameters(), 'lr':float(args.lr) * 100})
-elif args.loss == 'Proxy_NCA':
-    param_groups.append({'params': criterion.parameters(), 'lr':float(args.lr)})
-
-# Optimizer Setting
-if args.optimizer == 'sgd': 
-    opt = torch.optim.SGD(param_groups, lr=float(args.lr), weight_decay = args.weight_decay, momentum = 0.9, nesterov=True)
-elif args.optimizer == 'adam': 
-    opt = torch.optim.Adam(param_groups, lr=float(args.lr), weight_decay = args.weight_decay)
-elif args.optimizer == 'rmsprop':
-    opt = torch.optim.RMSprop(param_groups, lr=float(args.lr), alpha=0.9, weight_decay = args.weight_decay, momentum = 0.9)
-elif args.optimizer == 'adamw':
-    opt = torch.optim.AdamW(param_groups, lr=float(args.lr), weight_decay = args.weight_decay)
-    
-scheduler = torch.optim.lr_scheduler.StepLR(opt, step_size=args.lr_decay_step, gamma = args.lr_decay_gamma)
+from tensorflow_addons.optimizers import AdamW
+model.compile(loss=losses.proxy_anchor_loss, optimizer='adam')
 
 print("Training parameters: {}".format(vars(args)))
 print("Training for {} epochs.".format(args.nb_epochs))
@@ -270,13 +234,11 @@ best_recall = {"f1score@16": 0}
 best_epoch = 0
 
 for epoch in range(0, args.nb_epochs):
-    model.train()
     bn_freeze = args.bn_freeze
     if bn_freeze:
-        modules = model.model.modules() if args.gpu_id != -1 else model.module.model.modules()
-        for m in modules: 
-            if isinstance(m, nn.BatchNorm2d):
-                m.eval()
+        for layer in model.layers:
+            if layer['name'] == 'batch_normalization':
+                layer.trainable = False
 
     losses_per_epoch = []
     
