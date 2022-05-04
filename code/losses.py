@@ -12,7 +12,7 @@ import tensorflow as tf
 
 class TF_proxy_anchor:
     def __init__(self, model, nb_classes, batch_size, sz_embedding):
-        self.nb_classes = nb_classes
+        self.nb_classes = tf.cast(nb_classes, tf.float32)
         model.proxy = tf.compat.v1.get_variable(name='proxy', shape=[batch_size, sz_embedding],
                                                initializer=tf.random_normal_initializer(),
                                                dtype=tf.float32,
@@ -20,7 +20,8 @@ class TF_proxy_anchor:
         self.proxy = model.proxy
 
     def proxy_anchor_loss(self, target, embeddings):
-        n_unique = self.tf_unique_2d(target).shape[0]
+        n_unique = tf.cast(tf.shape(self.tf_unique_2d(target))[0], tf.float32)
+
         embeddings_l2 = tf.nn.l2_normalize(embeddings, axis=1)
         proxy_l2 = tf.nn.l2_normalize(self.proxy, axis=1)
 
@@ -34,9 +35,9 @@ class TF_proxy_anchor:
 
         # n_unique = batch_size // n_instance
 
-        pos_term = 1.0 / n_unique * tf.reduce_sum(
+        pos_term = tf.constant(1.0) / n_unique * tf.reduce_sum(
             tf.math.log(1.0 + tf.reduce_sum(pos_mat, axis=0)))
-        neg_term = 1.0 / self.nb_classes * tf.reduce_sum(tf.math.log(1.0 + tf.reduce_sum(neg_mat, axis=0)))
+        neg_term = tf.constant(1.0) / self.nb_classes * tf.reduce_sum(tf.math.log(1.0 + tf.reduce_sum(neg_mat, axis=0)))
 
         loss = pos_term + neg_term
 

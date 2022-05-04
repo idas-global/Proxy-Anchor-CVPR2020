@@ -61,11 +61,6 @@ def combine_dims(a, i=0, n=1):
 
 
 def predict_batchwise(model, dataloader, return_images=False):
-    model_is_training = model.training
-    model.eval()
-    
-    ds = dataloader.dataset
-
     batch_sz = dataloader.batch_sampler.batch_size
     num_batches = len(dataloader.batch_sampler)
 
@@ -79,35 +74,31 @@ def predict_batchwise(model, dataloader, return_images=False):
 
     missing_batch = 0
 
-    with torch.no_grad():
-        # extract batches (A becomes list of samples)
-        for idx, batch in tqdm(enumerate(dataloader), total=num_batches, desc='Getting Predictions'):
-            for i, J in enumerate(batch):
-                # i = 0: sz_batch * images
-                # i = 1: sz_batch * labels
-                # i = 2: sz_batch * indices
-                if len(J) != batch_sz:
-                    filled_batch = np.array(J, dtype=np.float32)
-                    empty_batch = np.zeros((batch_sz - len(J), *filled_batch.shape[1::]), dtype=np.float32)
-                    missing_batch = len(empty_batch)
+    # extract batches (A becomes list of samples)
+    for idx, batch in tqdm(enumerate(dataloader), total=num_batches, desc='Getting Predictions'):
+        for i, J in enumerate(batch):
+            # i = 0: sz_batch * images
+            # i = 1: sz_batch * labels
+            # i = 2: sz_batch * indices
+            if len(J) != batch_sz:
+                filled_batch = np.array(J, dtype=np.float32)
+                empty_batch = np.zeros((batch_sz - len(J), *filled_batch.shape[1::]), dtype=np.float32)
+                missing_batch = len(empty_batch)
 
-                    if i == 1:
-                        J = torch.from_numpy(np.hstack((filled_batch, empty_batch)))
-                    else:
-                        J = torch.from_numpy(np.vstack((filled_batch, empty_batch)))
-
-                if i == 0:
-                    if return_images:
-                        image_array[i, :] = J
-
-                    # move images to device of model (approximate device)
-                    J = model(J)
-                    predictions[idx, :] = J
+                if i == 1:
+                    J = np.hstack((filled_batch, empty_batch))
                 else:
-                    labels[idx, :] = J
+                    J = np.vstack((filled_batch, empty_batch))
 
-    model.train()
-    model.train(model_is_training) # revert to previous training state
+            if i == 0:
+                if return_images:
+                    image_array[i, :] = J
+
+                # move images to device of model (approximate device)
+                J = model.predict(J)
+                predictions[idx, :] = J
+            else:
+                labels[idx, :] = J
 
     if return_images:
         image_array = combine_dims(image_array, 0, 1)
@@ -120,8 +111,8 @@ def predict_batchwise(model, dataloader, return_images=False):
     labels = labels[0:-missing_batch]
 
     if return_images:
-        return [torch.from_numpy(predictions), torch.from_numpy(labels), torch.from_numpy(image_array)]
-    return [torch.from_numpy(predictions), torch.from_numpy(labels)]
+        return [predictions, labels, image_array]
+    return [predictions, labels]
 
 
 def proxy_init_calc(model, dataloader):
