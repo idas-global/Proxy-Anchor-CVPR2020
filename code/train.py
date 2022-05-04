@@ -2,7 +2,9 @@ import argparse, os
 import random, dataset, utils, losses
 
 import numpy as np
-import tensorflow
+import tensorflow as tf
+from tensorflow.keras import Model
+from tensorflow.python.keras.utils.np_utils import to_categorical
 
 from dataset.Inshop import Inshop_Dataset
 from net.resnet import *
@@ -215,16 +217,24 @@ else:
 nb_classes = trn_dataset.nb_classes()
 
 # model = model
-model = tensorflow.keras.applications.inception_resnet_v2.InceptionResNetV2(
+input = tf.keras.Input((224, 224, 3))
+backbone = tf.keras.applications.inception_resnet_v2.InceptionResNetV2(
     include_top=False,
     weights='imagenet',
     input_tensor=None,
     input_shape=(224, 224, 3),
     pooling=None,
     classes=1000,
-    classifier_activation='softmax')
+    classifier_activation='softmax')(input)
+flat = tf.keras.layers.Flatten()(backbone)
+embed = tf.keras.layers.Dense(args.sz_embedding, kernel_initializer=tf.keras.initializers.HeNormal(),
+                                      use_bias=False, activation=None)(flat)
 
-model.compile(loss=losses.proxy_anchor_loss, optimizer='adam')
+model = Model(inputs=input, outputs=embed)
+
+criterion = losses.TF_proxy_anchor(model, len(dl_tr.dataset.classes), dl_tr.batch_size, args.sz_embedding)
+
+model.compile(loss=criterion.proxy_anchor_loss, optimizer='adam')
 
 print("Training parameters: {}".format(vars(args)))
 print("Training for {} epochs.".format(args.nb_epochs))
@@ -245,10 +255,12 @@ for epoch in range(0, args.nb_epochs):
 
     for batch_idx, (x, y) in pbar:
         x = np.moveaxis((np.array(x.squeeze())), 1, -1).astype(np.float32)
-        y = np.array(y).astype(np.float32).reshape(-1, 1)
+        y = to_categorical(np.array(y).astype(np.float32).reshape(-1, 1))
+        loss = criterion.proxy_anchor_loss(y, model.predict(x))
+
+        print(loss)
         m = model.fit(x, y)
-        loss = criterion(m, y)
-        
+
         opt.zero_grad()
         loss.backward()
         
