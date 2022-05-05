@@ -198,7 +198,7 @@ def calc_recall(T, Y, epoch, k, metrics, recall):
 
 def plot_confusion(data_viz_frame, dataloader, dest):
     params = ['label_coarse', 'label_fine', 'denom']
-    if 'Rupert_Book' not in dataloader.dataset.im_paths[0]:
+    if 'NoteStyles' != dataloader.data.dataset.name:
         params = ['label_coarse', 'label_fine']
     for param in params:
         fig = plt.Figure(figsize=(48, 48))
