@@ -330,11 +330,8 @@ def get_accuracies(T, X, dataloader, neighbors):
 
     y_preds = np.zeros(len(pictures_to_predict))
 
-    neighbors = {k: [vi for vi in v if vi not in pictures_to_predict]
-                 for k, v in dict(zip(range(len(pictures_to_predict)), neighbors)).items()}
-
     for idx, pic in tqdm(enumerate(pictures_to_predict), total=len(pictures_to_predict), desc='Accuracy Analysis'):
-        neighbors_to_pic = neighbors[pic]
+        neighbors_to_pic = np.setdiff1d(neighbors[pic, :], pictures_to_predict)
 
         preds, counts = np.unique(T[neighbors_to_pic], return_counts=True)
         close_preds = preds[np.argsort(counts)[-2::]]
@@ -354,8 +351,8 @@ def get_accuracies(T, X, dataloader, neighbors):
 
             predictions[close_pred] = (sum(cs)/np.sqrt(len(cs)))[0]
 
-        #y_preds[idx] = torch.mode(T[neighbors_to_pic]).values
         y_preds[idx] = max(predictions, key=predictions.get)
+
     print(f'Accuracy at Specific: {accuracy_score(y_preds, np.array(ground_truth)) * 100}')
 
     coarse_predictions = [coarse_filter_dict[pred] for pred in y_preds]
