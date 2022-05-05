@@ -228,7 +228,7 @@ def form_data_viz_frame(X, coarse_filter_dict, dataloader, fine_filter_dict, y_p
     data_viz_frame['prediction_label_coarse'] = data_viz_frame['prediction'].map(coarse_filter_dict, y_preds)
     data_viz_frame['truth_label_fine'] = data_viz_frame['truth'].map(fine_filter_dict, y_true)
     data_viz_frame['prediction_label_fine'] = data_viz_frame['prediction'].map(fine_filter_dict, y_preds)
-    if 'Rupert_Book' in dataloader.dataset.im_paths[0]:
+    if 'NoteStyles' == dataloader.data.name:
         data_viz_frame['truth_denom'] = [label.split('_')[0] for label in data_viz_frame['truth_label_fine']]
         data_viz_frame['prediction_denom'] = [label.split('_')[0] for label in data_viz_frame['prediction_label_fine']]
     data_viz_frame['mean_coarse'] = X.mean(axis=1)
