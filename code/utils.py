@@ -150,6 +150,9 @@ def evaluate_cos(model, dataloader, epoch, args):
     else:
         X, T = predict_batchwise(model, dataloader, return_images=False)
 
+    print(X.shape)
+    print(T.shape)
+    print(I.shape)
     X = l2_norm(X)
 
     # get predictions by assigning nearest 8 neighbors with cosine
