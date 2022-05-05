@@ -5,6 +5,7 @@ import itertools
 from operator import itemgetter
 import pandas as pd
 import numpy as np
+import tensorflow
 import torch
 import random
 from matplotlib.colors import ListedColormap
@@ -28,13 +29,9 @@ import mplcursors
 
 
 def l2_norm(input):
-    input_size = input.size()
-    buffer = torch.pow(input, 2)
-    normp = torch.sum(buffer, 1).add_(1e-12)
-    norm = torch.sqrt(normp)
-    _output = torch.div(input, norm.view(-1, 1).expand_as(input))
-    output = _output.view(input_size)
-
+    buffer = input**2
+    normp = np.sqrt(np.sum(buffer, axis=1))
+    output = input/normp[:, None]
     return output
 
 def calc_recall_at_k(T, Y, k):
@@ -101,6 +98,8 @@ def predict_batchwise(model, train_gen, return_images=False):
             else:
                 labels[idx, :] = np.argmax(J, axis=1)
 
+    if missing_batch == 0: missing_batch = -1 * num_batches * batch_sz
+
     if return_images:
         image_array = combine_dims(image_array, 0, 1)
         image_array = image_array[0:-missing_batch, :]
@@ -150,35 +149,17 @@ def evaluate_cos(model, dataloader, epoch, args):
     else:
         X, T = predict_batchwise(model, dataloader, return_images=False)
 
-    print(X.shape)
-    print(T.shape)
-    print(I.shape)
     X = l2_norm(X)
 
     # get predictions by assigning nearest 8 neighbors with cosine
     K = 32
-    cos_sim = F.linear(X, X)
-    neighbors = cos_sim.topk(1 + K)[1][:, 1:]
+    cos_sim = tensorflow.matmul(X, X, transpose_b=True)
+    neighbors = tensorflow.math.top_k(cos_sim, 1 + K)[1][:, 1:]
     Y = T[neighbors]
-    Y = Y.float().cpu()
-
-    pred_dict = {}
-    k = 5
-    for idx, (t, y) in enumerate(zip(T, Y)):
-        label = torch.mode(torch.Tensor(y).long()[:k]).values
-        if label not in pred_dict.keys():
-            pred_dict[label.item()] = []
-
-        pred_dict[label.item()] = list([i.item() for i in neighbors[idx]])
-
-    centroids = {}
-    for label, items in pred_dict.items():
-        centroids[label] = np.array(X[items].mean(axis=1))
-
     recall = {}
 
     if epoch % 2 == 0:
-        coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors, pred_dict, centroids)
+        coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors)
         recall['specific_accuracy'] = metrics['specific_accuracy'].values[0]
         recall['coarse_accuracy'] = metrics['coarse_accuracy'].values[0]
     #plot_feature_space(X, dataloader)
@@ -337,23 +318,29 @@ def cosine_similarity(v1,v2):
     return sumxy/math.sqrt(sumxx*sumyy)
 
 
-def get_accuracies(T, X, dataloader, neighbors, pred_dict, centroids):
-    pictures_to_predict = random.choices(range(len(X)), k=int(round(len(dataloader.dataset.im_paths)*50/100)))
+def get_accuracies(T, X, dataloader, neighbors):
+    pictures_to_predict = random.choices(range(len(X)), k=int(round(len(dataloader.data.dataset.im_paths)*50/100)))
     ground_truth = T[pictures_to_predict]
 
     coarse_filter_dict = {class_num: specific_species
-                          for class_num, specific_species in zip(np.array(T), dataloader.dataset.class_names_coarse)}
+                          for class_num, specific_species in zip(np.array(T), dataloader.data.dataset.class_names_coarse)}
 
     fine_filter_dict = {class_num : specific_species
-                        for class_num, specific_species in zip(np.array(T), dataloader.dataset.class_names_fine)}
+                        for class_num, specific_species in zip(np.array(T), dataloader.data.dataset.class_names_fine)}
 
     y_preds = np.zeros(len(pictures_to_predict))
+
+    neighbors = {k: [vi for vi in v if vi not in pictures_to_predict]
+                 for k, v in dict(zip(range(len(pictures_to_predict)), neighbors)).items()}
+
     for idx, pic in tqdm(enumerate(pictures_to_predict), total=len(pictures_to_predict), desc='Accuracy Analysis'):
-        neighbors_to_pic = [neigh.item() for neigh in neighbors[pic] if neigh not in pictures_to_predict]
+        neighbors_to_pic = neighbors[pic]
 
         preds, counts = np.unique(T[neighbors_to_pic], return_counts=True)
         close_preds = preds[np.argsort(counts)[-2::]]
+        
         predictions = {}
+        
         for close_pred in close_preds:
             neighbors_pred = [i for i in neighbors_to_pic if T[i] == close_pred]
             one = np.array(X[neighbors_pred])
