@@ -60,22 +60,23 @@ def combine_dims(a, i=0, n=1):
   return np.reshape(a, s[:i] + [combined] + s[i+n+1:])
 
 
-def predict_batchwise(model, dataloader, return_images=False):
-    batch_sz = dataloader.batch_sampler.batch_size
-    num_batches = len(dataloader.batch_sampler)
+def predict_batchwise(model, train_gen, return_images=False):
+    batch_sz = train_gen.batch_size
+    num_batches = train_gen.__len__()
 
-    predictions = np.zeros((num_batches, batch_sz, 512))
+    predictions = np.zeros((num_batches, batch_sz, train_gen.sz_embedding))
     labels = np.zeros((num_batches, batch_sz))
 
     if return_images:
         # TODO add a attribute to dataloader that gives the shape
         #image_array = np.zeros((len(dataloader.dataset.im_paths), 3, 224, 224))
-        image_array = np.zeros((num_batches, batch_sz, 3, 224, 224))
+        image_array = np.zeros((num_batches, batch_sz, *train_gen.img_dimensions))
 
     missing_batch = 0
 
     # extract batches (A becomes list of samples)
-    for idx, batch in tqdm(enumerate(dataloader), total=num_batches, desc='Getting Predictions'):
+    for idx in range(num_batches):
+        batch = train_gen.__getitem__(idx)
         for i, J in enumerate(batch):
             # i = 0: sz_batch * images
             # i = 1: sz_batch * labels
@@ -98,7 +99,7 @@ def predict_batchwise(model, dataloader, return_images=False):
                 J = model.predict(J)
                 predictions[idx, :] = J
             else:
-                labels[idx, :] = J
+                labels[idx, :] = np.argmax(J, axis=1)
 
     if return_images:
         image_array = combine_dims(image_array, 0, 1)

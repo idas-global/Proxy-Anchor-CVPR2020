@@ -6,6 +6,7 @@ import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.python.keras.utils.np_utils import to_categorical
 
+from dataset.utils import Transform
 from generator import DataGenerator
 from dataset.Inshop import Inshop_Dataset
 from net.resnet import *
@@ -108,12 +109,14 @@ wandb.config.update(args)
 os.chdir('../data/')
 data_root = os.getcwd()
 # Dataset Loader and Sampler
+transformer = Transform(args.model == 'bn_inception')
+
 if args.dataset == 'note_styles':
     trn_dataset = dataset.load(
         name=args.dataset,
         root=data_root,
         mode='train',
-        transform=dataset.utils.make_transform(
+        transform=transformer.make_transform(
             is_train=True,
             is_inception=(args.model == 'bn_inception'),
             crop=False
@@ -123,10 +126,10 @@ elif args.dataset != 'Inshop':
             name = args.dataset,
             root = data_root,
             mode = 'train',
-            transform = dataset.utils.make_transform(
-                is_train = True, 
-                is_inception = (args.model == 'bn_inception')
-            ))
+            transform = transformer.make_transform(
+                is_train=True,
+                is_inception=(args.model == 'bn_inception'),
+        ))
 
 dl_tr = torch.utils.data.DataLoader(
     trn_dataset,
@@ -136,6 +139,7 @@ dl_tr = torch.utils.data.DataLoader(
     drop_last = True,
     pin_memory = True
 )
+dl_tr.transformer = transformer
 print('Random Sampling')
 
 
@@ -143,10 +147,10 @@ ev_dataset = dataset.load(
             name = args.dataset,
             root = data_root,
             mode = 'eval',
-            transform = dataset.utils.make_transform(
-                is_train = False,
-                is_inception = (args.model == 'bn_inception')
-            ))
+            transform=transformer.make_transform(
+                is_train=True,
+                is_inception=(args.model == 'bn_inception'),
+        ))
 
 dl_ev = torch.utils.data.DataLoader(
         ev_dataset,
@@ -155,7 +159,7 @@ dl_ev = torch.utils.data.DataLoader(
         num_workers = args.nb_workers,
         pin_memory = True
     )
-
+dl_ev.transformer = transformer
 
 nb_classes = trn_dataset.nb_classes()
 
@@ -196,10 +200,13 @@ for epoch in range(0, args.nb_epochs):
         if epoch == args.warm:
             model.layers[-1].trainable = True
 
-    train_gen = DataGenerator(dl_tr)
+    train_gen = DataGenerator(dl_tr, args.sz_embedding)
+    eval_gen = DataGenerator(dl_ev, args.sz_embedding)
     m = model.fit(train_gen, verbose=1, shuffle=True)
 
     if epoch % 3 == 0:
-        Recalls = utils.evaluate_cos(model, dl_ev, epoch, args)
+        Recalls = utils.evaluate_cos(model, eval_gen, epoch, args)
+
+
 
 

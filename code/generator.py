@@ -2,17 +2,18 @@ from tensorflow import keras
 from keras.utils.np_utils import to_categorical
 
 import numpy as np
-from tqdm import tqdm
 
 
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, dl_tr, shuffle=True):
+    def __init__(self, dl_tr, sz_embedding, shuffle=True):
         'Initialization'
         self.batch_size = dl_tr.batch_size
         self.shuffle = shuffle
         self.dataset_size = len(dl_tr.dataset.im_paths)
         self.data = dl_tr
+        self.img_dimensions = (dl_tr.transformer.sz_crop, dl_tr.transformer.sz_crop, 3)
+        self.sz_embedding = sz_embedding
 
     def __len__(self):
         'Denotes the number of batches per epoch'
