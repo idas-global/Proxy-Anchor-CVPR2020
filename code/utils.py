@@ -334,7 +334,7 @@ def get_accuracies(T, X, dataloader, neighbors):
     y_preds = np.zeros(len(pictures_to_predict))
 
     for idx, pic in tqdm(enumerate(pictures_to_predict), total=len(pictures_to_predict), desc='Accuracy Analysis'):
-        neighbors_to_pic = np.setdiff1d(neighbors[pic, :], pictures_to_predict)
+        neighbors_to_pic = np.array(neighbors[pic, :][~np.in1d(neighbors[pic, :], pictures_to_predict)])
 
         preds, counts = np.unique(T[neighbors_to_pic], return_counts=True)
         close_preds = preds[np.argsort(counts)[-2::]]

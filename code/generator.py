@@ -1,6 +1,7 @@
 import os
 import random
 import cv2
+import matplotlib.pyplot as plt
 from tensorflow import keras
 from keras.utils.np_utils import to_categorical
 import albumentations as alb
@@ -43,8 +44,6 @@ def transform(dataset, image):
         alb.RandomRain(p=0.1),
         alb.CoarseDropout(p=0.1),
         alb.ShiftScaleRotate(p=0.2, rotate_limit=10),
-        alb.ToGray(p=0.1),
-        alb.ChannelDropout(p=0.1),
         alb.GridDistortion(p=0.1),
         alb.HorizontalFlip(),
 
@@ -54,11 +53,14 @@ def transform(dataset, image):
 
         alb.CenterCrop(sz_crop, sz_crop, p=p),
 
-        alb.Normalize(mean=mean, std=std)
+        alb.Normalize(mean=mean, std=std, always_apply=True)
     ], p=1)
     transformed = transform(image=image)['image']
     if (sz_crop, sz_crop) != transformed.shape[:-1]:
         transformed = cv2.resize(transformed, (sz_crop, sz_crop))
+    import matplotlib.pyplot as plt
+    plt.imshow(transformed)
+    plt.show()
     return transformed
 
 class NoteStyles(keras.utils.Sequence):

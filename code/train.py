@@ -100,7 +100,9 @@ def create_and_compile_model():
                                   use_bias=False, activation=None)(flat)
     model = Model(inputs=backbone.input, outputs=embed)
     criterion = losses.TF_proxy_anchor(model, len(train_gen.ys), train_gen.batch_size, args.sz_embedding)
-    model.compile(loss=criterion.proxy_anchor_loss, optimizer=tf.keras.optimizers.Adam(global_clipnorm=10))
+    import tensorflow_addons as tfa
+    model.compile(loss=criterion.proxy_anchor_loss, optimizer=tfa.optimizers.AdamW(lr=float(args.lr),
+                                                                                   weight_decay = args.weight_decay))
     return model
 
 
@@ -162,7 +164,7 @@ for epoch in range(0, args.nb_epochs):
         if epoch == args.warm:
             model.layers[-1].trainable = True
 
-    m = model.fit(train_gen, verbose=1, shuffle=True)
+    model.fit(train_gen, validation_data=val_gen, verbose=1, shuffle=True)
 
     if epoch % 3 == 0:
         print('#####################')
