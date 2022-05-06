@@ -165,6 +165,12 @@ for epoch in range(0, args.nb_epochs):
     m = model.fit(train_gen, verbose=1, shuffle=True)
 
     if epoch % 3 == 0:
+        print('#####################')
+        print('###### TRAIN  #######')
+        Recalls = utils.evaluate_cos(model, train_gen, epoch, args)
+
+        print('#####################')
+        print('######  TEST  #######')
         Recalls = utils.evaluate_cos(model, test_gen, epoch, args)
 
 
