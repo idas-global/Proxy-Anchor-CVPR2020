@@ -12,14 +12,14 @@ import scipy.io
 def transform(dataset, image):
     sz_resize = 256
     sz_crop = 224
-    mean = [0.485, 0.456, 0.406]
-    std = [0.229, 0.224, 0.225]
+    mean = (0.485, 0.456, 0.406)
+    std = (0.229, 0.224, 0.225)
 
     if dataset.is_inception:
         sz_resize = 256
         sz_crop = 224
-        mean = [104, 117, 128]
-        std = [1, 1, 1]
+        mean = (104, 117, 128)
+        std = (1, 1, 1)
 
     if image.shape[0] < sz_crop and image.shape[1] < sz_crop:
         image = cv2.resize(image, (int(np.ceil(image.shape[1] * sz_crop / image.shape[1])),
@@ -52,15 +52,14 @@ def transform(dataset, image):
         alb.transforms.Resize(sz_resize, sz_resize),
 
         alb.CenterCrop(sz_crop, sz_crop, p=p),
-
-        alb.Normalize(mean=mean, std=std, always_apply=True)
     ], p=1)
     transformed = transform(image=image)['image']
     if (sz_crop, sz_crop) != transformed.shape[:-1]:
         transformed = cv2.resize(transformed, (sz_crop, sz_crop))
-    import matplotlib.pyplot as plt
-    plt.imshow(transformed)
-    plt.show()
+
+    for i in range(len(transformed.shape)):
+        transformed[:, :, i] = mean[i]*(transformed[:, :, i] - np.mean(transformed[:, :, i]))/np.std(transformed[:, :, i])
+
     return transformed
 
 class NoteStyles(keras.utils.Sequence):
