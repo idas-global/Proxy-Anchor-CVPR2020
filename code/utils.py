@@ -164,6 +164,7 @@ def evaluate_cos(model, dataloader, epoch, args):
         recall['coarse_accuracy'] = metrics['coarse_accuracy'].values[0]
     #plot_feature_space(X, dataloader)
 
+    metrics = pd.DataFrame()
     for k in [3, 5, 7]:
         y_preds, y_true = calc_recall(T, Y, epoch, k, metrics, recall)
 
