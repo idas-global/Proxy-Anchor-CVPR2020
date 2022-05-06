@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model
 
-from generator import NoteStyles
+from generator import NoteStyles, Cars
 
 import wandb
 
@@ -121,13 +121,13 @@ data_root = os.getcwd()
 seed = np.random.choice(range(144444))
 if args.dataset == 'note_styles':
     train_gen = NoteStyles(args, seed, shuffle=True, mode='train')
-    train_gen.__getitem__(4)
-    val_gen = NoteStyles(args, seed, shuffle=True, mode='val')
-    test_gen = NoteStyles(args, seed, shuffle=True, mode='test')
+    val_gen   = NoteStyles(args, seed, shuffle=True, mode='val')
+    test_gen  = NoteStyles(args, seed, shuffle=True, mode='test')
 
 elif args.dataset != 'Inshop':
-    pass
-
+    train_gen = Cars(args, seed, shuffle=True, mode='train')
+    val_gen = Cars(args, seed, shuffle=True, mode='val')
+    test_gen = Cars(args, seed, shuffle=True, mode='test')
 
 model = create_and_compile_model()
 
