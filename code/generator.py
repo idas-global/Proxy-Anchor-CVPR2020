@@ -35,6 +35,9 @@ def transform(dataset, image):
         p = 0
 
     broken = True
+    import warnings
+    warnings.filterwarnings("error")
+
     k = 0
     while broken:
         transformed = transform_image(image, p, sz_crop, sz_resize)
@@ -47,8 +50,7 @@ def transform(dataset, image):
                 #print('WARNING: Transform Object Broken')
                 continue
 
-        import warnings
-        warnings.filterwarnings("error")
+
         try:
             transformed[:, :, i] = mean[i] \
                                    + std[i] * (transformed[:, :, i]
@@ -59,6 +61,7 @@ def transform(dataset, image):
             continue
 
         broken = False
+    warnings.filterwarnings("ignore")
     return transformed
 
 

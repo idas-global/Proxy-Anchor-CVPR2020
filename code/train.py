@@ -86,7 +86,7 @@ def configure_parser():
     return parser.parse_args()
 
 
-def create_and_compile_model():
+def create_and_compile_model(train_gen, args):
     # model = model
     y_input = Input(shape=(train_gen.nb_classes,))
     backbone = tf.keras.applications.inception_resnet_v2.InceptionResNetV2(
@@ -107,62 +107,34 @@ def create_and_compile_model():
     return model
 
 
-args = configure_parser()
+def create_generators(args, seed):
+    if args.dataset == 'note_styles':
+        train_gen = NoteStyles(args, seed, shuffle=True, mode='train')
+        val_gen = NoteStyles(args, seed, shuffle=True, mode='val')
+        test_gen = NoteStyles(args, seed, shuffle=True, mode='test')
 
-# Directory for Log
-LOG_DIR = args.LOG_DIR + '/logs_{}/{}_{}_embedding{}_alpha{}_mrg{}_{}_lr{}_batch{}{}'.format(args.dataset, args.model, args.loss, args.sz_embedding, args.alpha, 
-                                                                                            args.mrg, args.optimizer, args.lr, args.sz_batch, args.remark)
-
-os.chdir('../data/')
-data_root = os.getcwd()
-# Dataset Loader and Sampler
-
-seed = np.random.choice(range(144444))
-if args.dataset == 'note_styles':
-    train_gen = NoteStyles(args, seed, shuffle=True, mode='train')
-    val_gen   = NoteStyles(args, seed, shuffle=True, mode='val')
-    test_gen  = NoteStyles(args, seed, shuffle=True, mode='test')
-
-elif args.dataset != 'Inshop':
-    train_gen = Cars(args, seed, shuffle=True, mode='train')
-    val_gen = Cars(args, seed, shuffle=True, mode='val')
-    test_gen = Cars(args, seed, shuffle=True, mode='test')
-
-model = create_and_compile_model()
-
-print("Training for {} epochs.".format(args.nb_epochs))
-
-checkpoint_filepath = args.LOG_DIR\
-                      + '/logs_{}/{}_{}_embedding{}_alpha{}_mrg{}_{}_lr{}_batch{}{}'.format(args.dataset, args.model,
-                                                                                            args.loss,
-                                                                                            args.sz_embedding,
-                                                                                            args.alpha,
-                                                                                            args.mrg, args.optimizer,
-                                                                                            args.lr, args.sz_batch,
-                                                                                            args.remark)
-model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-    filepath=checkpoint_filepath,
-    save_weights_only=False,
-    monitor='val_loss',
-    mode='min',
-    save_best_only=True)
+    elif args.dataset == 'cars':
+        train_gen = Cars(args, seed, shuffle=True, mode='train')
+        val_gen = Cars(args, seed, shuffle=True, mode='val')
+        test_gen = Cars(args, seed, shuffle=True, mode='test')
+    return train_gen, val_gen, test_gen
 
 
-for epoch in range(0, args.nb_epochs):
-    bn_freeze = args.bn_freeze
-    if bn_freeze:
-        for layer in model.layers:
-            if layer.name == 'batch_normalization':
-                layer.trainable = False
+def create_save_dir(args):
+    checkpoint_filepath = args.LOG_DIR \
+                          + '/logs_{}/{}_{}_embedding{}_alpha{}_mrg{}_{}_lr{}_batch{}{}'.format(args.dataset,
+                                                                                                args.model,
+                                                                                                args.loss,
+                                                                                                args.sz_embedding,
+                                                                                                args.alpha,
+                                                                                                args.mrg,
+                                                                                                args.optimizer,
+                                                                                                args.lr, args.sz_batch,
+                                                                                                args.remark)
+    return checkpoint_filepath
 
-    if args.warm > 0:
-        if epoch == 0:
-            model.layers[-1].trainable = False
-        if epoch == args.warm:
-            model.layers[-1].trainable = True
 
-    model.fit(train_gen, validation_data=val_gen, verbose=1, shuffle=True)
-
+def test_predictions(args, epoch, model, test_gen, train_gen):
     predict_model = Model(inputs=model.input, outputs=model.layers[-2].output)
     if epoch % 3 == 0:
         print('#####################')
@@ -174,8 +146,52 @@ for epoch in range(0, args.nb_epochs):
         Recalls = utils.evaluate_cos(predict_model, test_gen, epoch, args)
 
 
+def prepare_layers(args, epoch, model):
+    bn_freeze = args.bn_freeze
+    if bn_freeze:
+        for layer in model.layers:
+            if layer.name == 'batch_normalization':
+                layer.trainable = False
+    if args.warm > 0:
+        if epoch == 0:
+            model.layers[-1].trainable = False
+        if epoch == args.warm:
+            model.layers[-1].trainable = True
 
 
+def main():
+    args = configure_parser()
 
+    os.chdir('../data/')
+    data_root = os.getcwd()
+    # Dataset Loader and Sampler
+
+    seed = np.random.choice(range(144444))
+    train_gen, val_gen, test_gen = create_generators(args, seed)
+
+    model = create_and_compile_model(train_gen, args)
+
+    print("Training for {} epochs.".format(args.nb_epochs))
+
+    save_path = create_save_dir(args)
+
+    model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+                                                            filepath=save_path,
+                                                            save_weights_only=False,
+                                                            monitor='val_loss',
+                                                            mode='min',
+                                                            save_best_only=True
+    )
+
+    for epoch in range(0, args.nb_epochs):
+        prepare_layers(args, epoch, model)
+
+        model.fit(train_gen, validation_data=val_gen, verbose=1, shuffle=True)
+
+        test_predictions(args, epoch, model, test_gen, train_gen)
+
+
+if __name__ == '__main__':
+    main()
 
 
