@@ -73,7 +73,7 @@ def predict_batchwise(model, train_gen, return_images=False):
     # extract batches (A becomes list of samples)
     for idx in range(num_batches):
         batch = train_gen.__getitem__(idx)
-        for i, J in enumerate(tqdm(batch)):
+        for i, J in enumerate(batch):
             # i = 0: sz_batch * images
             # i = 1: sz_batch * labels
             # i = 2: sz_batch * indices
