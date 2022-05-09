@@ -138,6 +138,7 @@ diagnostics/
 /misc
 saved_profiling_objects/
 templates/
+logs/
 {dest}/
 .idea/
 data/
@@ -153,3 +154,4 @@ __pycache__
 templates/temp_score_frame.csv
 *.pkl
 *.pth
+*.v2

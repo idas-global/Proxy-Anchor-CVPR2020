@@ -185,13 +185,15 @@ def main():
                                                             mode='min',
                                                             save_best_only=True
     )
+    tensorBoard = tf.keras.callbacks.TensorBoard(log_dir=save_path, histogram_freq=1)
 
     for epoch in range(0, args.nb_epochs):
         prepare_layers(args, epoch, model)
 
-        model.fit(train_gen, validation_data=val_gen, verbose=1, shuffle=True)
-
-        test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
+        model.fit(train_gen, validation_data=val_gen, verbose=1, shuffle=True, callbacks=[model_checkpoint_callback,
+                                                                                          tensorBoard])
+        if epoch > 5:
+            test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
 
 
 if __name__ == '__main__':

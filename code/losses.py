@@ -1,7 +1,6 @@
-from pytorch_metric_learning import miners, losses
 import tensorflow as tf
-# use tensorflow graph with tf 1.xx version
-
+import numpy as np
+from tensorflow.python.ops import gen_array_ops
 
 class TF_proxy_anchor(tf.keras.layers.Layer):
     def __init__(self, nb_classes, batch_size, sz_embedding):
@@ -20,9 +19,13 @@ class TF_proxy_anchor(tf.keras.layers.Layer):
     def get_vars(self):
         return self.proxy
 
+    def distinct(self, a):
+        _a = np.unique(a, axis=0)
+        return _a
+
     def custom_loss(self, target, embeddings):
-        #n_unique = tf.cast(tf.shape(self.tf_unique_2d(target))[0], tf.float32)
-        n_unique = 48
+        y, idx, count = gen_array_ops.unique_with_counts_v2(target, [0])
+
         embeddings_l2 = tf.nn.l2_normalize(embeddings, axis=1)
         proxy_l2 = tf.nn.l2_normalize(self.proxy, axis=1)
 
@@ -36,12 +39,11 @@ class TF_proxy_anchor(tf.keras.layers.Layer):
 
         # n_unique = batch_size // n_instance
 
-        pos_term = tf.constant(1.0) / n_unique * tf.reduce_sum(
-            tf.math.log(1.0 + tf.reduce_sum(pos_mat, axis=0)))
+        pos_term = tf.cast(tf.math.divide(tf.constant(1), tf.shape(y)), tf.float32) * tf.reduce_sum(tf.math.log(tf.constant(1.0, dtype=tf.float32) + tf.reduce_sum(pos_mat, axis=0)))
         neg_term = tf.constant(1.0) / self.nb_classes * tf.reduce_sum(tf.math.log(1.0 + tf.reduce_sum(neg_mat, axis=0)))
 
         loss = pos_term + neg_term
-
+        print(tf.shape(y))
         return loss
 
     def tf_unique_2d(self, x):
