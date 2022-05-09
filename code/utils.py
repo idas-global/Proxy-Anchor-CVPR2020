@@ -92,7 +92,7 @@ def predict_batchwise(model, train_gen, return_images=False):
                     image_array[i, :] = J
 
                 # move images to device of model (approximate device)
-                J = model.predict([J, np.random.rand(len(J))]) # Second arg is a dummy input
+                J = model.predict([J, np.zeros_like(batch[1])]) # Second arg is a dummy input
                                                                 # because its not in training mode
                 predictions[idx, :] = J
             else:
@@ -307,7 +307,6 @@ def plot_node_graph(X, data_viz_frame, dataloader, para, deg, dest):
     nx.draw(G, node_size=600, pos=pos, with_labels=False, ax=fig.add_subplot(111))
     plt.show(block=False)
     fig.savefig(f'{dest}/node_graph_{para}_{deg}.png', bbox_inches='tight', dpi=200)
-    print('Graph Drawn')
     return centroids
 
 import math

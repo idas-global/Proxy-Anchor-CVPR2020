@@ -57,7 +57,7 @@ def transform(dataset, image):
                                                - np.mean(transformed[:, :, i]))/np.std(transformed[:, :, i])
         except RuntimeWarning:
             k += 1
-            print(f'Failed Iter {k}')
+            #print(f'Failed Iter {k}') # TODO Fix this sty transform function
             continue
 
         broken = False

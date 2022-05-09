@@ -134,7 +134,7 @@ def create_save_dir(args):
     return checkpoint_filepath
 
 
-def test_predictions(args, epoch, model, test_gen, train_gen):
+def test_predictions(args, epoch, model, train_gen, val_gen, test_gen):
     predict_model = Model(inputs=model.input, outputs=model.layers[-2].output)
     if epoch % 3 == 0:
         print('#####################')
@@ -145,6 +145,9 @@ def test_predictions(args, epoch, model, test_gen, train_gen):
         print('######  TEST  #######')
         Recalls = utils.evaluate_cos(predict_model, test_gen, epoch, args)
 
+        print('#####################')
+        print('######   VAL  #######')
+        Recalls = utils.evaluate_cos(predict_model, val_gen, epoch, args)
 
 def prepare_layers(args, epoch, model):
     bn_freeze = args.bn_freeze
@@ -188,7 +191,7 @@ def main():
 
         model.fit(train_gen, validation_data=val_gen, verbose=1, shuffle=True)
 
-        test_predictions(args, epoch, model, test_gen, train_gen)
+        test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
 
 
 if __name__ == '__main__':
