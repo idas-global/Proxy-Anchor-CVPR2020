@@ -35,7 +35,7 @@ def transform(dataset, image):
         p = 0
 
     broken = True
-
+    k = 0
     while broken:
         transformed = transform_image(image, p, sz_crop, sz_resize)
 
@@ -47,9 +47,18 @@ def transform(dataset, image):
                 #print('WARNING: Transform Object Broken')
                 continue
 
-        broken = False
-        transformed[:, :, i] = mean[i] + std[i] * (transformed[:, :, i] - np.mean(transformed[:, :, i]))/np.std(transformed[:, :, i])
+        import warnings
+        warnings.filterwarnings("error")
+        try:
+            transformed[:, :, i] = mean[i] \
+                                   + std[i] * (transformed[:, :, i]
+                                               - np.mean(transformed[:, :, i]))/np.std(transformed[:, :, i])
+        except RuntimeWarning:
+            k += 1
+            print(f'Failed Iter {k}')
+            continue
 
+        broken = False
     return transformed
 
 
