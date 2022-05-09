@@ -39,11 +39,11 @@ class TF_proxy_anchor(tf.keras.layers.Layer):
 
         # n_unique = batch_size // n_instance
 
-        pos_term = tf.cast(tf.math.divide(tf.constant(1), tf.shape(y)), tf.float32) * tf.reduce_sum(tf.math.log(tf.constant(1.0, dtype=tf.float32) + tf.reduce_sum(pos_mat, axis=0)))
+        pos_term = tf.cast(tf.math.divide(tf.constant(1), tf.concat((tf.shape(y)[:2],[1]), axis=0)), tf.float32) * tf.reduce_sum(tf.math.log(tf.constant(1.0, dtype=tf.float32) + tf.reduce_sum(pos_mat, axis=0)))
         neg_term = tf.constant(1.0) / self.nb_classes * tf.reduce_sum(tf.math.log(1.0 + tf.reduce_sum(neg_mat, axis=0)))
 
         loss = pos_term + neg_term
-        print(tf.shape(y))
+
         return loss
 
     def tf_unique_2d(self, x):
