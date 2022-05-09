@@ -34,6 +34,26 @@ def transform(dataset, image):
     if dataset.name == 'NoteStyles':
         p = 0
 
+    broken = True
+
+    while broken:
+        transformed = transform_image(image, p, sz_crop, sz_resize)
+
+        if (sz_crop, sz_crop) != transformed.shape[:-1]:
+            transformed = cv2.resize(transformed, (sz_crop, sz_crop))
+
+        for i in range(len(transformed.shape)):
+            if np.std(transformed[:, :, i]) == 0:
+                #print('WARNING: Transform Object Broken')
+                continue
+
+        broken = False
+        transformed[:, :, i] = mean[i] + std[i] * (transformed[:, :, i] - np.mean(transformed[:, :, i]))/np.std(transformed[:, :, i])
+
+    return transformed
+
+
+def transform_image(image, p, sz_crop, sz_resize):
     transform = alb.Compose([
         alb.RandomCrop(sz_crop, sz_crop, p=p),
 
@@ -52,13 +72,8 @@ def transform(dataset, image):
         alb.CenterCrop(sz_crop, sz_crop, p=p),
     ], p=1)
     transformed = transform(image=image)['image'].astype('float32')
-    if (sz_crop, sz_crop) != transformed.shape[:-1]:
-        transformed = cv2.resize(transformed, (sz_crop, sz_crop))
-
-    for i in range(len(transformed.shape)):
-        transformed[:, :, i] = mean[i] + std[i] * (transformed[:, :, i] - np.mean(transformed[:, :, i]))/np.std(transformed[:, :, i])
-
     return transformed
+
 
 class NoteStyles(keras.utils.Sequence):
     'Generates data for Keras'
