@@ -3,10 +3,9 @@ import utils, losses
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model
-
+from tensorflow.keras.layers import Input
 from generator import NoteStyles, Cars
 
-import wandb
 
 
 def configure_parser():
@@ -89,20 +88,22 @@ def configure_parser():
 
 def create_and_compile_model():
     # model = model
+    y_input = Input(shape=(train_gen.nb_classes,))
     backbone = tf.keras.applications.inception_resnet_v2.InceptionResNetV2(
         include_top=False,
         weights='imagenet',
-        input_shape=(224, 224, 3),
+        input_shape=train_gen.im_dimensions,
         classes=1000,
         classifier_activation='softmax')
     flat = tf.keras.layers.Flatten()(backbone.output)
     embed = tf.keras.layers.Dense(args.sz_embedding, kernel_initializer=tf.keras.initializers.HeNormal(),
                                   use_bias=False, activation=None)(flat)
-    model = Model(inputs=backbone.input, outputs=embed)
-    criterion = losses.TF_proxy_anchor(model, len(train_gen.ys), train_gen.batch_size, args.sz_embedding)
+
+    criterion = losses.TF_proxy_anchor(len(train_gen.ys), train_gen.batch_size, args.sz_embedding)([y_input, embed])
+
+    model = Model(inputs=[backbone.input, y_input], outputs=criterion)
     import tensorflow_addons as tfa
-    model.compile(loss=criterion.proxy_anchor_loss, optimizer=tfa.optimizers.AdamW(lr=float(args.lr),
-                                                                                   weight_decay = args.weight_decay))
+    model.compile(optimizer=tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay))
     return model
 
 
@@ -111,10 +112,6 @@ args = configure_parser()
 # Directory for Log
 LOG_DIR = args.LOG_DIR + '/logs_{}/{}_{}_embedding{}_alpha{}_mrg{}_{}_lr{}_batch{}{}'.format(args.dataset, args.model, args.loss, args.sz_embedding, args.alpha, 
                                                                                             args.mrg, args.optimizer, args.lr, args.sz_batch, args.remark)
-# Wandb Initialization
-wandb.login(key='f0a1711b34f7b07e32150c85c67697eb82c5120f')
-wandb.init(project=args.dataset + '_ProxyAnchor', notes=LOG_DIR)
-wandb.config.update(args)
 
 os.chdir('../data/')
 data_root = os.getcwd()
@@ -166,14 +163,15 @@ for epoch in range(0, args.nb_epochs):
 
     model.fit(train_gen, validation_data=val_gen, verbose=1, shuffle=True)
 
+    predict_model = Model(inputs=model.input, outputs=model.layers[-2].output)
     if epoch % 3 == 0:
         print('#####################')
         print('###### TRAIN  #######')
-        Recalls = utils.evaluate_cos(model, train_gen, epoch, args)
+        Recalls = utils.evaluate_cos(predict_model, train_gen, epoch, args)
 
         print('#####################')
         print('######  TEST  #######')
-        Recalls = utils.evaluate_cos(model, test_gen, epoch, args)
+        Recalls = utils.evaluate_cos(predict_model, test_gen, epoch, args)
 
 
 

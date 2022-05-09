@@ -73,7 +73,7 @@ def predict_batchwise(model, train_gen, return_images=False):
     # extract batches (A becomes list of samples)
     for idx in range(num_batches):
         batch = train_gen.__getitem__(idx)
-        for i, J in enumerate(batch):
+        for i, J in enumerate(tqdm(batch)):
             # i = 0: sz_batch * images
             # i = 1: sz_batch * labels
             # i = 2: sz_batch * indices
@@ -92,7 +92,8 @@ def predict_batchwise(model, train_gen, return_images=False):
                     image_array[i, :] = J
 
                 # move images to device of model (approximate device)
-                J = model.predict(J)
+                J = model.predict([J, np.random.rand(len(J))]) # Second arg is a dummy input
+                                                                # because its not in training mode
                 predictions[idx, :] = J
             else:
                 labels[idx, :] = np.argmax(J, axis=1)

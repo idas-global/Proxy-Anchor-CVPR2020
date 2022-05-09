@@ -42,8 +42,6 @@ def transform(dataset, image):
         alb.RandomBrightnessContrast(p=0.1),
         alb.RandomShadow(p=0.2),
         alb.RandomRain(p=0.1),
-        alb.CoarseDropout(p=0.1),
-        alb.ShiftScaleRotate(p=0.2, rotate_limit=10),
         alb.GridDistortion(p=0.1),
         alb.HorizontalFlip(),
 
@@ -53,12 +51,12 @@ def transform(dataset, image):
 
         alb.CenterCrop(sz_crop, sz_crop, p=p),
     ], p=1)
-    transformed = transform(image=image)['image']
+    transformed = transform(image=image)['image'].astype('float32')
     if (sz_crop, sz_crop) != transformed.shape[:-1]:
         transformed = cv2.resize(transformed, (sz_crop, sz_crop))
 
     for i in range(len(transformed.shape)):
-        transformed[:, :, i] = mean[i]*(transformed[:, :, i] - np.mean(transformed[:, :, i]))/np.std(transformed[:, :, i])
+        transformed[:, :, i] = mean[i] + std[i] * (transformed[:, :, i] - np.mean(transformed[:, :, i]))/np.std(transformed[:, :, i])
 
     return transformed
 
@@ -136,7 +134,7 @@ class NoteStyles(keras.utils.Sequence):
             x[idx] = transform(self, image)
 
         y = to_categorical(np.array(y).astype(np.float32).reshape(-1, 1), num_classes=self.nb_classes)
-        return x, y
+        return [x, y]
 
 
 class Cars(keras.utils.Sequence):
