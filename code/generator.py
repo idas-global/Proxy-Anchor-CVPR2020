@@ -196,12 +196,12 @@ class Cars(keras.utils.Sequence):
         le = preprocessing.LabelEncoder()
         self.ys = le.fit_transform(self.class_names_fine)
         le_name_mapping = dict(zip(le.classes_, le.transform(le.classes_)))
-        self.nb_classes = len(le_name_mapping.keys())
+        self.nb_classes_total = len(le_name_mapping.keys())
 
         if self.mode == 'train' or self.mode == 'val':
-            self.classes = range(0, int(np.round(self.nb_classes / 2)))
+            self.classes = range(0, int(np.round(self.nb_classes_total / 2)))
         else:
-            self.classes = range(0, self.nb_classes)
+            self.classes = range(int(np.round(self.nb_classes_total / 2)), self.nb_classes_total - 1)
 
         chosen_images = [idx for idx, i in enumerate(self.ys) if i in self.classes]
         random.seed(seed)
@@ -221,8 +221,9 @@ class Cars(keras.utils.Sequence):
             random.shuffle(temp)
             self.im_paths, self.class_names, self.class_names_coarse, self.class_names_fine, self.ys = zip(*temp)
 
-        self.nb_classes = len(set(self.ys))
-
+        self.nb_classes = len(np.unique(self.ys, axis=0))
+        le = preprocessing.LabelEncoder()
+        self.ys = le.fit_transform(self.ys)
 
     def slice_to_make_set(self, chosen_images, param):
         return list(np.array(param)[chosen_images])
@@ -245,5 +246,4 @@ class Cars(keras.utils.Sequence):
             image = cv2.imread(i)
             x[idx] = transform(self, image)
 
-        y = to_categorical(np.array(y).astype(np.float32).reshape(-1, 1), num_classes=self.nb_classes)
-        return [x, y]
+        return [x, np.array(y)]

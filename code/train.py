@@ -88,7 +88,7 @@ def configure_parser():
 
 def create_and_compile_model(train_gen, args):
     # model = model
-    y_input = Input(shape=(train_gen.nb_classes,))
+    y_input = Input(shape=(1,))
     backbone = tf.keras.applications.inception_resnet_v2.InceptionResNetV2(
         include_top=False,
         weights='imagenet',
@@ -139,12 +139,12 @@ def test_predictions(args, epoch, model, train_gen, val_gen, test_gen):
     predict_model = Model(inputs=model.input, outputs=model.layers[-2].output)
     if epoch % 3 == 0:
         print('#####################')
-        print('###### TRAIN  #######')
-        Recalls = utils.evaluate_cos(predict_model, train_gen, epoch, args)
-
-        print('#####################')
         print('######  TEST  #######')
         Recalls = utils.evaluate_cos(predict_model, test_gen, epoch, args)
+
+        print('#####################')
+        print('###### TRAIN  #######')
+        Recalls = utils.evaluate_cos(predict_model, train_gen, epoch, args)
 
         print('#####################')
         print('######   VAL  #######')
