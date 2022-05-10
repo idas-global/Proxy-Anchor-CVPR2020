@@ -221,6 +221,9 @@ class Cars(keras.utils.Sequence):
             random.shuffle(temp)
             self.im_paths, self.class_names, self.class_names_coarse, self.class_names_fine, self.ys = zip(*temp)
 
+        self.nb_classes = len(set(self.ys))
+
+
     def slice_to_make_set(self, chosen_images, param):
         return list(np.array(param)[chosen_images])
 
