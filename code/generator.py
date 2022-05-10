@@ -201,7 +201,7 @@ class Cars(keras.utils.Sequence):
         if self.mode == 'train' or self.mode == 'val':
             self.classes = range(0, int(np.round(self.nb_classes / 2)))
         else:
-            self.classes = range(int(np.round(self.nb_classes / 2)), self.nb_classes)
+            self.classes = range(0, self.nb_classes)
 
         chosen_images = [idx for idx, i in enumerate(self.ys) if i in self.classes]
         random.seed(seed)
