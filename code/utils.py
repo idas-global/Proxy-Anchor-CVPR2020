@@ -145,7 +145,7 @@ def evaluate_cos(model, dataloader, epoch, args):
     os.makedirs(dest, exist_ok=True)
 
     if epoch % 2 == 0:
-        X, T, I = predict_batchwise(model, dataloader, return_images=True)
+        X, T, I = predict_batchwise(model, dataloader, return_images=False)
     else:
         X, T = predict_batchwise(model, dataloader, return_images=False)
 

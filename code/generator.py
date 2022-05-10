@@ -197,7 +197,7 @@ class Cars(keras.utils.Sequence):
         self.ys = le.fit_transform(self.class_names_fine)
         le_name_mapping = dict(zip(le.classes_, le.transform(le.classes_)))
         self.nb_classes = len(le_name_mapping.keys())
-        
+
         if self.mode == 'train' or self.mode == 'val':
             self.classes = range(0, int(np.round(self.nb_classes / 2)))
         else:
@@ -244,6 +244,10 @@ class Cars(keras.utils.Sequence):
         for idx, i in enumerate(imgs_for_batch):
             image = cv2.imread(i)
             x[idx] = transform(self, image)
+
+        print(len(set(self.ys)))
+        print(len(set(y)))
+        print(self.nb_classes)
 
         y = to_categorical(np.array(y).astype(np.float32).reshape(-1, 1), num_classes=self.nb_classes)
         return [x, y]
