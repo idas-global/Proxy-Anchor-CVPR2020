@@ -112,7 +112,7 @@ def predict_batchwise(model, train_gen, return_images=False):
 
     if return_images:
         return [predictions, labels, image_array]
-    return [predictions, labels]
+    return [predictions, labels, None]
 
 
 def proxy_init_calc(model, dataloader):
@@ -144,10 +144,7 @@ def evaluate_cos(model, dataloader, epoch, args):
     dest = f'../training/{args.dataset}/{epoch}/'
     os.makedirs(dest, exist_ok=True)
 
-    if epoch % 2 == 0:
-        X, T, I = predict_batchwise(model, dataloader, return_images=False)
-    else:
-        X, T = predict_batchwise(model, dataloader, return_images=False)
+    X, T, _ = predict_batchwise(model, dataloader, return_images=False)
 
     X = l2_norm(X)
 
