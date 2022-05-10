@@ -103,7 +103,8 @@ def create_and_compile_model(train_gen, args):
 
     model = Model(inputs=[backbone.input, y_input], outputs=criterion)
     import tensorflow_addons as tfa
-    model.compile(optimizer=tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay))
+    model.compile(optimizer=tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay),
+                  run_eagerly=False)
     return model
 
 

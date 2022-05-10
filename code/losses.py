@@ -7,7 +7,7 @@ class TF_proxy_anchor(tf.keras.layers.Layer):
         super(TF_proxy_anchor, self).__init__()
         self.nb_classes = tf.cast(nb_classes, tf.float32)
 
-        self.proxy = tf.compat.v1.get_variable(name='proxy', shape=[batch_size, sz_embedding],
+        self.proxy = tf.compat.v1.get_variable(name='proxy', shape=[nb_classes, sz_embedding],
                                                initializer=tf.random_normal_initializer(),
                                                dtype=tf.float32,
                                                trainable=True)
@@ -24,24 +24,25 @@ class TF_proxy_anchor(tf.keras.layers.Layer):
         return _a
 
     def custom_loss(self, target, embeddings):
-        y, idx, count = gen_array_ops.unique_with_counts_v2(target, [0])
+        cosine_similarity = embeddings
+        class_num = cosine_similarity.get_shape().as_list()[1]
+        P_one_hot = tf.one_hot(indices=tf.argmax(target, axis=1),
+                               depth=class_num,
+                               on_value=None,
+                               off_value=None)
+        N_one_hot = 1.0 - P_one_hot
 
-        embeddings_l2 = tf.nn.l2_normalize(embeddings, axis=1)
-        proxy_l2 = tf.nn.l2_normalize(self.proxy, axis=1)
+        pos_exp = tf.exp(-32 * (cosine_similarity - 0.1))
+        neg_exp = tf.exp(32 * (cosine_similarity + 0.1))
 
-        pos_target = target
-        neg_target = 1.0 - pos_target
+        P_sim_sum = tf.reduce_sum(pos_exp * P_one_hot, axis=0)
+        N_sim_sum = tf.reduce_sum(neg_exp * N_one_hot, axis=0)
 
-        sim_mat = tf.matmul(embeddings_l2, proxy_l2, transpose_b=True)
+        num_valid_proxies = tf.math.count_nonzero(tf.reduce_sum(P_one_hot, axis=0),
+                                                  dtype=tf.dtypes.float32)
 
-        pos_mat = tf.matmul(tf.exp(-32 * (sim_mat - 0.1)), pos_target)
-        neg_mat = tf.matmul(tf.exp(32 * (sim_mat - 0.1)), neg_target)
-
-        # n_unique = batch_size // n_instance
-
-        pos_term = tf.cast(tf.math.divide(tf.constant(1), tf.concat((tf.shape(y)[:2],[1]), axis=0)), tf.float32) * tf.reduce_sum(tf.math.log(tf.constant(1.0, dtype=tf.float32) + tf.reduce_sum(pos_mat, axis=0)))
-        neg_term = tf.constant(1.0) / self.nb_classes * tf.reduce_sum(tf.math.log(1.0 + tf.reduce_sum(neg_mat, axis=0)))
-
+        pos_term = tf.reduce_sum(tf.math.log(1.0 + P_sim_sum)) / num_valid_proxies
+        neg_term = tf.reduce_sum(tf.math.log(1.0 + N_sim_sum)) / class_num
         loss = pos_term + neg_term
 
         return loss
