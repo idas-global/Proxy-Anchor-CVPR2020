@@ -27,8 +27,7 @@ class BinaryTruePositives(tf.keras.metrics.Metric):
 class TF_proxy_anchor(tf.keras.layers.Layer):
     def __init__(self, nb_classes, sz_embedding):
         super(TF_proxy_anchor, self).__init__()
-        self.nb_classes_not_tensor = nb_classes
-        self.nb_classes = tf.cast(self.nb_classes_not_tensor, tf.int32)
+        self.nb_classes = tf.cast(nb_classes, tf.int32)
 
         self.proxy = tf.compat.v1.get_variable(name='proxy',
                                                shape=[nb_classes, sz_embedding],
@@ -50,16 +49,19 @@ class TF_proxy_anchor(tf.keras.layers.Layer):
         pos_target = target
         neg_target = 1.0 - pos_target
 
+        pos_target = tf.cast(pos_target, tf.bool, name='y_true')
+        neg_target = tf.cast(neg_target, tf.bool, name='y_true')
+
         cos = tf.matmul(embeddings_l2, proxy_l2, transpose_b=True)
 
-        pos_mat = tf.where(pos_target, x=tf.exp(-32 * (cos - 0.1)), y=0)
-        neg_mat = tf.where(neg_target, x=tf.exp(32 * (cos + 0.1)), y=0)
+        pos_mat = tf.where(pos_target, x=tf.exp(-32 * (cos - 0.1)), y=tf.zeros_like(pos_target, dtype=tf.float32))
+        neg_mat = tf.where(neg_target, x=tf.exp(32 * (cos + 0.1)), y=tf.zeros_like(neg_target, dtype=tf.float32))
 
-        n_valid_proxies = tf.math.count_nonzero(tf.reduce_sum(pos_target, axis=0), dtype=tf.dtypes.float32)
+        n_valid_proxies = tf.math.count_nonzero(tf.reduce_sum(target, axis=0), dtype=tf.dtypes.float32)
 
         pos_term = tf.reduce_sum(tf.math.log(1.0 + tf.reduce_sum(pos_mat, axis=0))) / n_valid_proxies
 
-        neg_term = tf.reduce_sum(tf.math.log(1.0 + tf.reduce_sum(neg_mat, axis=0))) / self.nb_classes
+        neg_term = tf.reduce_sum(tf.math.log(1.0 + tf.reduce_sum(neg_mat, axis=0))) / tf.cast(self.nb_classes, tf.float32)
 
         loss = pos_term + neg_term
         return loss
