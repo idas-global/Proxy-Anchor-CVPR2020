@@ -96,7 +96,7 @@ def predict_batchwise(model, train_gen, return_images=False):
                                                                 # because its not in training mode
                 predictions[idx, :] = J
             else:
-                labels[idx, :] = np.argmax(J, axis=1)
+                labels[idx, :] = J
 
     if missing_batch == 0: missing_batch = -1 * num_batches * batch_sz
 
