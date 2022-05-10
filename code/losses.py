@@ -24,7 +24,7 @@ def l2_norm(input):
     return output
 
 class Proxy_Anchor(torch.nn.Module):
-    def __init__(self, nb_classes, sz_embed, mrg = 0.1, alpha = 32):
+    def __init__(self, nb_classes, sz_embed, mrg=0.1, alpha=32):
         torch.nn.Module.__init__(self)
         # Proxy Anchor Initialization
         self.proxies = torch.nn.Parameter(torch.randn(nb_classes, sz_embed))
