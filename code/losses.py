@@ -36,14 +36,6 @@ class TF_proxy_anchor(tf.keras.layers.Layer):
                                                dtype=tf.float32,
                                                trainable=True)
 
-    def get_config(self):
-        config = super().get_config().copy()
-        config.update({
-            'nb_classes': self.nb_classes,
-            'proxy': self.proxy
-        })
-        return config
-
     def call(self, inputs, **kwargs):
         self.add_loss(self.custom_loss(inputs[0], inputs[1]))
         return inputs[0]
@@ -52,25 +44,22 @@ class TF_proxy_anchor(tf.keras.layers.Layer):
         return self.proxy
 
     def custom_loss(self, target, embeddings):
-        embeddings_l2 = tf.nn.l2_normalize(embeddings, axis=1)
+        embeddings_l2 = tf.cast(tf.nn.l2_normalize(embeddings, axis=1), tf.float32)
         proxy_l2 = tf.nn.l2_normalize(self.proxy, axis=1)
 
         pos_target = target
         neg_target = 1.0 - pos_target
 
-        sim_mat = tf.matmul(embeddings_l2, proxy_l2, transpose_b=True)
+        cos = tf.matmul(embeddings_l2, proxy_l2, transpose_b=True)
 
-        pos_mat = tf.matmul(tf.exp(-32 * (sim_mat - 0.1)), pos_target, transpose_b=True)
-        neg_mat = tf.matmul(tf.exp(32 * (sim_mat - 0.1)), neg_target, transpose_b=True)
+        pos_mat = tf.where(pos_target, x=tf.exp(-32 * (cos - 0.1)), y=0)
+        neg_mat = tf.where(neg_target, x=tf.exp(32 * (cos + 0.1)), y=0)
 
-        n_valid_proxies = tf.math.count_nonzero(tf.reduce_sum(pos_target, axis=0),
-                                              dtype=tf.dtypes.float32)
+        n_valid_proxies = tf.math.count_nonzero(tf.reduce_sum(pos_target, axis=0), dtype=tf.dtypes.float32)
 
-        pos_term = tf.math.divide(tf.constant(1.0, dtype=tf.float32), n_valid_proxies)\
-                   * tf.reduce_sum(tf.math.log(tf.constant(1.0, dtype=tf.float32) + tf.reduce_sum(pos_mat, axis=0)))
+        pos_term = tf.reduce_sum(tf.math.log(1.0 + tf.reduce_sum(pos_mat, axis=0))) / n_valid_proxies
 
-        neg_term = tf.cast(tf.constant(1) / self.nb_classes, tf.float32)\
-                   * tf.reduce_sum(tf.math.log(1.0 + tf.reduce_sum(neg_mat, axis=0)))
+        neg_term = tf.reduce_sum(tf.math.log(1.0 + tf.reduce_sum(neg_mat, axis=0))) / self.nb_classes
 
         loss = pos_term + neg_term
         return loss

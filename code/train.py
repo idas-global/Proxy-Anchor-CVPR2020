@@ -193,6 +193,7 @@ def main():
 
         model.fit(train_gen, validation_data=val_gen, verbose=1, shuffle=True, callbacks=[model_checkpoint_callback,
                                                                                           tensorBoard])
+
         if epoch >= 0:
             test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
 

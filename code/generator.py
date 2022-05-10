@@ -245,9 +245,5 @@ class Cars(keras.utils.Sequence):
             image = cv2.imread(i)
             x[idx] = transform(self, image)
 
-        print(len(set(self.ys)))
-        print(len(set(y)))
-        print(self.nb_classes)
-
         y = to_categorical(np.array(y).astype(np.float32).reshape(-1, 1), num_classes=self.nb_classes)
         return [x, y]
