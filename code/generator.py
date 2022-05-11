@@ -21,14 +21,14 @@ def transform(dataset, image):
         mean = (104, 117, 128)
         std = (1, 1, 1)
 
-    if image.shape[0] < sz_crop and image.shape[1] < sz_crop:
-        image = cv2.resize(image, (int(np.ceil(image.shape[1] * sz_crop / image.shape[1])),
-                                   int(np.ceil(image.shape[0] * sz_crop / image.shape[0]))))
-    elif image.shape[0] < sz_crop:
-        image = cv2.resize(image, (image.shape[1], int(np.ceil(image.shape[0] * sz_crop / image.shape[0]))))
-
-    elif image.shape[1] < sz_crop:
-        image = cv2.resize(image, (int(np.ceil(image.shape[1] * sz_crop / image.shape[1])), image.shape[0]))
+    # if image.shape[0] < sz_crop and image.shape[1] < sz_crop:
+    #     image = cv2.resize(image, (int(np.ceil(image.shape[1] * sz_crop / image.shape[1])),
+    #                                int(np.ceil(image.shape[0] * sz_crop / image.shape[0]))))
+    # elif image.shape[0] < sz_crop:
+    #     image = cv2.resize(image, (image.shape[1], int(np.ceil(image.shape[0] * sz_crop / image.shape[0]))))
+    #
+    # elif image.shape[1] < sz_crop:
+    #     image = cv2.resize(image, (int(np.ceil(image.shape[1] * sz_crop / image.shape[1])), image.shape[0]))
 
     p = 1
     if dataset.name == 'NoteStyles':
@@ -39,6 +39,8 @@ def transform(dataset, image):
     warnings.filterwarnings("error")
 
     k = 0
+    # plt.imshow(image[:, :, 0])
+    # plt.show()
     while broken:
         transformed = transform_image(image, p, sz_crop, sz_resize)
 
@@ -60,12 +62,14 @@ def transform(dataset, image):
                 continue
 
     warnings.filterwarnings("ignore")
+    # plt.imshow(transformed[:, :, 0] - 104)
+    # plt.show()
     return transformed
 
 
 def transform_image(image, p, sz_crop, sz_resize):
     transform = alb.Compose([
-        alb.RandomCrop(sz_crop, sz_crop, p=p),
+        alb.RandomResizedCrop(sz_crop, sz_crop, always_apply=True),
 
         alb.GaussNoise(p=0.1),
         alb.GaussianBlur(p=0.1),
@@ -76,10 +80,10 @@ def transform_image(image, p, sz_crop, sz_resize):
         alb.HorizontalFlip(),
 
         alb.VerticalFlip(p=p / 2),
+        #alb.CenterCrop(sz_crop, sz_crop, p=p),
 
         alb.transforms.Resize(sz_resize, sz_resize),
 
-        alb.CenterCrop(sz_crop, sz_crop, p=p),
     ], p=1)
     transformed = transform(image=image)['image'].astype('float32')
     return transformed
