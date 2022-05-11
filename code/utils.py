@@ -149,7 +149,7 @@ def evaluate_cos(model, dataloader, epoch, args):
     X = l2_norm(X)
 
     # get predictions by assigning nearest 8 neighbors with cosine
-    K = 7
+    K = 32
     cos_sim = tensorflow.matmul(X, X, transpose_b=True)
     neighbors = tensorflow.math.top_k(cos_sim, 1 + K)[1][:, 1:]
     Y = T[neighbors]
