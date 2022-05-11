@@ -138,17 +138,17 @@ def create_save_dir(args):
 def test_predictions(args, epoch, model, train_gen, val_gen, test_gen):
     predict_model = Model(inputs=model.input, outputs=model.layers[-2].output)
     if epoch % 3 == 0:
-        print('#####################')
-        print('######  TEST  #######')
-        Recalls = utils.evaluate_cos(predict_model, test_gen, epoch, args)
+        print('###################################')
+        print(f'######  TEST EPOCh {epoch}  #######')
+        Recalls = utils.evaluate_cos(predict_model, test_gen, 0, args)
 
-        print('#####################')
-        print('###### TRAIN  #######')
-        Recalls = utils.evaluate_cos(predict_model, train_gen, epoch, args)
+        print('###################################')
+        print(f'###### TRAIN EPOCh {epoch}  #######')
+        Recalls = utils.evaluate_cos(predict_model, train_gen, 0, args)
 
-        print('#####################')
-        print('######   VAL  #######')
-        Recalls = utils.evaluate_cos(predict_model, val_gen, epoch, args)
+        print('####################################')
+        print(f'######   VAL EPOCh {epoch}  #######')
+        Recalls = utils.evaluate_cos(predict_model, val_gen, 0, args)
 
 def prepare_layers(args, epoch, model):
     bn_freeze = args.bn_freeze
