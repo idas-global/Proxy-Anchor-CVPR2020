@@ -51,16 +51,14 @@ def transform(dataset, image):
                 continue
 
 
-        try:
-            transformed[:, :, i] = mean[i] \
-                                   + std[i] * (transformed[:, :, i]
-                                               - np.mean(transformed[:, :, i]))/np.std(transformed[:, :, i])
-        except RuntimeWarning:
-            k += 1
-            #print(f'Failed Iter {k}') # TODO Fix this sty transform function
-            continue
+            try:
+                transformed[:, :, i] = mean[i] + std[i] * (transformed[:, :, i] - np.mean(transformed[:, :, i]))/np.std(transformed[:, :, i])
+                broken = False
+            except RuntimeWarning:
+                k += 1
+                #print(f'Failed Iter {k}') # TODO Fix this sty transform function
+                continue
 
-        broken = False
     warnings.filterwarnings("ignore")
     return transformed
 
