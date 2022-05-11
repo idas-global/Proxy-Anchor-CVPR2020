@@ -195,7 +195,7 @@ def main():
                                                                                           tensorBoard])
 
         if (epoch >= 5 and (epoch % 5 == 0)) or (epoch == args.nb_epochs - 1):
-            test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
+            test_predictions(args, 0, model, train_gen, val_gen, test_gen)
 
 
 if __name__ == '__main__':
