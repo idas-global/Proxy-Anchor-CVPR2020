@@ -5,7 +5,8 @@ import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input
 from generator import NoteStyles, Cars
-
+import tensorflow_hub as hub
+import tensorflow_addons as tfa
 
 
 def configure_parser():
@@ -89,7 +90,6 @@ def configure_parser():
 def create_and_compile_model(train_gen, args):
     # model = model
     y_input = Input(shape=(1,))
-    import tensorflow_hub as hub
     backbone = tf.keras.Sequential(hub.KerasLayer("https://tfhub.dev/google/imagenet/inception_v2/classification/5", trainable=True))
 
                               # arguments=dict(return_endpoints=True)))
@@ -101,10 +101,9 @@ def create_and_compile_model(train_gen, args):
     criterion = losses.TF_proxy_anchor(len(set(train_gen.ys)), args.sz_embedding)([y_input, embed])
 
     model = Model(inputs=[backbone.input, y_input], outputs=criterion)
-    import tensorflow_addons as tfa
     model.compile(optimizer=tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay),
                   run_eagerly=False)
-    return model
+    return model, criterion
 
 
 def create_generators(args, seed):
@@ -172,11 +171,20 @@ def main():
     seed = np.random.choice(range(144444))
     train_gen, val_gen, test_gen = create_generators(args, seed)
 
-    model = create_and_compile_model(train_gen, args)
-
+    save_path = create_save_dir(args)
+    model_dir = save_path + './untrained_model.h5'
+    try:
+        model, criterion = create_and_compile_model(train_gen, args)
+        tf.keras.models.save_model(model, model_dir)
+    except Exception:
+        print(f"Cant create from scratch, loading from {model_dir}")
+        model_2 = tf.keras.models.load_model(model_dir, custom_objects={'KerasLayer': hub.KerasLayer,
+                                                                           'TF_proxy_anchor': losses.TF_proxy_anchor})
     print("Training for {} epochs.".format(args.nb_epochs))
 
-    save_path = create_save_dir(args)
+
+    print(model_2 is model)
+
 
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
                                                             filepath=save_path,

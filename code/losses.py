@@ -25,15 +25,25 @@ class BinaryTruePositives(tf.keras.metrics.Metric):
 
 
 class TF_proxy_anchor(tf.keras.layers.Layer):
-    def __init__(self, nb_classes, sz_embedding):
+    def __init__(self, nb_classes, sz_embedding, **kwargs):
         super(TF_proxy_anchor, self).__init__()
         self.nb_classes = tf.cast(nb_classes, tf.int32)
+        self.sz_embedding = sz_embedding
 
         self.proxy = tf.compat.v1.get_variable(name='proxy',
                                                shape=[nb_classes, sz_embedding],
                                                initializer=tf.random_normal_initializer(),
                                                dtype=tf.float32,
                                                trainable=True)
+
+    def get_config(self):
+        config = super(TF_proxy_anchor, self).get_config()
+        config.update({
+            'nb_classes': self.nb_classes.numpy(),
+            'proxy': self.proxy.numpy(),
+            'sz_embedding': self.sz_embedding
+        })
+        return config
 
     def call(self, inputs, **kwargs):
         self.add_loss(self.custom_loss(inputs[0], inputs[1]))
