@@ -199,7 +199,7 @@ def main():
         model.fit(train_gen, validation_data=val_gen, verbose=1, shuffle=True, callbacks=[model_checkpoint_callback,
                                                                                           tensorBoard])
 
-        if (epoch >= 5 and (epoch % 5 == 0)) or (epoch == args.nb_epochs - 1):
+        if (epoch >= 5 and (epoch % 3 == 0)) or (epoch == args.nb_epochs - 1):
             test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
 
 
