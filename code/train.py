@@ -89,12 +89,11 @@ def configure_parser():
 def create_and_compile_model(train_gen, args):
     # model = model
     y_input = Input(shape=(1,))
-    backbone = tf.keras.applications.inception_resnet_v2.InceptionResNetV2(
-        include_top=False,
-        weights='imagenet',
-        input_shape=train_gen.im_dimensions,
-        classes=1000,
-        classifier_activation='softmax')
+    import tensorflow_hub as hub
+    backbone = tf.keras.Sequential(hub.KerasLayer("https://tfhub.dev/google/imagenet/inception_v2/classification/5", trainable=True))
+
+                              # arguments=dict(return_endpoints=True)))
+    backbone.build([None, *train_gen.im_dimensions])
     flat = tf.keras.layers.Flatten()(backbone.output)
     embed = tf.keras.layers.Dense(args.sz_embedding, kernel_initializer=tf.keras.initializers.HeNormal(),
                                   use_bias=False, activation=None)(flat)
