@@ -1,4 +1,6 @@
 import argparse, os
+import urllib
+
 import utils, losses
 import numpy as np
 import tensorflow as tf
@@ -176,7 +178,7 @@ def main():
     try:
         model, criterion = create_and_compile_model(train_gen, args)
         tf.keras.models.save_model(model, model_dir)
-    except Exception:
+    except urllib.error.URLError:
         print(f"Cant create from scratch, loading from {model_dir}")
         model_2 = tf.keras.models.load_model(model_dir, custom_objects={'KerasLayer': hub.KerasLayer,
                                                                            'TF_proxy_anchor': losses.TF_proxy_anchor})
