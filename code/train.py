@@ -180,13 +180,9 @@ def main():
         tf.keras.models.save_model(model, model_dir)
     except urllib.error.URLError:
         print(f"Cant create from scratch, loading from {model_dir}")
-        model_2 = tf.keras.models.load_model(model_dir, custom_objects={'KerasLayer': hub.KerasLayer,
+        model = tf.keras.models.load_model(model_dir, custom_objects={'KerasLayer': hub.KerasLayer,
                                                                            'TF_proxy_anchor': losses.TF_proxy_anchor})
     print("Training for {} epochs.".format(args.nb_epochs))
-
-
-    print(model_2 is model)
-
 
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
                                                             filepath=save_path,
