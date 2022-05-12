@@ -103,8 +103,7 @@ def create_and_compile_model(train_gen, args):
     criterion = losses.TF_proxy_anchor(len(set(train_gen.ys)), args.sz_embedding)([y_input, embed])
 
     model = Model(inputs=[backbone.input, y_input], outputs=criterion)
-    model.compile(optimizer=tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay),
-                  run_eagerly=False)
+    model.compile(optimizer=tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay))
     return model, criterion
 
 
@@ -182,6 +181,7 @@ def main():
         print(f"Cant create from scratch, loading from {model_dir}")
         model = tf.keras.models.load_model(model_dir, custom_objects={'KerasLayer': hub.KerasLayer,
                                                                            'TF_proxy_anchor': losses.TF_proxy_anchor})
+        model.compile(optimizer=tfa.optimizers.Adam(learning_rate=float(args.lr), weight_decay=args.weight_decay))
     print("Training for {} epochs.".format(args.nb_epochs))
 
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
