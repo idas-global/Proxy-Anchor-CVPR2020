@@ -200,7 +200,6 @@ def main():
     for epoch in range(0, args.nb_epochs):
         prepare_layers(args, epoch, model)
 
-        print(model.predict(train_gen.__getitem__(3)))
         model.fit(train_gen, validation_data=val_gen, verbose=1, shuffle=False, callbacks=[model_checkpoint_callback,
                                                                                              tensorBoard])
 
