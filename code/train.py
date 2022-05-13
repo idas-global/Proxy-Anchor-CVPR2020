@@ -177,6 +177,7 @@ def main():
 
     save_path = create_save_dir(args)
     model_dir = save_path + './untrained_model.h5'
+
     try:
         model, criterion = create_and_compile_model(train_gen, args)
         tf.keras.models.save_model(model, model_dir)

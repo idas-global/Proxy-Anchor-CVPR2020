@@ -20,69 +20,33 @@ def transform(dataset, image):
         mean = (104, 117, 128)
         std = (1, 1, 1)
 
-    # if image.shape[0] < sz_crop and image.shape[1] < sz_crop:
-    #     image = cv2.resize(image, (int(np.ceil(image.shape[1] * sz_crop / image.shape[1])),
-    #                                int(np.ceil(image.shape[0] * sz_crop / image.shape[0]))))
-    # elif image.shape[0] < sz_crop:
-    #     image = cv2.resize(image, (image.shape[1], int(np.ceil(image.shape[0] * sz_crop / image.shape[0]))))
-    #
-    # elif image.shape[1] < sz_crop:
-    #     image = cv2.resize(image, (int(np.ceil(image.shape[1] * sz_crop / image.shape[1])), image.shape[0]))
-
     p = 1
     if dataset.name == 'NoteStyles':
         p = 0
 
-    broken = True
-    import warnings
-    warnings.filterwarnings("error")
+    transformed = transform_image(image, p, sz_crop, sz_resize)
 
-    k = 0
-    # plt.imshow(image[:, :, 0])
-    # plt.show()
-    while broken:
-        transformed = transform_image(image, p, sz_crop, sz_resize)
+    for i in range(len(transformed.shape)):
+        transformed[:, :, i] = (transformed[:, :, i] - mean[i]) / std[i]
 
-        if (sz_crop, sz_crop) != transformed.shape[:-1]:
-            transformed = cv2.resize(transformed, (sz_crop, sz_crop))
-
-        for i in range(len(transformed.shape)):
-            if np.std(transformed[:, :, i]) == 0:
-                #print('WARNING: Transform Object Broken')
-                continue
-
-
-            try:
-                transformed[:, :, i] = mean[i] + std[i] * (transformed[:, :, i] - np.mean(transformed[:, :, i]))/np.std(transformed[:, :, i])
-                broken = False
-            except RuntimeWarning:
-                k += 1
-                #print(f'Failed Iter {k}') # TODO Fix this sty transform function
-                continue
-
-    #print(f'Image has sum {np.round(np.sum(transformed))}')
-    warnings.filterwarnings("ignore")
-    # plt.imshow(transformed[:, :, 0] - 104)
-    # plt.show()
     return transformed
 
 
 def transform_image(image, p, sz_crop, sz_resize):
     transform = alb.Compose([
-        alb.RandomResizedCrop(sz_crop, sz_crop, always_apply=True),
-
+        alb.RandomResizedCrop(sz_crop, sz_crop, scale=(0.7, 1), always_apply=True),
+        alb.HorizontalFlip(p=0.5),
+        alb.transforms.Resize(sz_resize, sz_resize),
         alb.GaussNoise(p=0.1),
         alb.GaussianBlur(p=0.1),
         alb.RandomBrightnessContrast(p=0.1),
-        alb.RandomShadow(p=0.2),
+        alb.RandomShadow(p=0.1),
         alb.RandomRain(p=0.1),
         alb.GridDistortion(p=0.1),
-        alb.HorizontalFlip(),
 
-        alb.VerticalFlip(p=p / 2),
-        #alb.CenterCrop(sz_crop, sz_crop, p=p),
+        #alb.VerticalFlip(p=p / 2),
+        alb.CenterCrop(sz_crop, sz_crop, p=p),
 
-        alb.transforms.Resize(sz_resize, sz_resize),
 
     ], p=1)
     transformed = transform(image=image)['image'].astype('float32')
