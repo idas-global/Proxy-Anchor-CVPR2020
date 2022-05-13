@@ -25,25 +25,12 @@ import matplotlib.pyplot as plt
 plt.ioff()
 import mplcursors
 
-import torch
-
 def l2_norm(input):
     buffer = input**2
     normp = np.sqrt(np.sum(buffer, axis=1))
     output = input/normp[:, None]
     return output
 
-def calc_recall_at_k(T, Y, k):
-    """
-    T : [nb_samples] (target labels)
-    Y : [nb_samples x k] (k predicted labels/neighbours)
-    """
-
-    s = 0
-    for t,y in zip(T,Y):
-        if t == torch.mode(torch.Tensor(y).long()[:k]).values:
-            s += 1
-    return s / (1. * len(T))
 
 def combine_dims(a, i=0, n=1):
   """
@@ -115,15 +102,6 @@ def predict_batchwise(model, train_gen, return_images=False):
     return [predictions, labels, None]
 
 
-def proxy_init_calc(model, dataloader):
-    nb_classes = len(dataloader.classes)
-    X, T, *_ = predict_batchwise(model, dataloader)
-
-    proxy_mean = torch.stack([X[T==class_idx].mean(0) for class_idx in range(nb_classes)])
-
-    return proxy_mean
-
-
 def parse_im_name(specific_species, exclude_trailing_consonants=False, fine=False):
     if fine:
         filter = os.path.split(os.path.split(specific_species)[0])[1].split('.')[-1].lower()
@@ -183,7 +161,8 @@ def evaluate_cos(model, dataloader, epoch, args):
 def calc_recall(T, Y, epoch, k, metrics, recall):
     y_preds = []
     for t, y in zip(T, Y):
-        y_preds.append(torch.mode(torch.Tensor(y).long()[:k]).values)
+        preds, counts = np.unique(y, return_counts=True)
+        y_preds.append(preds[np.argsort(counts)[-1]])
     y_preds = np.array(y_preds).astype(int)
     y_true = np.array(T)
     r_at_k = f1_score(y_true, y_preds, average='weighted')

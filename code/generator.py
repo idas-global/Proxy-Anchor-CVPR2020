@@ -2,7 +2,7 @@ import os
 import random
 import cv2
 import matplotlib.pyplot as plt
-from tensorflow import keras
+import tensorflow
 import albumentations as alb
 import numpy as np
 import scipy.io
@@ -89,7 +89,7 @@ def transform_image(image, p, sz_crop, sz_resize):
     return transformed
 
 
-class NoteStyles(keras.utils.Sequence):
+class NoteStyles(tensorflow.keras.utils.Sequence):
     'Generates data for Keras'
     def __init__(self, args, seed, shuffle=True, mode='train', is_inception=True):
         self.root = "D:/Rupert_Book_Augmented/"
@@ -163,15 +163,15 @@ class NoteStyles(keras.utils.Sequence):
             x[idx] = transform(self, image)
 
         #y = to_categorical(np.array(y).astype(np.float32).reshape(-1, 1), num_classes=self.nb_classes)
-        return [x, y]
+        return [x, np.array(y)]
 
 
-class Cars(keras.utils.Sequence):
+class Cars(tensorflow.keras.utils.Sequence):
     'Generates data for Keras'
     def __init__(self, args, seed, shuffle=True, mode='train', is_inception=True):
         os.chdir('../data/')
         data_root = os.getcwd()
-
+        self.shape = args.sz_batch
         self.root = data_root + '/cars196'
         self.name = 'Cars'
         self.mode = mode
@@ -249,4 +249,4 @@ class Cars(keras.utils.Sequence):
             x[idx] = transform(self, image)
 
         #y = to_categorical(np.array(y).astype(np.float32).reshape(-1, 1), num_classes=self.nb_classes)
-        return (x, np.array(y))
+        return [x, np.array(y)]

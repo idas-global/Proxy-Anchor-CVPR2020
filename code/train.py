@@ -4,12 +4,13 @@ import urllib
 import utils, losses
 import numpy as np
 import tensorflow as tf
-import tensorflow_hub as hub
-import tensorflow_addons as tfa
+
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input
 from generator import NoteStyles, Cars
 
+import tensorflow_addons as tfa
+import tensorflow_hub as hub
 
 
 def configure_parser():
@@ -104,7 +105,8 @@ def create_and_compile_model(train_gen, args):
     criterion = losses.TF_proxy_anchor(len(set(train_gen.ys)), args.sz_embedding)([y_input, embed])
 
     model = Model(inputs=[backbone.input, y_input], outputs=criterion)
-    model.compile(optimizer=tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay))
+    model.compile(optimizer=tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay),
+                  run_eagerly=False)
     return model, criterion
 
 
@@ -183,6 +185,7 @@ def main():
         model = tf.keras.models.load_model(model_dir, custom_objects={'KerasLayer': hub.KerasLayer,
                                                                        'TF_proxy_anchor': losses.TF_proxy_anchor})
         model.compile(optimizer=tfa.optimizers.Adam(learning_rate=float(args.lr), weight_decay=args.weight_decay))
+
     print("Training for {} epochs.".format(args.nb_epochs))
 
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
@@ -197,6 +200,7 @@ def main():
     for epoch in range(0, args.nb_epochs):
         prepare_layers(args, epoch, model)
 
+        print(model.predict(train_gen.__getitem__(3)))
         model.fit(train_gen, validation_data=val_gen, verbose=1, shuffle=False, callbacks=[model_checkpoint_callback,
                                                                                              tensorBoard])
 
