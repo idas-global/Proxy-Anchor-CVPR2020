@@ -144,7 +144,7 @@ def evaluate_cos(model, dataloader, epoch, args):
     dest = f'../training/{args.dataset}/{epoch}/'
     os.makedirs(dest, exist_ok=True)
 
-    X, T, _ = predict_batchwise(model, dataloader, return_images=False)
+    X, T, I = predict_batchwise(model, dataloader, return_images=True)
 
     X = l2_norm(X)
 
@@ -155,28 +155,28 @@ def evaluate_cos(model, dataloader, epoch, args):
     Y = T[neighbors]
     recall = {}
 
-    if epoch % 2 == 0:
-        coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors)
-        recall['specific_accuracy'] = metrics['specific_accuracy'].values[0]
-        recall['coarse_accuracy'] = metrics['coarse_accuracy'].values[0]
+
+    coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors)
+    recall['specific_accuracy'] = metrics['specific_accuracy'].values[0]
+    recall['coarse_accuracy'] = metrics['coarse_accuracy'].values[0]
     #plot_feature_space(X, dataloader)
 
     metrics = pd.DataFrame()
     for k in [3, 5, 7]:
         y_preds, y_true = calc_recall(T, Y, epoch, k, metrics, recall)
 
-    if epoch % 2 == 0:
-        data_viz_frame = form_data_viz_frame(X, coarse_filter_dict, dataloader, fine_filter_dict, y_preds, y_true)
 
-        params = ['prediction', 'truth']
-        degrees = ['fine', 'coarse']
-        for deg in degrees:
-            for para in params:
-                centroids = plot_node_graph(X, data_viz_frame, dataloader, para, deg, dest)
+    data_viz_frame = form_data_viz_frame(X, coarse_filter_dict, dataloader, fine_filter_dict, y_preds, y_true)
 
-        plot_confusion(data_viz_frame, dataloader, dest)
+    params = ['prediction', 'truth']
+    degrees = ['fine', 'coarse']
+    for deg in degrees:
+        for para in params:
+            centroids = plot_node_graph(X, data_viz_frame, dataloader, para, deg, dest)
 
-        metrics.to_csv(dest + 'metrics.csv')
+    plot_confusion(data_viz_frame, dataloader, dest)
+
+    metrics.to_csv(dest + 'metrics.csv')
     return recall
 
 
@@ -189,8 +189,7 @@ def calc_recall(T, Y, epoch, k, metrics, recall):
     r_at_k = f1_score(y_true, y_preds, average='weighted')
     recall[f"f1score@{k}"] = r_at_k
     print("f1score@{} : {:.3f}".format(k, 100 * r_at_k))
-    if epoch % 2 == 0:
-        metrics[f'f1score@{k}'] = r_at_k * 100
+    metrics[f'f1score@{k}'] = r_at_k * 100
     return y_preds, y_true
 
 
@@ -329,13 +328,13 @@ def get_accuracies(T, X, dataloader, neighbors):
                         for class_num, specific_species in zip(np.array(T), dataloader.class_names_fine)}
 
     y_preds = np.zeros(len(pictures_to_predict))
-
+    y_preds_mode = np.zeros(len(pictures_to_predict))
     for idx, pic in tqdm(enumerate(pictures_to_predict), total=len(pictures_to_predict), desc='Accuracy Analysis'):
         neighbors_to_pic = np.array(neighbors[pic, :][~np.in1d(neighbors[pic, :], pictures_to_predict)])
 
         preds, counts = np.unique(T[neighbors_to_pic], return_counts=True)
         close_preds = preds[np.argsort(counts)[-2::]]
-        
+        y_preds_mode[idx] = preds[np.argsort(counts)[-1]]
         predictions = {}
         
         for close_pred in close_preds:
@@ -354,6 +353,7 @@ def get_accuracies(T, X, dataloader, neighbors):
         y_preds[idx] = max(predictions, key=predictions.get)
 
     print(f'Accuracy at Specific: {accuracy_score(y_preds, np.array(ground_truth)) * 100}')
+    print(f'Accuracy at Specific ( Mode ): {accuracy_score(y_preds_mode, np.array(ground_truth)) * 100}')
 
     coarse_predictions = [coarse_filter_dict[pred] for pred in y_preds]
     coarse_truth = [coarse_filter_dict[truth] for truth in np.array(ground_truth)]

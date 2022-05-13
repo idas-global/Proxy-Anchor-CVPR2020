@@ -3,7 +3,6 @@ import random
 import cv2
 import matplotlib.pyplot as plt
 from tensorflow import keras
-from keras.utils.np_utils import to_categorical
 import albumentations as alb
 import numpy as np
 import scipy.io
@@ -61,6 +60,7 @@ def transform(dataset, image):
                 #print(f'Failed Iter {k}') # TODO Fix this sty transform function
                 continue
 
+    #print(f'Image has sum {np.round(np.sum(transformed))}')
     warnings.filterwarnings("ignore")
     # plt.imshow(transformed[:, :, 0] - 104)
     # plt.show()
@@ -162,7 +162,7 @@ class NoteStyles(keras.utils.Sequence):
             image = cv2.imread(i)
             x[idx] = transform(self, image)
 
-        y = to_categorical(np.array(y).astype(np.float32).reshape(-1, 1), num_classes=self.nb_classes)
+        #y = to_categorical(np.array(y).astype(np.float32).reshape(-1, 1), num_classes=self.nb_classes)
         return [x, y]
 
 
@@ -249,4 +249,4 @@ class Cars(keras.utils.Sequence):
             x[idx] = transform(self, image)
 
         #y = to_categorical(np.array(y).astype(np.float32).reshape(-1, 1), num_classes=self.nb_classes)
-        return [x, np.array(y)]
+        return (x, np.array(y))

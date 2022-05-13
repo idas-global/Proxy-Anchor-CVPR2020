@@ -4,11 +4,12 @@ import urllib
 import utils, losses
 import numpy as np
 import tensorflow as tf
+import tensorflow_hub as hub
+import tensorflow_addons as tfa
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input
 from generator import NoteStyles, Cars
-import tensorflow_hub as hub
-import tensorflow_addons as tfa
+
 
 
 def configure_parser():
@@ -139,15 +140,15 @@ def test_predictions(args, epoch, model, train_gen, val_gen, test_gen):
 
     print('###################################')
     print(f'######  TEST EPOCh {epoch}  #######')
-    Recalls = utils.evaluate_cos(predict_model, test_gen, 0, args)
+    Recalls = utils.evaluate_cos(predict_model, test_gen, epoch, args)
 
     print('###################################')
     print(f'###### TRAIN EPOCh {epoch}  #######')
-    Recalls = utils.evaluate_cos(predict_model, train_gen, 0, args)
+    Recalls = utils.evaluate_cos(predict_model, train_gen, epoch, args)
 
     print('####################################')
     print(f'######   VAL EPOCh {epoch}  #######')
-    Recalls = utils.evaluate_cos(predict_model, val_gen, 0, args)
+    Recalls = utils.evaluate_cos(predict_model, val_gen, epoch, args)
 
 def prepare_layers(args, epoch, model):
     bn_freeze = args.bn_freeze
@@ -180,7 +181,7 @@ def main():
     except urllib.error.URLError:
         print(f"Cant create from scratch, loading from {model_dir}")
         model = tf.keras.models.load_model(model_dir, custom_objects={'KerasLayer': hub.KerasLayer,
-                                                                           'TF_proxy_anchor': losses.TF_proxy_anchor})
+                                                                       'TF_proxy_anchor': losses.TF_proxy_anchor})
         model.compile(optimizer=tfa.optimizers.Adam(learning_rate=float(args.lr), weight_decay=args.weight_decay))
     print("Training for {} epochs.".format(args.nb_epochs))
 
@@ -196,10 +197,10 @@ def main():
     for epoch in range(0, args.nb_epochs):
         prepare_layers(args, epoch, model)
 
-        model.fit(train_gen, validation_data=val_gen, verbose=1, shuffle=True, callbacks=[model_checkpoint_callback,
-                                                                                          tensorBoard])
+        model.fit(train_gen, validation_data=val_gen, verbose=1, shuffle=False, callbacks=[model_checkpoint_callback,
+                                                                                             tensorBoard])
 
-        if (epoch >= 5 and (epoch % 3 == 0)) or (epoch == args.nb_epochs - 1):
+        if (epoch >= 0 and (epoch % 3 == 0)) or (epoch == args.nb_epochs - 1):
             test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
 
 
