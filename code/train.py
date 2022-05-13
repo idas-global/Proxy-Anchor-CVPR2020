@@ -105,7 +105,13 @@ def create_and_compile_model(train_gen, args):
     criterion = losses.TF_proxy_anchor(len(set(train_gen.ys)), args.sz_embedding)([y_input, embed])
 
     model = Model(inputs=[backbone.input, y_input], outputs=criterion)
-    model.compile(optimizer=tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay),
+    optimizers = [
+        tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay),
+        tfa.optimizers.AdamW(learning_rate=float(args.lr)*100, weight_decay=args.weight_decay)
+    ]
+    optimizers_and_layers = [(optimizers[0], model.layers[0:-1]), (optimizers[1], model.layers[-1])]
+    optimizer = tfa.optimizers.MultiOptimizer(optimizers_and_layers)
+    model.compile(optimizer=optimizer,
                   run_eagerly=False)
     return model, criterion
 
