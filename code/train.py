@@ -197,8 +197,8 @@ def main():
 
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
                                                             filepath=save_path,
-                                                            save_weights_only=False,
-                                                            monitor='val_loss',
+                                                            save_weights_only=True,
+                                                            monitor='train_loss',
                                                             mode='min',
                                                             save_best_only=True
     )
