@@ -10,7 +10,7 @@ from tensorflow.keras.layers import Input
 from generator import NoteStyles, Cars
 
 import tensorflow_addons as tfa
-#import tensorflow_hub as hub
+import tensorflow_hub as hub
 
 
 def configure_parser():
