@@ -194,8 +194,8 @@ class Cars(tensorflow.keras.utils.Sequence):
             self.im_paths, self.class_names, self.class_names_coarse, self.class_names_fine, self.ys = zip(*temp)
 
         self.nb_classes = len(np.unique(self.ys, axis=0))
-        le = preprocessing.LabelEncoder()
-        self.ys = le.fit_transform(self.ys)
+        # le = preprocessing.LabelEncoder()
+        # self.ys = le.fit_transform(self.ys)
 
     def slice_to_make_set(self, chosen_images, param):
         return list(np.array(param)[chosen_images])
