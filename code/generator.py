@@ -138,7 +138,7 @@ class NoteStyles(tensorflow.keras.utils.Sequence):
 
 class Cars(tensorflow.keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, args, seed, shuffle=True, mode='train', is_inception=True):
+    def __init__(self, args, seed, shuffle=True, mode='train', is_inception=True, le=None):
         os.chdir('../data/')
         data_root = os.getcwd()
         self.shape = args.sz_batch
@@ -165,8 +165,12 @@ class Cars(tensorflow.keras.utils.Sequence):
         self.class_names_fine = [name for name in [' '.join(name.split(' ')[0:-1]) for name in self.class_names]]
 
         from sklearn import preprocessing
-        le = preprocessing.LabelEncoder()
-        self.ys = le.fit_transform(self.class_names_fine)
+        if le is None:
+            le = preprocessing.LabelEncoder()
+        le.fit(self.class_names_fine)
+        self.ys = le.transform(self.class_names_fine)
+        self.label_encoder = le
+
         le_name_mapping = dict(zip(le.classes_, le.transform(le.classes_)))
         self.nb_classes_total = len(le_name_mapping.keys())
 
@@ -194,8 +198,6 @@ class Cars(tensorflow.keras.utils.Sequence):
             self.im_paths, self.class_names, self.class_names_coarse, self.class_names_fine, self.ys = zip(*temp)
 
         self.nb_classes = len(np.unique(self.ys, axis=0))
-        # le = preprocessing.LabelEncoder()
-        # self.ys = le.fit_transform(self.ys)
 
     def slice_to_make_set(self, chosen_images, param):
         return list(np.array(param)[chosen_images])

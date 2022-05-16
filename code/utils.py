@@ -117,23 +117,22 @@ def parse_im_name(specific_species, exclude_trailing_consonants=False, fine=Fals
     return filter
 
 
-def evaluate_cos(model, dataloader, epoch, args):
+def evaluate_cos(model, dataloader, epoch, args, validation=None):
     # calculate embeddings with model and get targets
     dest = f'../training/{args.dataset}/{epoch}/'
     os.makedirs(dest, exist_ok=True)
 
-    X, T, I = predict_batchwise(model, dataloader, return_images=True)
+    T, X, Y, neighbors = transform_generator(dataloader, model)
 
-    X = l2_norm(X)
+    val_X, val_T = None, None
+    if validation is not None:
+        T, X, Y, neighbors = transform_validation(validation, model, X, T)
 
-    # get predictions by assigning nearest 8 neighbors with cosine
-    K = 32
-    cos_sim = tensorflow.matmul(X, X, transpose_b=True)
-    neighbors = tensorflow.math.top_k(cos_sim, 1 + K)[1][:, 1:]
-    Y = T[neighbors]
     recall = {}
 
-    coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors)
+    coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors,
+                                                                   validation=validation)
+
     recall['specific_accuracy'] = metrics['specific_accuracy'].values[0]
     recall['coarse_accuracy'] = metrics['coarse_accuracy'].values[0]
     #plot_feature_space(X, dataloader)
@@ -155,6 +154,30 @@ def evaluate_cos(model, dataloader, epoch, args):
 
     metrics.to_csv(dest + 'metrics.csv')
     return recall
+
+
+def transform_generator(dataloader, model, K=32):
+    X, T, _ = predict_batchwise(model, dataloader, return_images=False)
+    X = l2_norm(X)
+    # get predictions by assigning nearest 8 neighbors with cosine
+    cos_sim = tensorflow.matmul(X, X, transpose_b=True)
+    neighbors = tensorflow.math.top_k(cos_sim, 1 + K)[1][:, 1:]
+    Y = T[neighbors]
+    return T, X, Y, neighbors
+
+
+def transform_validation(validation, model, X, T, K = 32):
+    val_X, val_T, _ = predict_batchwise(model, validation, return_images=False)
+    X = np.hstack((X, val_X))
+    T = np.hstack((T, val_T))
+
+    X = l2_norm(X)
+    # get predictions by assigning nearest 8 neighbors with cosine
+
+    cos_sim = tensorflow.matmul(X, X, transpose_b=True)
+    neighbors = tensorflow.math.top_k(cos_sim, 1 + K)[1][:, 1:]
+    Y = T[neighbors]
+    return T, X, Y, neighbors
 
 
 def calc_recall(T, Y, epoch, k, metrics, recall):
@@ -295,8 +318,11 @@ def cosine_similarity(v1,v2):
     return sumxy/math.sqrt(sumxx*sumyy)
 
 
-def get_accuracies(T, X, dataloader, neighbors):
+def get_accuracies(T, X, dataloader, neighbors, validation):
     pictures_to_predict = random.choices(range(len(X)), k=int(round(len(dataloader.im_paths)*50/100)))
+    if validation is not None:
+        pictures_to_predict = np.array(range(len(X) - len(validation.ys), len(X)))
+
     ground_truth = T[pictures_to_predict]
 
     coarse_filter_dict = {class_num: specific_species

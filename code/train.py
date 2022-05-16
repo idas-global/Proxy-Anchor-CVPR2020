@@ -124,7 +124,7 @@ def create_generators(args, seed):
 
     elif args.dataset == 'cars':
         train_gen = Cars(args, seed, shuffle=True, mode='train')
-        val_gen = Cars(args, seed, shuffle=True, mode='val')
+        val_gen = Cars(args, seed, shuffle=True, mode='val', le=train_gen.label_encoder)
         test_gen = Cars(args, seed, shuffle=True, mode='test')
     return train_gen, val_gen, test_gen
 
