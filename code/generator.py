@@ -8,7 +8,7 @@ import numpy as np
 import scipy.io
 
 
-def transform(dataset, image):
+def transform(dataset, image, train):
     sz_resize = 256
     sz_crop = 224
     mean = (0.485, 0.456, 0.406)
@@ -24,7 +24,7 @@ def transform(dataset, image):
     if dataset.name == 'NoteStyles':
         p = 0
 
-    transformed = transform_image(image, p, sz_crop, sz_resize)
+    transformed = transform_image(image, p, sz_crop, sz_resize, train)
 
     for i in range(len(transformed.shape)):
         transformed[:, :, i] = (transformed[:, :, i] - mean[i]) / std[i]
@@ -32,23 +32,29 @@ def transform(dataset, image):
     return transformed
 
 
-def transform_image(image, p, sz_crop, sz_resize):
-    transform = alb.Compose([
-        alb.RandomResizedCrop(sz_crop, sz_crop, scale=(0.7, 1), always_apply=True),
-        alb.HorizontalFlip(p=0.5),
-        alb.transforms.Resize(sz_resize, sz_resize),
-        alb.GaussNoise(p=0.1),
-        alb.GaussianBlur(p=0.1),
-        alb.RandomBrightnessContrast(p=0.1),
-        alb.RandomShadow(p=0.1),
-        alb.RandomRain(p=0.1),
-        alb.GridDistortion(p=0.1),
+def transform_image(image, p, sz_crop, sz_resize, train=True):
+    if train:
+        transform = alb.Compose([
+            alb.RandomResizedCrop(sz_crop, sz_crop, scale=(0.7, 1), always_apply=True),
+            alb.HorizontalFlip(p=0.5),
+            alb.transforms.Resize(sz_resize, sz_resize),
+            alb.GaussNoise(p=0.1),
+            alb.GaussianBlur(p=0.1),
+            alb.RandomBrightnessContrast(p=0.1),
+            alb.RandomShadow(p=0.1),
+            alb.RandomRain(p=0.1),
+            alb.GridDistortion(p=0.1),
 
-        #alb.VerticalFlip(p=p / 2),
-        alb.CenterCrop(sz_crop, sz_crop, p=p),
+            #alb.VerticalFlip(p=p / 2),
+            alb.CenterCrop(sz_crop, sz_crop, p=p),
 
 
-    ], p=1)
+        ], p=1)
+    else:
+        transform = alb.Compose([
+            alb.transforms.Resize(sz_resize, sz_resize),
+            alb.CenterCrop(sz_crop, sz_crop, p=p),
+        ], p=1)
     transformed = transform(image=image)['image'].astype('float32')
     return transformed
 
@@ -210,7 +216,7 @@ class Cars(tensorflow.keras.utils.Sequence):
 
         for idx, i in enumerate(imgs_for_batch):
             image = cv2.imread(i)
-            x[idx] = transform(self, image)
-
+            #x[idx] = transform(self, image, self.mode == 'train')
+            x[idx] = transform(self, image, True)
         #y = to_categorical(np.array(y).astype(np.float32).reshape(-1, 1), num_classes=self.nb_classes)
         return [x, np.array(y)]

@@ -10,7 +10,7 @@ from tensorflow.keras.layers import Input
 from generator import NoteStyles, Cars
 
 import tensorflow_addons as tfa
-import tensorflow_hub as hub
+#import tensorflow_hub as hub
 
 
 def configure_parser():
@@ -109,7 +109,7 @@ def create_and_compile_model(train_gen, args):
         tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay),
         tfa.optimizers.AdamW(learning_rate=float(args.lr)*100, weight_decay=args.weight_decay)
     ]
-    optimizers_and_layers = [(optimizers[0], model.layers[0:-1]), (optimizers[1], model.layers[-1])]
+    optimizers_and_layers = [(optimizers[0], model.layers[0:-2]), (optimizers[1], model.layers[-2])]
     optimizer = tfa.optimizers.MultiOptimizer(optimizers_and_layers)
     model.compile(optimizer=optimizer,
                   run_eagerly=False)
@@ -146,9 +146,9 @@ def create_save_dir(args):
 def test_predictions(args, epoch, model, train_gen, val_gen, test_gen):
     predict_model = Model(inputs=model.input, outputs=model.layers[-2].output)
 
-    print('###################################')
-    print(f'######  TEST EPOCh {epoch}  #######')
-    Recalls = utils.evaluate_cos(predict_model, test_gen, epoch, args)
+    # print('###################################')
+    # print(f'######  TEST EPOCh {epoch}  #######')
+    # Recalls = utils.evaluate_cos(predict_model, test_gen, epoch, args)
 
     print('###################################')
     print(f'###### TRAIN EPOCh {epoch}  #######')
@@ -157,6 +157,7 @@ def test_predictions(args, epoch, model, train_gen, val_gen, test_gen):
     print('####################################')
     print(f'######   VAL EPOCh {epoch}  #######')
     Recalls = utils.evaluate_cos(predict_model, val_gen, epoch, args)
+
 
 def prepare_layers(args, epoch, model):
     bn_freeze = args.bn_freeze
@@ -171,6 +172,30 @@ def prepare_layers(args, epoch, model):
             model.layers[-1].trainable = True
 
 
+def custom_loss(self, target, embeddings):
+    oh_target = tf.squeeze(tf.one_hot(tf.cast(target, tf.int32), depth=self.nb_classes))
+    embeddings_l2 = tf.cast(tf.nn.l2_normalize(embeddings, axis=1), tf.float32)
+    proxy_l2 = tf.nn.l2_normalize(self.proxy, axis=1)
+
+    pos_target = oh_target
+    neg_target = 1.0 - pos_target
+
+    pos_target = tf.cast(pos_target, tf.bool)
+    neg_target = tf.cast(neg_target, tf.bool)
+
+    cos = tf.matmul(embeddings_l2, proxy_l2, transpose_b=True)
+
+    pos_mat = tf.where(pos_target, x=tf.exp(-32 * (cos - 0.1)), y=tf.zeros_like(pos_target, dtype=tf.float32))
+    neg_mat = tf.where(neg_target, x=tf.exp(32 * (cos + 0.1)), y=tf.zeros_like(neg_target, dtype=tf.float32))
+
+    n_valid_proxies = tf.math.count_nonzero(tf.reduce_sum(oh_target, axis=0), dtype=tf.dtypes.float32)
+
+    pos_term = tf.reduce_sum(tf.math.log(1.0 + tf.reduce_sum(pos_mat, axis=0))) / n_valid_proxies
+    neg_term = tf.reduce_sum(tf.math.log(1.0 + tf.reduce_sum(neg_mat, axis=0))) / tf.cast(self.nb_classes, tf.float32)
+    loss = pos_term + neg_term
+    return loss
+
+
 def main():
     args = configure_parser()
 
@@ -182,12 +207,12 @@ def main():
     train_gen, val_gen, test_gen = create_generators(args, seed)
 
     save_path = create_save_dir(args)
-    model_dir = save_path + './untrained_model.h5'
+    model_dir = save_path + '/untrained_model.h5'
 
     try:
         model, criterion = create_and_compile_model(train_gen, args)
         tf.keras.models.save_model(model, model_dir)
-    except urllib.error.URLError:
+    except urllib.error.URLError or NameError:
         print(f"Cant create from scratch, loading from {model_dir}")
         model = tf.keras.models.load_model(model_dir, custom_objects={'KerasLayer': hub.KerasLayer,
                                                                        'TF_proxy_anchor': losses.TF_proxy_anchor})
@@ -196,13 +221,13 @@ def main():
     print("Training for {} epochs.".format(args.nb_epochs))
 
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-                                                            filepath=save_path,
+                                                            filepath=save_path + '/callback',
                                                             save_weights_only=True,
-                                                            monitor='train_loss',
+                                                            monitor='val_loss',
                                                             mode='min',
                                                             save_best_only=True
     )
-    tensorBoard = tf.keras.callbacks.TensorBoard(log_dir=save_path, histogram_freq=1)
+    tensorBoard = tf.keras.callbacks.TensorBoard(log_dir=save_path + '/tensorboard', histogram_freq=1)
 
     for epoch in range(0, args.nb_epochs):
         prepare_layers(args, epoch, model)

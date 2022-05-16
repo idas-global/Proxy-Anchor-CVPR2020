@@ -133,7 +133,6 @@ def evaluate_cos(model, dataloader, epoch, args):
     Y = T[neighbors]
     recall = {}
 
-
     coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors)
     recall['specific_accuracy'] = metrics['specific_accuracy'].values[0]
     recall['coarse_accuracy'] = metrics['coarse_accuracy'].values[0]

@@ -60,8 +60,8 @@ class TF_proxy_anchor(tf.keras.layers.Layer):
         pos_target = oh_target
         neg_target = 1.0 - pos_target
 
-        pos_target = tf.cast(pos_target, tf.bool, name='y_true')
-        neg_target = tf.cast(neg_target, tf.bool, name='y_true')
+        pos_target = tf.cast(pos_target, tf.bool)
+        neg_target = tf.cast(neg_target, tf.bool)
 
         cos = tf.matmul(embeddings_l2, proxy_l2, transpose_b=True)
 
