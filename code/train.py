@@ -221,7 +221,7 @@ def main():
     print("Training for {} epochs.".format(args.nb_epochs))
 
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-                                                            filepath=save_path + '/callback',
+                                                            filepath=save_path + '/callback_model.h5',
                                                             save_weights_only=True,
                                                             monitor='val_loss',
                                                             mode='min',
