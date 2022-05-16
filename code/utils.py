@@ -310,7 +310,7 @@ def get_accuracies(T, X, dataloader, neighbors):
     for idx, pic in tqdm(enumerate(pictures_to_predict), total=len(pictures_to_predict), desc='Accuracy Analysis'):
         neighbors_to_pic = np.array(neighbors[pic, :][~np.in1d(neighbors[pic, :], pictures_to_predict)])
 
-        preds, counts = np.unique(T[neighbors_to_pic], return_counts=True)
+        preds, counts = np.unique(T[neighbors_to_pic[0:7]], return_counts=True)
         close_preds = preds[np.argsort(counts)[-2::]]
         y_preds_mode[idx] = preds[np.argsort(counts)[-1]]
         predictions = {}
