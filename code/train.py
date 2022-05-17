@@ -541,6 +541,8 @@ def main():
             for i in range(len(x)//args.sz_batch + 1):
                 embeddings = preds[int(i*args.sz_batch): int((i+1)*args.sz_batch)]
                 target = y[int(i*args.sz_batch): int((i+1)*args.sz_batch)]
+                print(embeddings)
+                print(target)
                 print(criterion.custom_loss(target, embeddings))
 
         # if (epoch >= 0 and (epoch % 3 == 0)) or (epoch == args.nb_epochs - 1):
