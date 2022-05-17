@@ -37,7 +37,6 @@ def transform_image(image, p, sz_crop, sz_resize, train=True):
         transform = alb.Compose([
             alb.RandomResizedCrop(sz_crop, sz_crop, scale=(0.7, 1), always_apply=True),
             alb.HorizontalFlip(p=0.5),
-            alb.transforms.Resize(sz_resize, sz_resize),
             alb.GaussNoise(p=0.1),
             alb.GaussianBlur(p=0.1),
             alb.RandomBrightnessContrast(p=0.1),
@@ -53,7 +52,6 @@ def transform_image(image, p, sz_crop, sz_resize, train=True):
     else:
         transform = alb.Compose([
             alb.transforms.Resize(sz_resize, sz_resize),
-            alb.CenterCrop(sz_crop, sz_crop, p=p),
         ], p=1)
     transformed = transform(image=image)['image'].astype('float32')
     return transformed

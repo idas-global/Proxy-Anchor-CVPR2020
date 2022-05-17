@@ -29,10 +29,14 @@ class TF_proxy_anchor(tf.keras.layers.Layer):
         super(TF_proxy_anchor, self).__init__()
         self.nb_classes = tf.cast(nb_classes, tf.int32)
         self.sz_embedding = sz_embedding
+        import torch
+        import torch.nn as nn
+        import torch.nn.functional as F
+        proxies = torch.nn.Parameter(torch.randn(nb_classes, sz_embedding))
+        nn.init.kaiming_normal_(proxies, mode='fan_out')
 
         self.proxy = tf.compat.v1.get_variable(name='proxy',
-                                               shape=[nb_classes, sz_embedding],
-                                               initializer=tf.random_normal_initializer(),
+                                               initializer=tf.convert_to_tensor(proxies.detach().numpy()),
                                                dtype=tf.float32,
                                                trainable=True)
 
