@@ -247,9 +247,10 @@ def create_and_compile_model(train_gen, args):
     embed = tf.keras.layers.Dense(args.sz_embedding, kernel_initializer=tf.keras.initializers.HeNormal(),
                                   use_bias=False, activation=None)(flat)
 
-    criterion = losses.TF_proxy_anchor(len(set(train_gen.ys)), args.sz_embedding)([y_input, embed])
+    criterion = losses.TF_proxy_anchor(len(set(train_gen.ys)), args.sz_embedding)
+    crit_tensor = criterion([y_input, embed])
 
-    model = Model(inputs=[backbone.input, y_input], outputs=criterion)
+    model = Model(inputs=[backbone.input, y_input], outputs=crit_tensor)
     optimizers = [
         tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay),
         tfa.optimizers.AdamW(learning_rate=float(args.lr)*100, weight_decay=args.weight_decay)
