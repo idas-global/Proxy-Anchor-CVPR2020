@@ -146,9 +146,9 @@ def create_save_dir(args):
 def test_predictions(args, epoch, model, train_gen, val_gen, test_gen):
     predict_model = Model(inputs=model.input, outputs=model.layers[-2].output)
 
-    # print('###################################')
-    # print(f'######  TEST EPOCh {epoch}  #######')
-    # Recalls = utils.evaluate_cos(predict_model, test_gen, epoch, args)
+    print('###################################')
+    print(f'######  TEST EPOCh {epoch}  #######')
+    Recalls = utils.evaluate_cos(predict_model, test_gen, epoch, args)
 
     print('###################################')
     print(f'###### TRAIN EPOCh {epoch}  #######')
@@ -165,11 +165,12 @@ def prepare_layers(args, epoch, model):
         for layer in model.layers:
             if layer.name == 'batch_normalization':
                 layer.trainable = False
+
     if args.warm > 0:
         if epoch == 0:
-            model.layers[-1].trainable = False
+            model.layers[0:-2].trainable = False
         if epoch == args.warm:
-            model.layers[-1].trainable = True
+            model.layers[0:-2].trainable = True
 
 
 def custom_loss(self, target, embeddings):
