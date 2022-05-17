@@ -539,7 +539,7 @@ def main():
             for i in range(len(x)//args.sz_batch + 1):
                 bz_x = x[int(i*args.sz_batch): int((i+1)*args.sz_batch)]
                 bz_y = y[int(i*args.sz_batch): int((i+1)*args.sz_batch)]
-                model.evaluate(x=[bz_x, bz_y])
+                print(model.evaluate(x=[bz_x, bz_y]))
 
         # if (epoch >= 0 and (epoch % 3 == 0)) or (epoch == args.nb_epochs - 1):
         #     test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
