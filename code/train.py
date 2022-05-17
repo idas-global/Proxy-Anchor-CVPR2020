@@ -1,4 +1,22 @@
 import argparse, os
+import random, dataset, utils, losses
+
+import cv2
+import scipy
+import tensorflow
+from tqdm import tqdm
+
+from dataset.Inshop import Inshop_Dataset
+from net.resnet import *
+from net.googlenet import *
+from net.bn_inception import *
+from dataset import sampler
+from torch.utils.data.sampler import BatchSampler
+import torch
+import tensorflow as tf
+import numpy as np
+from tensorflow.keras.layers import Input
+import argparse, os
 import urllib
 
 import utils, losses
@@ -11,6 +29,7 @@ from generator import NoteStyles, Cars
 
 import tensorflow_addons as tfa
 import tensorflow_hub as hub
+import albumentations as alb
 
 
 def configure_parser():
@@ -91,6 +110,132 @@ def configure_parser():
     return parser.parse_args()
 
 
+args = configure_parser()
+
+seed = 1
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)  # set random seed for all gpus
+
+#
+# if args.gpu_id != -1:
+#     torch.cuda.set_device(args.gpu_id)
+
+# Directory for Log
+LOG_DIR = args.LOG_DIR + '/logs_{}/{}_{}_embedding{}_alpha{}_mrg{}_{}_lr{}_batch{}{}'.format(args.dataset, args.model,
+                                                                                             args.loss,
+                                                                                             args.sz_embedding,
+                                                                                             args.alpha,
+                                                                                             args.mrg, args.optimizer,
+                                                                                             args.lr, args.sz_batch,
+                                                                                             args.remark)
+
+os.chdir('../data/')
+data_root = os.getcwd()
+# Dataset Loader and Sampler
+if args.dataset == 'note_styles':
+    trn_dataset = dataset.load(
+        name=args.dataset,
+        root=data_root,
+        mode='train',
+        transform=dataset.utils.make_transform(
+            is_train=True,
+            is_inception=(args.model == 'bn_inception'),
+            crop=False
+        ))
+elif args.dataset != 'Inshop':
+    trn_dataset = dataset.load(
+        name=args.dataset,
+        root=data_root,
+        mode='train',
+        transform=dataset.utils.make_transform(
+            is_train=True,
+            is_inception=(args.model == 'bn_inception')
+        ))
+else:
+    trn_dataset = Inshop_Dataset(
+        root=data_root,
+        mode='train',
+        transform=dataset.utils.make_transform(
+            is_train=True,
+            is_inception=(args.model == 'bn_inception')
+        ))
+
+if args.IPC:
+    balanced_sampler = sampler.BalancedSampler(trn_dataset, batch_size=args.sz_batch, images_per_class=args.IPC)
+    batch_sampler = BatchSampler(balanced_sampler, batch_size=args.sz_batch, drop_last=True)
+    dl_tr = torch.utils.data.DataLoader(
+        trn_dataset,
+        num_workers=args.nb_workers,
+        pin_memory=True,
+        batch_sampler=batch_sampler
+    )
+    print('Balanced Sampling')
+
+else:
+    dl_tr = torch.utils.data.DataLoader(
+        trn_dataset,
+        batch_size=args.sz_batch,
+        shuffle=True,
+        num_workers=args.nb_workers,
+        drop_last=True,
+        pin_memory=True
+    )
+    print('Random Sampling')
+
+if args.dataset != 'Inshop':
+    ev_dataset = dataset.load(
+        name=args.dataset,
+        root=data_root,
+        mode='eval',
+        transform=dataset.utils.make_transform(
+            is_train=False,
+            is_inception=(args.model == 'bn_inception')
+        ))
+
+    dl_ev = torch.utils.data.DataLoader(
+        ev_dataset,
+        batch_size=args.sz_batch,
+        shuffle=False,
+        num_workers=args.nb_workers,
+        pin_memory=True
+    )
+
+else:
+    query_dataset = Inshop_Dataset(
+        root=data_root,
+        mode='query',
+        transform=dataset.utils.make_transform(
+            is_train=False,
+            is_inception=(args.model == 'bn_inception')
+        ))
+
+    dl_query = torch.utils.data.DataLoader(
+        query_dataset,
+        batch_size=args.sz_batch,
+        shuffle=False,
+        num_workers=args.nb_workers,
+        pin_memory=True
+    )
+
+    gallery_dataset = Inshop_Dataset(
+        root=data_root,
+        mode='gallery',
+        transform=dataset.utils.make_transform(
+            is_train=False,
+            is_inception=(args.model == 'bn_inception')
+        ))
+
+    dl_gallery = torch.utils.data.DataLoader(
+        gallery_dataset,
+        batch_size=args.sz_batch,
+        shuffle=False,
+        num_workers=args.nb_workers,
+        pin_memory=True
+    )
+
+
 def create_and_compile_model(train_gen, args):
     # model = model
     y_input = Input(shape=(1,))
@@ -107,26 +252,13 @@ def create_and_compile_model(train_gen, args):
     model = Model(inputs=[backbone.input, y_input], outputs=criterion)
     optimizers = [
         tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay),
-        tfa.optimizers.AdamW(learning_rate=float(args.lr)*50, weight_decay=args.weight_decay)
+        tfa.optimizers.AdamW(learning_rate=float(args.lr)*100, weight_decay=args.weight_decay)
     ]
     optimizers_and_layers = [(optimizers[0], model.layers[0:-2]), (optimizers[1], model.layers[-2])]
     optimizer = tfa.optimizers.MultiOptimizer(optimizers_and_layers)
     model.compile(optimizer=optimizer,
                   run_eagerly=False)
     return model, criterion
-
-
-def create_generators(args, seed):
-    if args.dataset == 'note_styles':
-        train_gen = NoteStyles(args, seed, shuffle=True, mode='train')
-        val_gen = NoteStyles(args, seed, shuffle=True, mode='val')
-        test_gen = NoteStyles(args, seed, shuffle=True, mode='test')
-
-    elif args.dataset == 'cars':
-        train_gen = Cars(args, seed, shuffle=True, mode='train')
-        val_gen = Cars(args, seed, shuffle=True, mode='val', le=train_gen.label_encoder)
-        test_gen = Cars(args, seed, shuffle=True, mode='test')
-    return train_gen, val_gen, test_gen
 
 
 def create_save_dir(args):
@@ -196,6 +328,157 @@ def custom_loss(self, target, embeddings):
     return loss
 
 
+class Cars(tensorflow.keras.utils.Sequence):
+    'Generates data for Keras'
+
+    def __init__(self, args, seed, shuffle=True, mode='train', is_inception=True, le=None):
+        os.chdir('../data/')
+        data_root = os.getcwd()
+        self.shape = args.sz_batch
+        self.root = data_root + '/cars196'
+        self.name = 'Cars'
+        self.mode = mode
+        self.batch_size = args.sz_batch
+        self.shuffle = shuffle
+        self.sz_embedding = args.sz_embedding
+        self.is_inception = is_inception
+        self.im_dimensions = (224, 224, 3)  # TODO Put in parser
+        self.im_paths = []
+
+        for (root, dirs, files) in os.walk(self.root):
+            for file in files:
+                if '.bmp' in file or '.jpg' in file or '.png' in file:
+                    self.im_paths.append(os.path.join(root, file))
+
+        annos_fn = 'cars_annos.mat'
+        cars = scipy.io.loadmat(os.path.join(self.root, annos_fn))
+        self.class_names = list([cars['class_names'][0][item[-2][0][0] - 1][0] for item in cars['annotations'][0]])
+        self.class_names_coarse = [name.split(' ')[0] if name.split(' ')[0] != 'Land'
+                                   else ''.join(name.split(' ')[0:2]) for name in self.class_names]
+        self.class_names_fine = [name for name in [' '.join(name.split(' ')[0:-1]) for name in self.class_names]]
+
+        from sklearn import preprocessing
+        if le is None:
+            le = preprocessing.LabelEncoder()
+        le.fit(self.class_names_fine)
+        self.ys = le.transform(self.class_names_fine)
+        self.label_encoder = le
+
+        le_name_mapping = dict(zip(le.classes_, le.transform(le.classes_)))
+        self.nb_classes_total = len(le_name_mapping.keys())
+
+        if self.mode == 'train' or self.mode == 'val':
+            self.classes = range(0, int(np.round(self.nb_classes_total / 2)))
+        else:
+            self.classes = range(int(np.round(self.nb_classes_total / 2)), self.nb_classes_total - 1)
+
+        chosen_images = [idx for idx, i in enumerate(self.ys) if i in self.classes]
+        random.seed(seed)
+        if self.mode == 'train':
+            chosen_images = random.choices(chosen_images, k=int(np.round(0.8 * len(chosen_images))))
+        if self.mode == 'val':
+            not_chosen_images = random.choices(chosen_images, k=int(np.round(0.8 * len(chosen_images))))
+            chosen_images = [i for i in chosen_images if i not in not_chosen_images]
+
+        self.dataset_size = len(chosen_images)
+
+        for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys']:
+            setattr(self, param, self.slice_to_make_set(chosen_images, getattr(self, param)))
+
+        if shuffle:
+            temp = list(zip(self.im_paths, self.class_names, self.class_names_coarse, self.class_names_fine, self.ys))
+            random.shuffle(temp)
+            self.im_paths, self.class_names, self.class_names_coarse, self.class_names_fine, self.ys = zip(*temp)
+
+        self.nb_classes = len(np.unique(self.ys, axis=0))
+
+    def slice_to_make_set(self, chosen_images, param):
+        return list(np.array(param)[chosen_images])
+
+    def __len__(self):
+        'Denotes the number of batches per epoch'
+        return int(np.floor(self.dataset_size / self.batch_size))
+
+    def __getitem__(self, index):
+        'Generate one batch of data'
+        # Generate indexes of the batch
+        batch_slice = range(len(self.im_paths))[index * self.batch_size: (index + 1) * self.batch_size]
+
+        imgs_for_batch = self.slice_to_make_set(batch_slice, self.im_paths)
+        y = self.slice_to_make_set(batch_slice, self.ys)
+
+        x = np.empty((len(imgs_for_batch), *self.im_dimensions))
+
+        for idx, i in enumerate(imgs_for_batch):
+            image = cv2.imread(i)
+            # x[idx] = transform(self, image, self.mode == 'train')
+            x[idx] = transform(self, image, True)
+        # y = to_categorical(np.array(y).astype(np.float32).reshape(-1, 1), num_classes=self.nb_classes)
+        return [x, np.array(y)]
+
+
+def transform(dataset, image, train):
+    sz_resize = 256
+    sz_crop = 224
+    mean = (0.485, 0.456, 0.406)
+    std = (0.229, 0.224, 0.225)
+
+    if dataset.is_inception:
+        sz_resize = 256
+        sz_crop = 224
+        mean = (104, 117, 128)
+        std = (1, 1, 1)
+
+    p = 1
+    if dataset.name == 'NoteStyles':
+        p = 0
+
+    transformed = transform_image(image, p, sz_crop, sz_resize, train)
+
+    for i in range(len(transformed.shape)):
+        transformed[:, :, i] = (transformed[:, :, i] - mean[i]) / std[i]
+
+    return transformed
+
+
+def transform_image(image, p, sz_crop, sz_resize, train=True):
+    if train:
+        transform = alb.Compose([
+            alb.RandomResizedCrop(sz_crop, sz_crop, scale=(0.7, 1), always_apply=True),
+            alb.HorizontalFlip(p=0.5),
+            alb.GaussNoise(p=0.1),
+            alb.GaussianBlur(p=0.1),
+            alb.RandomBrightnessContrast(p=0.1),
+            alb.RandomShadow(p=0.1),
+            alb.RandomRain(p=0.1),
+            alb.GridDistortion(p=0.1),
+
+            #alb.VerticalFlip(p=p / 2),
+            alb.CenterCrop(sz_crop, sz_crop, p=p),
+
+
+        ], p=1)
+    else:
+        transform = alb.Compose([
+            alb.transforms.Resize(sz_resize, sz_resize),
+        ], p=1)
+    transformed = transform(image=image)['image'].astype('float32')
+    return transformed
+
+
+def create_generators(args, seed):
+    if args.dataset == 'note_styles':
+        train_gen = NoteStyles(args, seed, shuffle=True, mode='train')
+        val_gen = NoteStyles(args, seed, shuffle=True, mode='val')
+        test_gen = NoteStyles(args, seed, shuffle=True, mode='test')
+
+    elif args.dataset == 'cars':
+        train_gen = Cars(args, seed, shuffle=True, mode='train')
+        val_gen = Cars(args, seed, shuffle=True, mode='val', le=train_gen.label_encoder)
+        test_gen = Cars(args, seed, shuffle=True, mode='test')
+    return train_gen, val_gen, test_gen
+
+
 def main():
     args = configure_parser()
 
@@ -204,10 +487,11 @@ def main():
     # Dataset Loader and Sampler
 
     seed = np.random.choice(range(144444))
-    train_gen, val_gen, test_gen = create_generators(args, seed)
 
     save_path = create_save_dir(args)
     model_dir = save_path + '/untrained_model.h5'
+
+    train_gen, val_gen, test_gen = create_generators(args, seed)
 
     try:
         model, criterion = create_and_compile_model(train_gen, args)
@@ -232,11 +516,14 @@ def main():
     for epoch in range(0, args.nb_epochs):
         prepare_layers(args, epoch, model)
 
-        model.fit(train_gen, validation_data=val_gen, verbose=1, shuffle=False, callbacks=[model_checkpoint_callback,
-                                                                                             tensorBoard])
+        pbar = tqdm(enumerate(dl_tr))
 
-        if (epoch >= 0 and (epoch % 3 == 0)) or (epoch == args.nb_epochs - 1):
-            test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
+        for batch_idx, (x, y) in pbar:
+            model.fit(x=[x, y], batch_size=args.sz_batch, verbose=1, shuffle=False,
+                      callbacks=[model_checkpoint_callback, tensorBoard])
+
+        # if (epoch >= 0 and (epoch % 3 == 0)) or (epoch == args.nb_epochs - 1):
+        #     test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
 
 
 if __name__ == '__main__':
