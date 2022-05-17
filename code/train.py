@@ -522,8 +522,9 @@ def main():
         print(f'###### TRAIN EPOCh {epoch}  #######')
 
         for batch_idx, (x, y) in pbar:
+            if batch_idx != 0:
+                break
             x = x.numpy()
-            print(x.shape)
             y = y.numpy()
             x = np.moveaxis(x, 1, -1)
             model.fit(x=[x, y], batch_size=args.sz_batch, verbose=1, shuffle=False)
@@ -534,10 +535,12 @@ def main():
 
         for batch_idx, (x, y) in pbar:
             x = x.numpy()
-            print(x.shape)
             y = y.numpy()
+            y = y - 98
             x = np.moveaxis(x, 1, -1)
-            print(model.evaluate(x=[x, y], batch_size=args.sz_batch, verbose=1))
+            predict_model = Model(inputs=model.input, outputs=model.layers[-2].output)
+            embeddings = predict_model.predict([x, y], batch_size=args.sz_batch)
+            print(criterion.custom_loss(y, embeddings))
 
         # if (epoch >= 0 and (epoch % 3 == 0)) or (epoch == args.nb_epochs - 1):
         #     test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
