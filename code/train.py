@@ -529,12 +529,13 @@ def main():
         pbar = tqdm(enumerate(dl_ev))
         print('###################################')
         print(f'###### TEST EPOCh {epoch}  #######')
-        
+
         for batch_idx, (x, y) in pbar:
             x = x.numpy()
             y = y.numpy()
             x = np.moveaxis(x, 1, -1)
-            model.predict(x=[x, y], batch_size=args.sz_batch, verbose=1)
+            preds = model.predict(x=[x, y], batch_size=args.sz_batch, verbose=1)
+            print(criterion.custom_loss(x, preds))
 
         # if (epoch >= 0 and (epoch % 3 == 0)) or (epoch == args.nb_epochs - 1):
         #     test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
