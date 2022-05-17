@@ -5,7 +5,6 @@ class Cars(BaseDataset):
     def __init__(self, root, mode, transform = None):
         self.root = root + '/cars196'
         self.mode = mode
-        self.name = 'CARS'
         self.transform = transform
         if self.mode == 'train':
             self.classes = range(0,98)

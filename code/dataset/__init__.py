@@ -3,6 +3,7 @@ from .cub import CUBirds
 from .SOP import SOP
 from .note_styles import Notes
 from .note_families import NoteFamilies
+from .import utils
 from .base import BaseDataset
 
 
