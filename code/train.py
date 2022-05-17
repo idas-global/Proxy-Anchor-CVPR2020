@@ -107,7 +107,7 @@ def create_and_compile_model(train_gen, args):
     model = Model(inputs=[backbone.input, y_input], outputs=criterion)
     optimizers = [
         tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay),
-        tfa.optimizers.AdamW(learning_rate=float(args.lr)*100, weight_decay=args.weight_decay)
+        tfa.optimizers.AdamW(learning_rate=float(args.lr)*50, weight_decay=args.weight_decay)
     ]
     optimizers_and_layers = [(optimizers[0], model.layers[0:-2]), (optimizers[1], model.layers[-2])]
     optimizer = tfa.optimizers.MultiOptimizer(optimizers_and_layers)
