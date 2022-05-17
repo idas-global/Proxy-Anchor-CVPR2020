@@ -532,15 +532,15 @@ def main():
         print(f'###### TEST EPOCh {epoch}  #######')
 
         predict_model = Model(inputs=model.input, outputs=model.layers[-2].output)
-
         for batch_idx, (x, y) in pbar:
             x = x.numpy()
             y = y.numpy()
             x = np.moveaxis(x, 1, -1)
-            print(len(x))
-            print(len(y))
             preds = predict_model.predict(x=[x, y], batch_size=args.sz_batch, verbose=1)
-            print(criterion.custom_loss(x, preds))
+
+            for i in range(len(x)//args.sz_batch + 1):
+                print(criterion.custom_loss(x[int(i*args.sz_batch): int((i+1)*args.sz_batch)],
+                                            preds[int(i*args.sz_batch): int((i+1)*args.sz_batch)]))
 
         # if (epoch >= 0 and (epoch % 3 == 0)) or (epoch == args.nb_epochs - 1):
         #     test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
