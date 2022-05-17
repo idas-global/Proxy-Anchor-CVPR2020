@@ -107,7 +107,7 @@ def create_and_compile_model(train_gen, args):
     model = Model(inputs=[backbone.input, y_input], outputs=criterion)
     optimizers = [
         tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay),
-        tfa.optimizers.AdamW(learning_rate=float(args.lr)*50, weight_decay=args.weight_decay)
+        tfa.optimizers.AdamW(learning_rate=float(args.lr)*100, weight_decay=args.weight_decay)
     ]
     optimizers_and_layers = [(optimizers[0], model.layers[0:-2]), (optimizers[1], model.layers[-2])]
     optimizer = tfa.optimizers.MultiOptimizer(optimizers_and_layers)
@@ -118,14 +118,14 @@ def create_and_compile_model(train_gen, args):
 
 def create_generators(args, seed):
     if args.dataset == 'note_styles':
-        train_gen = NoteStyles(args, seed, shuffle=True, mode='train')
-        val_gen = NoteStyles(args, seed, shuffle=True, mode='val')
-        test_gen = NoteStyles(args, seed, shuffle=True, mode='test')
+        train_gen = NoteStyles(args, seed, shuffle=False, mode='train')
+        val_gen = NoteStyles(args, seed, shuffle=False, mode='val')
+        test_gen = NoteStyles(args, seed, shuffle=False, mode='test')
 
     elif args.dataset == 'cars':
-        train_gen = Cars(args, seed, shuffle=True, mode='train')
-        val_gen = Cars(args, seed, shuffle=True, mode='val', le=train_gen.label_encoder)
-        test_gen = Cars(args, seed, shuffle=True, mode='test')
+        train_gen = Cars(args, seed, shuffle=False, mode='train')
+        val_gen = Cars(args, seed, shuffle=False, mode='val')
+        test_gen = Cars(args, seed, shuffle=False, mode='test')
     return train_gen, val_gen, test_gen
 
 
@@ -232,7 +232,7 @@ def main():
     for epoch in range(0, args.nb_epochs):
         prepare_layers(args, epoch, model)
 
-        model.fit(train_gen, validation_data=val_gen, verbose=1, shuffle=False, callbacks=[model_checkpoint_callback,
+        model.fit(x=train_gen, validation_data=val_gen, verbose=1, shuffle=False, callbacks=[model_checkpoint_callback,
                                                                                              tensorBoard])
 
         if (epoch >= 0 and (epoch % 3 == 0)) or (epoch == args.nb_epochs - 1):

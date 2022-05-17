@@ -181,9 +181,11 @@ class Cars(tensorflow.keras.utils.Sequence):
         random.seed(seed)
         if self.mode == 'train':
             chosen_images = random.choices(chosen_images, k=int(np.round(0.8*len(chosen_images))))
+            chosen_images = np.sort(chosen_images)
         if self.mode == 'val':
             not_chosen_images = random.choices(chosen_images, k=int(np.round(0.8*len(chosen_images))))
             chosen_images = [i for i in chosen_images if i not in not_chosen_images]
+            chosen_images = np.sort(chosen_images)
 
         self.dataset_size = len(chosen_images)
 
@@ -196,6 +198,9 @@ class Cars(tensorflow.keras.utils.Sequence):
             self.im_paths, self.class_names, self.class_names_coarse, self.class_names_fine, self.ys = zip(*temp)
 
         self.nb_classes = len(np.unique(self.ys, axis=0))
+        if le is None:
+            le = preprocessing.LabelEncoder()
+        self.ys = le.fit_transform(self.ys)
 
     def slice_to_make_set(self, chosen_images, param):
         return list(np.array(param)[chosen_images])
