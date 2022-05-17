@@ -527,14 +527,13 @@ def main():
             x = np.moveaxis(x, 1, -1)
             model.fit(x=[x, y], batch_size=args.sz_batch, verbose=1, shuffle=False)
 
-        # pbar = tqdm(enumerate(dl_ev))
-        # print('###################################')
-        # print(f'###### TEST EPOCh {epoch}  #######')
-        #
-        # for batch_idx, (x, y) in pbar:
-        #     x = x.numpy()
-        #     y = y.numpy()
-        #     x = np.moveaxis(x, 1, -1)
+        print('###################################')
+        print(f'###### TEST EPOCh {epoch}  #######')
+        pbar = tqdm(enumerate(dl_ev))
+        for batch_idx, (x, y) in pbar:
+            x = x.numpy()
+            y = y.numpy()
+            x = np.moveaxis(x, 1, -1)
 
             print(model.evaluate(x=[x, y], batch_size=args.sz_batch))
 
