@@ -517,6 +517,8 @@ def main():
         prepare_layers(args, epoch, model)
 
         pbar = tqdm(enumerate(dl_tr))
+        print('###################################')
+        print(f'###### TRAIN EPOCh {epoch}  #######')
 
         for batch_idx, (x, y) in pbar:
             x = x.numpy()
@@ -525,7 +527,9 @@ def main():
             model.fit(x=[x, y], batch_size=args.sz_batch, verbose=1, shuffle=False)
 
         pbar = tqdm(enumerate(dl_ev))
-
+        print('###################################')
+        print(f'###### TEST EPOCh {epoch}  #######')
+        
         for batch_idx, (x, y) in pbar:
             x = x.numpy()
             y = y.numpy()
