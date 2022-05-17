@@ -537,6 +537,8 @@ def main():
             x = x.numpy()
             y = y.numpy()
             x = np.moveaxis(x, 1, -1)
+            print(len(x))
+            print(len(y))
             preds = predict_model.predict(x=[x, y], batch_size=args.sz_batch, verbose=1)
             print(criterion.custom_loss(x, preds))
 
