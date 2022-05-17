@@ -530,18 +530,16 @@ def main():
         pbar = tqdm(enumerate(dl_ev))
         print('###################################')
         print(f'###### TEST EPOCh {epoch}  #######')
-
-        predict_model = Model(inputs=model.input, outputs=model.layers[-2].output)
+        
         for batch_idx, (x, y) in pbar:
             x = x.numpy()
             y = y.numpy()
             x = np.moveaxis(x, 1, -1)
-            preds = predict_model.predict(x=[x, y], batch_size=args.sz_batch, verbose=1)
 
             for i in range(len(x)//args.sz_batch + 1):
-                embeddings = preds[int(i*args.sz_batch): int((i+1)*args.sz_batch)]
-                target = y[int(i*args.sz_batch): int((i+1)*args.sz_batch)]
-                loss = criterion.custom_loss(tf.convert_to_tensor(target), tf.convert_to_tensor(embeddings))
+                bz_x = x[int(i*args.sz_batch): int((i+1)*args.sz_batch)]
+                bz_y = y[int(i*args.sz_batch): int((i+1)*args.sz_batch)]
+                model.evaluate(x=[bz_x, bz_y])
 
         # if (epoch >= 0 and (epoch % 3 == 0)) or (epoch == args.nb_epochs - 1):
         #     test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
