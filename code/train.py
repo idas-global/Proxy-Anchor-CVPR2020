@@ -530,7 +530,7 @@ def main():
         pbar = tqdm(enumerate(dl_ev))
         print('###################################')
         print(f'###### TEST EPOCh {epoch}  #######')
-        
+
         for batch_idx, (x, y) in pbar:
             x = x.numpy()
             y = y.numpy()

@@ -68,8 +68,6 @@ class TF_proxy_anchor(tf.keras.layers.Layer):
         neg_target = tf.cast(neg_target, tf.bool)
 
         cos = tf.matmul(embeddings_l2, proxy_l2, transpose_b=True)
-        print(embeddings_l2.shape)
-        print(proxy_l2.shape)
 
         pos_mat = tf.where(pos_target, x=tf.exp(-32 * (cos - 0.1)), y=tf.zeros_like(pos_target, dtype=tf.float32))
         neg_mat = tf.where(neg_target, x=tf.exp(32 * (cos + 0.1)), y=tf.zeros_like(neg_target, dtype=tf.float32))
