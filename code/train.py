@@ -541,7 +541,7 @@ def main():
             for i in range(len(x)//args.sz_batch + 1):
                 embeddings = preds[int(i*args.sz_batch): int((i+1)*args.sz_batch)]
                 target = y[int(i*args.sz_batch): int((i+1)*args.sz_batch)]
-                print(criterion.custom_loss(tf.convert_to_tensor(target), tf.convert_to_tensor(embeddings)))
+                loss = criterion.custom_loss(tf.convert_to_tensor(target), tf.convert_to_tensor(embeddings))
 
         # if (epoch >= 0 and (epoch % 3 == 0)) or (epoch == args.nb_epochs - 1):
         #     test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
