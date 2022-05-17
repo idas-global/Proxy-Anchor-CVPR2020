@@ -58,7 +58,6 @@ class TF_proxy_anchor(tf.keras.layers.Layer):
 
     def custom_loss(self, target, embeddings):
         oh_target = tf.squeeze(tf.one_hot(tf.cast(target, tf.int32), depth=self.nb_classes))
-        print(np.sum(oh_target))
         embeddings_l2 = tf.cast(tf.nn.l2_normalize(embeddings, axis=1), tf.float32)
         proxy_l2 = tf.nn.l2_normalize(self.proxy, axis=1)
 
