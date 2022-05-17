@@ -69,6 +69,8 @@ class TF_proxy_anchor(tf.keras.layers.Layer):
 
         cos = tf.matmul(embeddings_l2, proxy_l2, transpose_b=True)
         print(cos)
+        import time
+        time.sleep(0.1)
 
         pos_mat = tf.where(pos_target, x=tf.exp(-32 * (cos - 0.1)), y=tf.zeros_like(pos_target, dtype=tf.float32))
         neg_mat = tf.where(neg_target, x=tf.exp(32 * (cos + 0.1)), y=tf.zeros_like(neg_target, dtype=tf.float32))
