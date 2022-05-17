@@ -519,6 +519,8 @@ def main():
         pbar = tqdm(enumerate(dl_tr))
 
         for batch_idx, (x, y) in pbar:
+            x = x.numpy()
+            y = y.numpy()
             model.fit(x=[x, y], batch_size=args.sz_batch, verbose=1, shuffle=False,
                       callbacks=[model_checkpoint_callback, tensorBoard])
 
