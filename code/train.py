@@ -539,8 +539,9 @@ def main():
             preds = predict_model.predict(x=[x, y], batch_size=args.sz_batch, verbose=1)
 
             for i in range(len(x)//args.sz_batch + 1):
-                print(criterion.custom_loss(x[int(i*args.sz_batch): int((i+1)*args.sz_batch)],
-                                            preds[int(i*args.sz_batch): int((i+1)*args.sz_batch)]))
+                embeddings = preds[int(i*args.sz_batch): int((i+1)*args.sz_batch)]
+                target = y[int(i*args.sz_batch): int((i+1)*args.sz_batch)]
+                print(criterion.custom_loss(target, embeddings))
 
         # if (epoch >= 0 and (epoch % 3 == 0)) or (epoch == args.nb_epochs - 1):
         #     test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
