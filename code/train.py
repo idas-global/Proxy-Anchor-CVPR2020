@@ -537,8 +537,8 @@ def main():
             x = np.moveaxis(x, 1, -1)
 
             for i in range(len(x)//args.sz_batch + 1):
-                bz_x = x[int(i*args.sz_batch): int((i+1)*args.sz_batch)]
-                bz_y = y[int(i*args.sz_batch): int((i+1)*args.sz_batch)]
+                bz_x = tf.convert_to_tensor(x[int(i*args.sz_batch): int((i+1)*args.sz_batch)])
+                bz_y = tf.convert_to_tensor(y[int(i*args.sz_batch): int((i+1)*args.sz_batch)])
                 print(model.evaluate(x=[bz_x, bz_y]))
 
         # if (epoch >= 0 and (epoch % 3 == 0)) or (epoch == args.nb_epochs - 1):
