@@ -106,8 +106,8 @@ def create_and_compile_model(train_gen, args):
 
     model = Model(inputs=[backbone.input, y_input], outputs=criterion)
     optimizers = [
-        tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay),
-        tfa.optimizers.AdamW(learning_rate=float(args.lr)*100, weight_decay=args.weight_decay)
+        tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay, clipvalue=10),
+        tfa.optimizers.AdamW(learning_rate=float(args.lr)*100, weight_decay=args.weight_decay, clipvalue=10)
     ]
     optimizers_and_layers = [(optimizers[0], model.layers[0:-2]), (optimizers[1], model.layers[-2::])]
     optimizer = tfa.optimizers.MultiOptimizer(optimizers_and_layers)
@@ -217,7 +217,7 @@ def main():
         print(f"Cant create from scratch, loading from {model_dir}")
         model = tf.keras.models.load_model(model_dir, custom_objects={'KerasLayer': hub.KerasLayer,
                                                                        'TF_proxy_anchor': losses.TF_proxy_anchor})
-        model.compile(optimizer=tfa.optimizers.Adam(learning_rate=float(args.lr), weight_decay=args.weight_decay))
+        model.compile(optimizer=tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay))
 
     print("Training for {} epochs.".format(args.nb_epochs))
 
