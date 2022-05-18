@@ -7,6 +7,7 @@ import tensorflow as tf
 
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input
+import tensorflow.keras.backend as K
 from generator import NoteStyles, Cars
 
 import tensorflow_addons as tfa
@@ -91,6 +92,15 @@ def configure_parser():
     return parser.parse_args()
 
 
+class L2Layer(tf.keras.layers.Layer):
+    def __init__(self):
+        super(L2Layer, self).__init__()
+        self.supports_masking = True
+
+    def call(self, inputs, mask=None):
+        return K.l2_normalize(inputs, axis=1)
+
+
 def create_and_compile_model(train_gen, args):
     # model = model
     y_input = Input(shape=(1,), name='Y Layer')
@@ -101,10 +111,11 @@ def create_and_compile_model(train_gen, args):
     #flat = tf.keras.layers.Flatten()(backbone)
     embed = tf.keras.layers.Dense(args.sz_embedding, kernel_initializer=tf.keras.initializers.HeNormal(),
                                   use_bias=False, activation=None)(backbone)
+    l2_norm = L2Layer()(embed)
 
-    criterion = losses.TF_proxy_anchor(len(set(train_gen.ys)), args.sz_embedding)([y_input, embed])
-
-    model = Model(inputs=[x_input, y_input], outputs=criterion)
+    criterion = losses.TF_proxy_anchor(len(set(train_gen.ys)), args.sz_embedding)
+    crit_tensor = criterion([y_input, l2_norm])
+    model = Model(inputs=[x_input, y_input], outputs=crit_tensor)
     optimizers = [
         tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay, clipvalue=10),
         tfa.optimizers.AdamW(learning_rate=float(args.lr)*100, weight_decay=args.weight_decay, clipvalue=10)
@@ -233,7 +244,10 @@ def main():
 
     for epoch in range(0, args.nb_epochs):
         prepare_layers(args, epoch, model)
+        predict_model = Model(inputs=model.input, outputs=model.layers[-2].output)
 
+        x, y = train_gen.__getitem__(0)
+        criterion.custom_loss(y, predict_model.predict([x,y]))
         model.fit(x=train_gen, validation_data=val_gen, verbose=1, shuffle=False, callbacks=[model_checkpoint_callback,
                                                                                              tensorBoard])
 
