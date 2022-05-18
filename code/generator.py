@@ -26,10 +26,10 @@ def transform(dataset, image, train):
 
     transformed = transform_image(image, p, sz_crop, sz_resize, train)
 
-    for i in range(len(transformed.shape)):
-        transformed[:, :, i] = (transformed[:, :, i] - mean[i]) / std[i]
+    # for i in range(len(transformed.shape)):
+    #     transformed[:, :, i] = (transformed[:, :, i] - mean[i]) / std[i]
 
-    return transformed
+    return tensorflow.cast(transformed, dtype=tensorflow.float32) / tensorflow.constant(256, dtype=tensorflow.float32)
 
 
 def transform_image(image, p, sz_crop, sz_resize, train=True):

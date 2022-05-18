@@ -253,9 +253,9 @@ def main():
     for epoch in range(0, args.nb_epochs):
         prepare_layers(args, epoch, model)
 
-        # predict_model = Model(inputs=model.input, outputs=model.layers[-2].output)
-        # x, y = train_gen.__getitem__(0)
-        # m = predict_model.predict([x, y])
+        predict_model = Model(inputs=model.input, outputs=model.layers[-2].output)
+        x, y = train_gen.__getitem__(0)
+        m = predict_model.predict([x, y])
 
         model.fit(x=train_gen, validation_data=val_gen, verbose=1, shuffle=False, callbacks=[model_checkpoint_callback,
                                                                                              tensorBoard])
