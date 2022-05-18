@@ -106,7 +106,8 @@ def create_and_compile_model(train_gen, args):
     y_input = Input(shape=(1,), name='Y Layer')
     x_input = Input(shape=train_gen.im_dimensions, name='Img Layer')
     backbone = hub.KerasLayer("https://tfhub.dev/google/imagenet/inception_v2/feature_vector/5",
-                                                  trainable=True, arguments=dict(return_endpoints=True))(x_input)
+                                                  trainable=True, arguments=dict(return_endpoints=True,
+                                                                                 batch_norm_momentum=0.9))(x_input)
     del backbone['default']
     del backbone['InceptionV2/global_pool']
     gap = tf.keras.layers.GlobalAveragePooling2D()(backbone['InceptionV2/Mixed_5c'])
