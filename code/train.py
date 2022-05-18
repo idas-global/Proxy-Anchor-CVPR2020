@@ -94,17 +94,17 @@ def configure_parser():
 def create_and_compile_model(train_gen, args):
     # model = model
     y_input = Input(shape=(1,), name='Y Layer')
-    backbone = tf.keras.Sequential(hub.KerasLayer("https://tfhub.dev/google/imagenet/inception_v2/classification/5", trainable=True))
-
-                              # arguments=dict(return_endpoints=True)))
-    backbone.build([None, *train_gen.im_dimensions])
-    flat = tf.keras.layers.Flatten()(backbone.output)
+    x_input = Input(shape=train_gen.im_dimensions, name='Img Layer')
+    backbone = hub.KerasLayer("https://tfhub.dev/google/imagenet/inception_v2/feature_vector/5",
+                                                  trainable=True)(x_input)
+    #del backbone[f'InceptionV2/Logits']
+    #flat = tf.keras.layers.Flatten()(backbone)
     embed = tf.keras.layers.Dense(args.sz_embedding, kernel_initializer=tf.keras.initializers.HeNormal(),
-                                  use_bias=False, activation=None)(flat)
+                                  use_bias=False, activation=None)(backbone)
 
     criterion = losses.TF_proxy_anchor(len(set(train_gen.ys)), args.sz_embedding)([y_input, embed])
 
-    model = Model(inputs=[backbone.input, y_input], outputs=criterion)
+    model = Model(inputs=[x_input, y_input], outputs=criterion)
     optimizers = [
         tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay, clipvalue=10),
         tfa.optimizers.AdamW(learning_rate=float(args.lr)*100, weight_decay=args.weight_decay, clipvalue=10)
