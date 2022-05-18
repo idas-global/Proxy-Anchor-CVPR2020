@@ -169,9 +169,10 @@ def prepare_layers(args, epoch, model):
     if args.warm > 0:
         if epoch == 0:
             model.layers[1].trainable = False
+            print(model.summary())
         if epoch == args.warm:
             model.layers[1].trainable = True
-
+            print(model.summary())
 
 def custom_loss(self, target, embeddings):
     oh_target = tf.squeeze(tf.one_hot(tf.cast(target, tf.int32), depth=self.nb_classes))
