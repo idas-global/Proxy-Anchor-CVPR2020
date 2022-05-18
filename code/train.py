@@ -233,11 +233,14 @@ def main():
     for epoch in range(0, args.nb_epochs):
         prepare_layers(args, epoch, model)
 
+        print(model.layers[-1].proxy)
+        print(np.mean(model.layers[-1].proxy))
+        print(np.std(model.layers[-1].proxy))
         model.fit(x=train_gen, validation_data=val_gen, verbose=1, shuffle=False, callbacks=[model_checkpoint_callback,
                                                                                              tensorBoard])
 
-        if (epoch >= 0 and (epoch % 3 == 0)) or (epoch == args.nb_epochs - 1):
-            test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
+        # if (epoch >= 0 and (epoch % 3 == 0)) or (epoch == args.nb_epochs - 1):
+        #     test_predictions(args, epoch, model, train_gen, val_gen, test_gen)
 
 
 if __name__ == '__main__':
