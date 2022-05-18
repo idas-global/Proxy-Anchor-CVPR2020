@@ -151,7 +151,7 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
 
     plot_confusion(data_viz_frame, dataloader, dest)
 
-    metrics.to_csv(dest + 'metrics.csv')
+    metrics.to_csv(dest + f'{dataloader.mode}_metrics.csv')
     return recall
 
 
@@ -364,6 +364,7 @@ def get_accuracies(T, X, dataloader, neighbors, validation):
 
     metrics = pd.DataFrame([accuracy_score(y_preds, np.array(ground_truth)) * 100])
     metrics.columns = ['specific_accuracy']
+    metrics['Specific Mode Accuracy'] = accuracy_score(y_preds_mode, np.array(ground_truth)) * 100
     metrics['coarse_accuracy'] = accuracy_score(coarse_predictions, coarse_truth) * 100
     return coarse_filter_dict, fine_filter_dict, metrics
 
