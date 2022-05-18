@@ -124,7 +124,6 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
 
     T, X, Y, neighbors = transform_generator(dataloader, model)
 
-    val_X, val_T = None, None
     if validation is not None:
         T, X, Y, neighbors = transform_validation(validation, model, X, T)
 

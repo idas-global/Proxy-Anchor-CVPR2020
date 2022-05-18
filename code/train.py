@@ -93,7 +93,7 @@ def configure_parser():
 
 def create_and_compile_model(train_gen, args):
     # model = model
-    y_input = Input(shape=(1,))
+    y_input = Input(shape=(1,), name='Y Layer')
     backbone = tf.keras.Sequential(hub.KerasLayer("https://tfhub.dev/google/imagenet/inception_v2/classification/5", trainable=True))
 
                               # arguments=dict(return_endpoints=True)))
@@ -109,7 +109,7 @@ def create_and_compile_model(train_gen, args):
         tfa.optimizers.AdamW(learning_rate=float(args.lr), weight_decay=args.weight_decay),
         tfa.optimizers.AdamW(learning_rate=float(args.lr)*100, weight_decay=args.weight_decay)
     ]
-    optimizers_and_layers = [(optimizers[0], model.layers[0:-2]), (optimizers[1], model.layers[-2])]
+    optimizers_and_layers = [(optimizers[0], model.layers[0:-2]), (optimizers[1], model.layers[-2::])]
     optimizer = tfa.optimizers.MultiOptimizer(optimizers_and_layers)
     model.compile(optimizer=optimizer,
                   run_eagerly=False)
@@ -168,9 +168,9 @@ def prepare_layers(args, epoch, model):
 
     if args.warm > 0:
         if epoch == 0:
-            model.layers[0:-2].trainable = False
+            model.layers[1].trainable = False
         if epoch == args.warm:
-            model.layers[0:-2].trainable = True
+            model.layers[1].trainable = True
 
 
 def custom_loss(self, target, embeddings):
