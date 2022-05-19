@@ -137,7 +137,7 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
                                          ))
 
     if validation is not None:
-        pictures_to_predict = np.array(range(len(X) - len(validation.ys), len(X)))
+        pictures_to_predict = np.array(range(len(X) - len(validation.dataset.ys), len(X)))
 
     recall = {}
     coarse_filter_dict, \
@@ -170,7 +170,10 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
 
     plot_confusion(data_viz_frame, dataloader, dest)
 
-    metrics.to_csv(dest + f'{dataloader.mode}_metrics.csv')
+    if validation:
+        metrics.to_csv(dest + f'val_metrics.csv')
+    else:
+        metrics.to_csv(dest + f'{dataloader.dataset.mode}_metrics.csv')
     return recall
 
 
