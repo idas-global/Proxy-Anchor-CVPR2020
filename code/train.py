@@ -7,7 +7,7 @@ from net.resnet import *
 from net.googlenet import *
 from net.bn_inception import *
 from torch.utils.data.sampler import BatchSampler
-
+import pandas as pd
 from tqdm import *
 import wandb
 
@@ -260,7 +260,7 @@ def create_loss_and_opt(dl_tr, model):
 
 def train(model, dl_tr, dl_val, dl_ev, criterion, opt, scheduler):
     recall_to_opt = 1
-    best_recall = {f"f1score@{recall_to_opt}": 0}
+    best_recall = {f"f1score@{recall_to_opt}": pd.Series(0)}
     best_epoch = 0
     losses_list = []
 
@@ -333,8 +333,8 @@ def train(model, dl_tr, dl_val, dl_ev, criterion, opt, scheduler):
                     wandb.log({'test ' + key: val.values[0]}, step=epoch)
 
             # Best model save
-            if best_recall[f"f1score@{recall_to_opt}"] < recalls_test[f"f1score@{recall_to_opt}"]:
-                best_recall = recalls_test
+            if best_recall[f"f1score@{recall_to_opt}"].values[0] < recalls_test[f"f1score@{recall_to_opt}"].values[0]:
+                best_recall[f"f1score@{recall_to_opt}"] = recalls_test[f"f1score@{recall_to_opt}"]
                 best_epoch = epoch
                 if not os.path.exists('{}'.format(LOG_DIR)):
                     os.makedirs('{}'.format(LOG_DIR))
@@ -345,7 +345,7 @@ def train(model, dl_tr, dl_val, dl_ev, criterion, opt, scheduler):
                 with open('{}/{}_{}_best_results.txt'.format(LOG_DIR, args.dataset, args.model), 'w') as f:
                     f.write('Best Epoch: {}\n'.format(best_epoch))
                     for key, val in recalls_test.items():
-                        f.write(f'{key} : {val}')
+                        f.write(f'{key} : {val.values[0]}')
 
 
 def main():
