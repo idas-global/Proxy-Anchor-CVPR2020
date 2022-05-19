@@ -2,6 +2,8 @@ import random
 
 from .base import *
 import scipy.io
+from sklearn import preprocessing
+
 
 class Cars(BaseDataset):
     def __init__(self, root, mode, args, seed, le, transform = None):
@@ -29,17 +31,15 @@ class Cars(BaseDataset):
         annos_fn = 'cars_annos.mat'
         cars = scipy.io.loadmat(os.path.join(self.root, annos_fn))
         self.class_names = list([cars['class_names'][0][item[-2][0][0] - 1][0] for item in cars['annotations'][0]])
+
+        self.class_names_fine = [name for name in [' '.join(name.split(' ')[0:-1]) for name in self.class_names]]
         self.class_names_coarse = [name.split(' ')[0] if name.split(' ')[0] != 'Land'
                                    else ''.join(name.split(' ')[0:2]) for name in self.class_names]
-        self.class_names_fine = [name for name in [' '.join(name.split(' ')[0:-1]) for name in self.class_names]]
 
-
-        from sklearn import preprocessing
-        if le is None:
-            le = preprocessing.LabelEncoder()
-        le.fit(self.class_names_fine)
-        self.ys = le.transform(self.class_names_fine)
+        self.ys, le = self.create_labels(le, self.class_names_fine)
         self.label_encoder = le
+
+        self.class_names_coarse_dict = dict(zip(self.ys, self.class_names_coarse))
 
         le_name_mapping = dict(zip(le.classes_, le.transform(le.classes_)))
         self.nb_classes_total = len(le_name_mapping.keys())
@@ -65,6 +65,12 @@ class Cars(BaseDataset):
             setattr(self, param, self.slice_to_make_set(chosen_images, getattr(self, param)))
 
         self.nb_classes = len(np.unique(self.ys, axis=0))
+
+    def create_labels(self, le, labels):
+        if le is None:
+            le = preprocessing.LabelEncoder()
+            le.fit(labels)
+        return le.transform(labels), le
 
 
     def slice_to_make_set(self, chosen_images, param):

@@ -1,5 +1,8 @@
 import argparse, os
 import random, dataset, utils, losses
+
+import matplotlib.pyplot as plt
+
 from net.resnet import *
 from net.googlenet import *
 from net.bn_inception import *
@@ -129,6 +132,7 @@ def create_generators(seed):
         root=data_root,
         args=args,
         seed=seed,
+        le=trn_dataset.label_encoder,
         mode='eval',
         transform=test_trans
     )
@@ -155,6 +159,34 @@ def create_generators(seed):
         num_workers=args.nb_workers,
         pin_memory=True
     )
+
+    le_name_mapping_train = dict(zip(dl_tr.dataset.label_encoder.classes_,
+                               dl_tr.dataset.label_encoder.transform(dl_tr.dataset.label_encoder.classes_)))
+
+    le_name_mapping_val = dict(zip(dl_val.dataset.label_encoder.classes_,
+                                dl_val.dataset.label_encoder.transform(dl_val.dataset.label_encoder.classes_)))
+
+    # assert le_name_mapping_train == le_name_mapping_val
+    # import matplotlib.pyplot as plt
+    # import cv2
+    # for i in random.choices(range(len(dl_tr.dataset.im_paths)), k=5):
+    #     train_y = dl_tr.dataset.ys[i]
+    #     plt.imshow(cv2.imread(dl_tr.dataset.im_paths[i]))
+    #     plt.title(dl_tr.dataset.class_names_fine[i])
+    #     plt.suptitle(dl_tr.dataset.class_names_coarse_dict[train_y])
+    #     plt.show()
+    #
+    #     assert train_y == le_name_mapping_train[dl_tr.dataset.class_names_fine[i]]
+    #
+    #     val_idx = list(dl_val.dataset.ys).index(train_y)
+    #     assert train_y == le_name_mapping_val[dl_val.dataset.class_names_fine[val_idx]]
+    #
+    #     plt.imshow(cv2.imread(dl_val.dataset.im_paths[val_idx]))
+    #     plt.title(dl_val.dataset.class_names_fine[val_idx])
+    #     plt.suptitle(dl_val.dataset.class_names_coarse_dict[train_y])
+    #     plt.show()
+    #
+    #     assert train_y not in list(dl_ev.dataset.ys)
     return dl_tr, dl_val, dl_ev
 
 
@@ -293,12 +325,12 @@ def train(model, dl_tr, dl_val, dl_ev, criterion, opt, scheduler):
                 recalls = utils.evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
 
                 for key, val in recalls.items():
-                    wandb.log({'val ' + key: val}, step=epoch)
+                    wandb.log({'val ' + key: val.values[0]}, step=epoch)
 
                 recalls_test = utils.evaluate_cos(model, dl_ev, epoch, args, validation=None)
 
                 for key, val in recalls_test.items():
-                    wandb.log({'test ' + key: val}, step=epoch)
+                    wandb.log({'test ' + key: val.values[0]}, step=epoch)
 
             # Best model save
             if best_recall[f"f1score@{recall_to_opt}"] < recalls_test[f"f1score@{recall_to_opt}"]:

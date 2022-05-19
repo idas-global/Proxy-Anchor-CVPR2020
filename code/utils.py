@@ -177,8 +177,11 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
 
     if validation:
         metrics.to_csv(dest + f'val_metrics.csv')
+        data_viz_frame.to_csv(dest + f'val_vis_graph.csv')
     else:
         metrics.to_csv(dest + f'{dataloader.dataset.mode}_metrics.csv')
+        data_viz_frame.to_csv(dest + f'{dataloader.dataset.mode}_vis_graph.csv')
+
     return metrics
 
 
@@ -353,11 +356,12 @@ def cosine_similarity(v1, v2):
 def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict):
     ground_truth = T[pictures_to_predict]
 
-    coarse_filter_dict = {class_num: specific_species
-                          for class_num, specific_species in zip(np.array(T), dataloader.dataset.class_names_coarse)}
+    coarse_filter_dict = dataloader.dataset.class_names_coarse_dict
 
-    fine_filter_dict = {class_num: specific_species
-                        for class_num, specific_species in zip(np.array(T), dataloader.dataset.class_names_fine)}
+    fine_filter_dict = dict(zip(dataloader.dataset.label_encoder.transform(
+                                                                    dataloader.dataset.label_encoder.classes_
+                                                        ),
+                                                        dataloader.dataset.label_encoder.classes_))
 
     y_preds = np.zeros(len(pictures_to_predict))
     y_preds_mode = np.zeros(len(pictures_to_predict))
