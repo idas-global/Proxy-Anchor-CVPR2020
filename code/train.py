@@ -87,7 +87,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def create_generators():
+def create_generators(seed):
     # Dataset Loader and Sampler
     if args.dataset == 'note_styles':
         train_trans = dataset.utils.make_transform(
