@@ -186,10 +186,9 @@ def transform_generator(dataloader, model, k=32):
 
 def transform_validation(validation, model, X, T, k=32):
     val_X, val_T, _ = predict_batchwise(model, validation, return_images=False)
-    print(X.shape)
-    print(val_X.shape)
-    X = np.hstack((X, val_X))
-    T = np.hstack((T, val_T))
+
+    X = np.vstack((X, val_X))
+    T = np.vstack((T, val_T))
 
     X = l2_norm(X)
     # get predictions by assigning nearest 8 neighbors with cosine
