@@ -2,6 +2,7 @@ import os
 import functools
 import itertools
 import traceback
+import warnings
 from operator import itemgetter
 import pandas as pd
 import numpy as np
@@ -166,15 +167,19 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
     degrees = ['fine', 'coarse']
     for deg in degrees:
         for para in params:
-            centroids = plot_node_graph(X[pictures_to_predict], data_viz_frame, dataloader, para, deg, dest)
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore')
+                centroids = plot_node_graph(X[pictures_to_predict], data_viz_frame, dataloader, para, deg, dest)
 
-    plot_confusion(data_viz_frame, dataloader, dest)
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore')
+        plot_confusion(data_viz_frame, dataloader, dest)
 
     if validation:
         metrics.to_csv(dest + f'val_metrics.csv')
     else:
         metrics.to_csv(dest + f'{dataloader.dataset.mode}_metrics.csv')
-    return recall
+    return metrics
 
 
 def transform_generator(dataloader, model, k=32):
@@ -384,9 +389,6 @@ def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict):
     print(f'Accuracy at Specific ( Mode ): {accuracy_score(y_preds_mode, ground_truth) * 100}')
 
     coarse_predictions = [coarse_filter_dict[pred] for pred in y_preds]
-
-    print(set(coarse_filter_dict.keys()))
-    print(set(ground_truth))
 
     coarse_truth = [coarse_filter_dict[truth] for truth in ground_truth]
     print(f'Accuracy at Coarse: {accuracy_score(coarse_predictions, coarse_truth) * 100}')
