@@ -192,10 +192,10 @@ def transform_validation(validation, model, X, T, k=32):
 
     X = l2_norm(X)
     # get predictions by assigning nearest 8 neighbors with cosine
-    cos_sim = F.linear(X, X)
+    cos_sim = F.linear(torch.from_numpy(X), torch.from_numpy(X))
     neighbors = cos_sim.topk(1 + k)[1][:, 1:]
     Y = T[neighbors]
-    return T, X, Y, neighbors
+    return T, X, Y, neighbors.numpy()
 
 
 def calc_recall(T, Y, k):
