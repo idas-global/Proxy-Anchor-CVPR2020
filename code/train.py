@@ -287,14 +287,18 @@ def train(model, dl_tr, dl_val, dl_ev, criterion, opt, scheduler):
         if epoch % 3 == 0 or epoch == args.nb_epochs - 1:
             with torch.no_grad():
                 print("**Evaluating...**")
-                Recalls = utils.evaluate_cos(model, dl_ev, epoch, args, validation=dl_val)
+                recalls_test = utils.evaluate_cos(model, dl_ev, epoch, args, validation=None)
 
+                for key, val in recalls_test.items():
+                    wandb.log({'test ' + key: val}, step=epoch)
+
+                Recalls = utils.evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
                 for key, val in Recalls.items():
-                    wandb.log({key: val}, step=epoch)
+                    wandb.log({'val ' + key: val}, step=epoch)
 
             # Best model save
-            if best_recall[f"f1score@{recall_to_opt}"] < Recalls[f"f1score@{recall_to_opt}"]:
-                best_recall = Recalls
+            if best_recall[f"f1score@{recall_to_opt}"] < recalls_test[f"f1score@{recall_to_opt}"]:
+                best_recall = recalls_test
                 best_epoch = epoch
                 if not os.path.exists('{}'.format(LOG_DIR)):
                     os.makedirs('{}'.format(LOG_DIR))
@@ -304,7 +308,7 @@ def train(model, dl_tr, dl_val, dl_ev, criterion, opt, scheduler):
 
                 with open('{}/{}_{}_best_results.txt'.format(LOG_DIR, args.dataset, args.model), 'w') as f:
                     f.write('Best Epoch: {}\n'.format(best_epoch))
-                    for key, val in Recalls.items():
+                    for key, val in recalls_test.items():
                         f.write(f'{key} : {val}')
 
 
