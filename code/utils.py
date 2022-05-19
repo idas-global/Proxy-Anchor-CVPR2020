@@ -158,8 +158,8 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
     # plot_feature_space(X, dataloader)
 
     for k in [1, 3, 5, 7]:
-        metrics[f'Recall@{k}'] = calc_recall(T, Y, k)
-        print(metrics[f'Recall@{k}'])
+        metrics[f'f1score@{k}'] = calc_recall(T, Y, k)
+        print(metrics[f'f1score@{k}'])
 
     data_viz_frame = form_data_viz_frame(X[pictures_to_predict], coarse_filter_dict, dataloader, fine_filter_dict, y_preds, y_true)
 
