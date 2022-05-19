@@ -135,6 +135,10 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
     pictures_to_predict = random.choices(range(len(X)),
                                          k=int(round(len(dataloader.dataset.im_paths) * 50 / 100)
                                          ))
+
+    if validation is not None:
+        pictures_to_predict = np.array(range(len(X) - len(validation.ys), len(X)))
+
     recall = {}
     coarse_filter_dict, \
         fine_filter_dict, \
@@ -146,7 +150,6 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
                                                  dataloader,
                                                  neighbors,
                                                  pictures_to_predict,
-                                                 validation=validation
                                             )
 
     recall['specific_accuracy'] = metrics['specific_accuracy'].values[0]
@@ -183,6 +186,8 @@ def transform_generator(dataloader, model, k=32):
 
 def transform_validation(validation, model, X, T, k=32):
     val_X, val_T, _ = predict_batchwise(model, validation, return_images=False)
+    print(X.shape)
+    print(val_X.shape)
     X = np.hstack((X, val_X))
     T = np.hstack((T, val_T))
 
@@ -338,10 +343,7 @@ def cosine_similarity(v1, v2):
     return sumxy / math.sqrt(sumxx * sumyy)
 
 
-def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict, validation):
-    if validation is not None:
-        pictures_to_predict = np.array(range(len(X) - len(validation.ys), len(X)))
-
+def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict):
     ground_truth = T[pictures_to_predict]
 
     coarse_filter_dict = {class_num: specific_species
