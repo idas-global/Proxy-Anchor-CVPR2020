@@ -295,14 +295,17 @@ def train(model, dl_tr, dl_val, dl_ev, criterion, opt, scheduler):
         if epoch % 3 == 0 or epoch == args.nb_epochs - 1:
             with torch.no_grad():
                 print("**Evaluating...**")
+                Recalls = utils.evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
+
+                for key, val in Recalls.items():
+                    wandb.log({'val ' + key: val}, step=epoch)
+
                 recalls_test = utils.evaluate_cos(model, dl_ev, epoch, args, validation=None)
 
                 for key, val in recalls_test.items():
                     wandb.log({'test ' + key: val}, step=epoch)
 
-                Recalls = utils.evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
-                for key, val in Recalls.items():
-                    wandb.log({'val ' + key: val}, step=epoch)
+
 
             # Best model save
             if best_recall[f"f1score@{recall_to_opt}"] < recalls_test[f"f1score@{recall_to_opt}"]:

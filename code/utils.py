@@ -384,6 +384,10 @@ def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict):
     print(f'Accuracy at Specific ( Mode ): {accuracy_score(y_preds_mode, ground_truth) * 100}')
 
     coarse_predictions = [coarse_filter_dict[pred] for pred in y_preds]
+
+    print(set(coarse_filter_dict.keys()))
+    print(set(ground_truth))
+
     coarse_truth = [coarse_filter_dict[truth] for truth in ground_truth]
     print(f'Accuracy at Coarse: {accuracy_score(coarse_predictions, coarse_truth) * 100}')
 
