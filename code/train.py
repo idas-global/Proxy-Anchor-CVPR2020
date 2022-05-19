@@ -111,6 +111,7 @@ def create_generators(seed):
         root=data_root,
         args=args,
         seed=seed,
+        le=None,
         mode='train',
         transform=train_trans
     )
@@ -119,6 +120,7 @@ def create_generators(seed):
         root=data_root,
         args=args,
         seed=seed,
+        le=trn_dataset.label_encoder,
         mode='val',
         transform=train_trans
     )
@@ -262,6 +264,12 @@ def train(model, dl_tr, dl_val, dl_ev, criterion, opt, scheduler):
             y = torch.from_numpy(y).squeeze().float()
 
             m = model(x)
+            # import os
+            # os.environ["PATH"] += os.pathsep + 'D:/Program Files (x86)/Graphviz2.38/bin/'
+            # from torchviz import make_dot
+            #
+            # make_dot(m, params=dict(list(model.named_parameters()))).render("rnn_torchviz", format="png")
+
             loss = criterion(m, y)
 
             opt.zero_grad()

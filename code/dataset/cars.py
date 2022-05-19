@@ -4,7 +4,7 @@ from .base import *
 import scipy.io
 
 class Cars(BaseDataset):
-    def __init__(self, root, mode, args, seed, transform = None):
+    def __init__(self, root, mode, args, seed, le, transform = None):
         self.root = root + '/cars196'
         self.mode = mode
         self.transform = transform
@@ -35,7 +35,8 @@ class Cars(BaseDataset):
 
 
         from sklearn import preprocessing
-        le = preprocessing.LabelEncoder()
+        if le is None:
+            le = preprocessing.LabelEncoder()
         le.fit(self.class_names_fine)
         self.ys = le.transform(self.class_names_fine)
         self.label_encoder = le
@@ -64,9 +65,7 @@ class Cars(BaseDataset):
             setattr(self, param, self.slice_to_make_set(chosen_images, getattr(self, param)))
 
         self.nb_classes = len(np.unique(self.ys, axis=0))
-        if le is None:
-            le = preprocessing.LabelEncoder()
-        self.ys = le.fit_transform(self.ys)
+
 
     def slice_to_make_set(self, chosen_images, param):
         return list(np.array(param)[chosen_images])
