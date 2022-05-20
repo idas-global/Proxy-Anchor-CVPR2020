@@ -1,5 +1,6 @@
 import os
 import shutil
+import uuid
 from distutils.dir_util import copy_tree
 import matplotlib.pyplot as plt
 import cv2
@@ -45,7 +46,8 @@ def main():
                         else:
                             aug_obj = augment()
                             for aug_num in range(iters):
-                                aug_key = note + '0000' + str(aug_num)
+                                import uuid
+                                aug_key = note + '0000' + str(aug_num) + '_' + str(uuid.uuid4()[0:5])
                                 aug_image = aug_obj(image=note_image)['image']
                                 # plt.imshow(aug_image)
                                 # plt.show()
