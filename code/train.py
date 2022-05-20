@@ -224,7 +224,8 @@ elif args.model.find('resnet101')+1:
 # model = model
 
 if args.gpu_id == -1:
-    model = nn.DataParallel(model)
+    args.gpu_id = 1
+    #model = nn.DataParallel(model)
 
 # DML Losses
 if args.loss == 'Proxy_Anchor':
@@ -296,7 +297,7 @@ for epoch in range(0, args.nb_epochs):
 
     pbar = tqdm(enumerate(dl_tr))
 
-    for batch_idx, (x, y) in pbar:                         
+    for batch_idx, (x, y) in pbar:
         m = model(x.squeeze())
         loss = criterion(m, y.squeeze())
         
@@ -341,21 +342,21 @@ for epoch in range(0, args.nb_epochs):
             for i in range(4):
                 wandb.log({"f1score@{}".format(10**i): Recalls[i]}, step=epoch)
         
-        # Best model save
-        if best_recall["f1score@16"] < Recalls["f1score@16"]:
-            best_recall = Recalls
-            best_epoch = epoch
-            if not os.path.exists('{}'.format(LOG_DIR)):
-                os.makedirs('{}'.format(LOG_DIR))
-            torch.save({'model_state_dict':model.state_dict()}, '{}/{}_{}_best.pth'.format(LOG_DIR, args.dataset, args.model))
-            with open('{}/{}_{}_best_results.txt'.format(LOG_DIR, args.dataset, args.model), 'w') as f:
-                f.write('Best Epoch: {}\n'.format(best_epoch))
-                if args.dataset == 'Inshop':
-                    for i, K in enumerate([1,10,20,30,40,50]):    
-                        f.write("Best Recall@{}: {:.4f}\n".format(K, best_recall[i] * 100))
-                elif args.dataset != 'SOP':
-                    for key, val in Recalls.items():
-                        f.write(f'{key} : {val}')
-                else:
-                    for i in range(4):
-                        f.write("Best Recall@{}: {:.4f}\n".format(10**i, best_recall[i] * 100))
+        # # Best model save
+        # if best_recall["f1score@16"] < Recalls["f1score@16"]:
+        #     best_recall = Recalls
+        #     best_epoch = epoch
+        #     if not os.path.exists('{}'.format(LOG_DIR)):
+        #         os.makedirs('{}'.format(LOG_DIR))
+        #     torch.save({'model_state_dict':model.state_dict()}, '{}/{}_{}_best.pth'.format(LOG_DIR, args.dataset, args.model))
+        #     with open('{}/{}_{}_best_results.txt'.format(LOG_DIR, args.dataset, args.model), 'w') as f:
+        #         f.write('Best Epoch: {}\n'.format(best_epoch))
+        #         if args.dataset == 'Inshop':
+        #             for i, K in enumerate([1,10,20,30,40,50]):
+        #                 f.write("Best Recall@{}: {:.4f}\n".format(K, best_recall[i] * 100))
+        #         elif args.dataset != 'SOP':
+        #             for key, val in Recalls.items():
+        #                 f.write(f'{key} : {val}')
+        #         else:
+        #             for i in range(4):
+        #                 f.write("Best Recall@{}: {:.4f}\n".format(10**i, best_recall[i] * 100))
