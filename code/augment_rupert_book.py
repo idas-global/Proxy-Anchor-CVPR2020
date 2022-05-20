@@ -47,7 +47,7 @@ def main():
                             aug_obj = augment()
                             for aug_num in range(iters):
                                 import uuid
-                                aug_key = note + '0000' + str(aug_num) + '_' + str(uuid.uuid4()[0:5])
+                                aug_key = note + '0000' + str(aug_num) + '_' + str(uuid.uuid4())[0:5]
                                 aug_image = aug_obj(image=note_image)['image']
                                 # plt.imshow(aug_image)
                                 # plt.show()
