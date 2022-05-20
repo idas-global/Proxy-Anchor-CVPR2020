@@ -5,6 +5,7 @@ import math
 import itertools
 import traceback
 import warnings
+from collections import Counter
 from operator import itemgetter
 import pandas as pd
 import numpy as np
@@ -385,7 +386,7 @@ def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict):
         predictions = {}
 
         for close_pred in close_preds:
-            neighbors_pred = [i for i in neighbors_to_pic if T[i] == close_pred]
+            neighbors_pred = [i for i in neighbors_to_pic[0:7] if T[i] == close_pred]
             one = np.array(X[neighbors_pred])
             two = np.array(X[pic]).reshape(-1, 1).T
 
@@ -412,6 +413,14 @@ def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict):
     metrics.columns = ['specific_accuracy']
     metrics['Specific Mode Accuracy'] = accuracy_score(y_preds_mode, ground_truth) * 100
     metrics['coarse_accuracy'] = accuracy_score(coarse_predictions, coarse_truth) * 100
+
+    for (key, val), (true, true_val) in zip(sorted(dict(Counter(y_preds)).items()),
+                                            sorted(dict(Counter(ground_truth)).items())):
+        pred_fac = np.round(100 * val / len(pictures_to_predict), 2)
+        true_fac = np.round(100 * true_val / len(pictures_to_predict), 2)
+        if abs(pred_fac - true_fac) > 1:
+            print(f'{int(key)}: {val} - {pred_fac}% vs {true_fac}%')
+
     return coarse_filter_dict, fine_filter_dict, metrics, y_preds, y_preds_mode, ground_truth
 
 
