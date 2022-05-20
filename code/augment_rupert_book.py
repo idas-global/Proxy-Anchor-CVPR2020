@@ -82,10 +82,26 @@ def get_valid_dirs():
 
 
 if __name__ == '__main__':
-    rupert_location = 'D:/Rupert_Book_Captures/'
-    aug_rupert_location = 'D:/Rupert_Book_Augmented/'
-    sides_wanted = [0] # (0 / 1)
+    aug_rupert_location = '/mnt/ssd1/Rupert_Book_Augmented/'
+    empty_aug_dir()
+
+    rupert_locations = ['/mnt/sanshare/Datasets/notes/genesys_capture/genuine/Rupert_Binders' + f'/Book {i}/'
+                        for i in [0, 1, 2, 4, 5, 6]]
+
+    for rupert_location in rupert_locations:
+        sides_wanted = [0] # (0 / 1)
+        specs_wanted = ['RGB']
+        aug_fac = 5
+        # TODO make it work for non rgb/nir
+        main()
+
+    aug_rupert_location = 'D:/Rupert_Book_Augmented_Test/'
+    empty_aug_dir()
+
+    rupert_location = '/mnt/sanshare/Datasets/notes/genesys_capture/genuine/Rupert_Binders' + f'/Book 7/'
+
+    sides_wanted = [0]  # (0 / 1)
     specs_wanted = ['RGB']
-    aug_fac = 40
+    aug_fac = 5
     # TODO make it work for non rgb/nir
     main()
