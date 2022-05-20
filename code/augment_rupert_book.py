@@ -82,11 +82,11 @@ def get_valid_dirs():
 
 
 if __name__ == '__main__':
-    aug_rupert_location = '/mnt/ssd1/Rupert_Book_Augmented/'
-    empty_aug_dir()
-
-    rupert_locations = ['/mnt/sanshare/Datasets/notes/genesys_capture/genuine/Rupert_Binders' + f'/Book {i}/'
-                        for i in [0, 1, 2, 4, 5, 6]]
+    # aug_rupert_location = '/mnt/ssd1/Rupert_Book_Augmented/'
+    # empty_aug_dir()
+    #
+    # rupert_locations = ['/mnt/sanshare/Datasets/notes/genesys_capture/genuine/Rupert_Binders' + f'/Book {i}/'
+    #                     for i in [0, 1, 2, 4, 5, 6]]
 
     rupert_data = pd.read_csv('/mnt/sanshare/Datasets/notes/genesys_capture/genuine/Rupert_Binders/'
                               + 'rupert_pack_order.csv', header=None)
@@ -94,14 +94,14 @@ if __name__ == '__main__':
     rupert_data['series'] = rupert_data['series'].map(lambda x : x.lower().replace('series', '').strip())
     rupert_data.index = rupert_data.index.astype(str)
 
-    for rupert_location in rupert_locations:
-        sides_wanted = [0] # (0 / 1)
-        specs_wanted = ['RGB']
-        aug_fac = 5
-        # TODO make it work for non rgb/nir
-        main()
+    # for rupert_location in rupert_locations:
+    #     sides_wanted = [0] # (0 / 1)
+    #     specs_wanted = ['RGB']
+    #     aug_fac = 5
+    #     # TODO make it work for non rgb/nir
+    #     main()
 
-    aug_rupert_location = '/mnt/ssd1/Rupert_Book_Augmented/'
+    aug_rupert_location = '/mnt/ssd1/Rupert_Book_Augmented_Test/'
     empty_aug_dir()
 
     rupert_location = '/mnt/sanshare/Datasets/notes/genesys_capture/genuine/Rupert_Binders' + f'/Book 7/'
