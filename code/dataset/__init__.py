@@ -16,6 +16,6 @@ _type = {
 
 }
 
-def load(name, root, mode, transform = None):
-    return _type[name](root = root, mode = mode, transform = transform)
+def load(name, root, mode, args, seed, le, transform = None):
+    return _type[name](root = root, mode = mode, args=args, seed=seed, le=le, transform = transform)
     

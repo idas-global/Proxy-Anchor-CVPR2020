@@ -28,13 +28,9 @@ import mplcursors
 
 
 def l2_norm(input):
-    input_size = input.size()
-    buffer = torch.pow(input, 2)
-    normp = torch.sum(buffer, 1).add_(1e-12)
-    norm = torch.sqrt(normp)
-    _output = torch.div(input, norm.view(-1, 1).expand_as(input))
-    output = _output.view(input_size)
-
+    buffer = input**2
+    normp = np.sqrt(np.sum(buffer, axis=1))
+    output = input/normp[:, None]
     return output
 
 def calc_recall_at_k(T, Y, k):
@@ -60,28 +56,26 @@ def combine_dims(a, i=0, n=1):
   return np.reshape(a, s[:i] + [combined] + s[i+n+1:])
 
 
-def predict_batchwise(model, dataloader, return_images=False):
+def predict_batchwise(model, train_gen, return_images=False):
     model_is_training = model.training
     model.eval()
-    
-    ds = dataloader.dataset
 
-    batch_sz = dataloader.batch_sampler.batch_size
-    num_batches = len(dataloader.batch_sampler)
+    batch_sz = train_gen.batch_size
+    num_batches = train_gen.dataset.__len__()
 
-    predictions = np.zeros((num_batches, batch_sz, 512))
+    predictions = np.zeros((num_batches, batch_sz, train_gen.dataset.sz_embedding))
     labels = np.zeros((num_batches, batch_sz))
 
     if return_images:
         # TODO add a attribute to dataloader that gives the shape
-        #image_array = np.zeros((len(dataloader.dataset.im_paths), 3, 224, 224))
-        image_array = np.zeros((num_batches, batch_sz, 3, 224, 224))
+        # image_array = np.zeros((len(dataloader.dataset.im_paths), 3, 224, 224))
+        image_array = np.zeros((num_batches, batch_sz, *train_gen.dataset.im_dimensions))
 
     missing_batch = 0
-
     with torch.no_grad():
         # extract batches (A becomes list of samples)
-        for idx, batch in tqdm(enumerate(dataloader), total=num_batches, desc='Getting Predictions'):
+        for idx in tqdm(range(num_batches), desc='Extracting Batches'):
+            batch = train_gen.dataset.__getitem__(idx)
             for i, J in enumerate(batch):
                 # i = 0: sz_batch * images
                 # i = 1: sz_batch * labels
@@ -92,22 +86,25 @@ def predict_batchwise(model, dataloader, return_images=False):
                     missing_batch = len(empty_batch)
 
                     if i == 1:
-                        J = torch.from_numpy(np.hstack((filled_batch, empty_batch)))
+                        J = np.hstack((filled_batch, empty_batch))
                     else:
-                        J = torch.from_numpy(np.vstack((filled_batch, empty_batch)))
+                        J = np.vstack((filled_batch, empty_batch))
 
                 if i == 0:
                     if return_images:
                         image_array[i, :] = J
 
                     # move images to device of model (approximate device)
-                    J = model(J)
+                    J = model(torch.from_numpy(J).float())  # Second arg is a dummy input
+                    # because its not in training mode
                     predictions[idx, :] = J
                 else:
                     labels[idx, :] = J
 
     model.train()
-    model.train(model_is_training) # revert to previous training state
+    model.train(model_is_training)
+
+    if missing_batch == 0: missing_batch = -1 * num_batches * batch_sz
 
     if return_images:
         image_array = combine_dims(image_array, 0, 1)
@@ -120,8 +117,8 @@ def predict_batchwise(model, dataloader, return_images=False):
     labels = labels[0:-missing_batch]
 
     if return_images:
-        return [torch.from_numpy(predictions), torch.from_numpy(labels), torch.from_numpy(image_array)]
-    return [torch.from_numpy(predictions), torch.from_numpy(labels)]
+        return [predictions, labels, image_array]
+    return [predictions, labels, None]
 
 
 def proxy_init_calc(model, dataloader):
@@ -153,37 +150,20 @@ def evaluate_cos(model, dataloader, epoch, args):
     dest = f'../training/{args.dataset}/{epoch}/'
     os.makedirs(dest, exist_ok=True)
 
-    if epoch % 2 == 0:
-        X, T = predict_batchwise(model, dataloader, return_images=False)
-    else:
-        X, T = predict_batchwise(model, dataloader, return_images=False)
+    X, T, I = predict_batchwise(model, dataloader, return_images=False)
 
     X = l2_norm(X)
 
     # get predictions by assigning nearest 8 neighbors with cosine
     K = 32
-    cos_sim = F.linear(X, X)
+    cos_sim = F.linear(torch.from_numpy(X), torch.from_numpy(X))
     neighbors = cos_sim.topk(1 + K)[1][:, 1:]
     Y = T[neighbors]
-    Y = Y.float().cpu()
-
-    pred_dict = {}
-    k = 5
-    for idx, (t, y) in enumerate(zip(T, Y)):
-        label = torch.mode(torch.Tensor(y).long()[:k]).values
-        if label not in pred_dict.keys():
-            pred_dict[label.item()] = []
-
-        pred_dict[label.item()] = list([i.item() for i in neighbors[idx]])
-
-    centroids = {}
-    for label, items in pred_dict.items():
-        centroids[label] = np.array(X[items].mean(axis=1))
 
     recall = {}
 
     if epoch % 2 == 0:
-        coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors, pred_dict, centroids)
+        coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors)
         recall['specific_accuracy'] = metrics['specific_accuracy'].values[0]
         recall['coarse_accuracy'] = metrics['coarse_accuracy'].values[0]
     #plot_feature_space(X, dataloader)
@@ -342,19 +322,20 @@ def cosine_similarity(v1,v2):
     return sumxy/math.sqrt(sumxx*sumyy)
 
 
-def get_accuracies(T, X, dataloader, neighbors, pred_dict, centroids):
-    pictures_to_predict = random.choices(range(len(X)), k=int(round(len(dataloader.dataset.im_paths)*50/100)))
+def get_accuracies(T, X, dataloader, neighbors):
+    pictures_to_predict = random.choices(range(len(X)), k=int(round(len(X)*50/100)))
     ground_truth = T[pictures_to_predict]
 
-    coarse_filter_dict = {class_num: specific_species
-                          for class_num, specific_species in zip(np.array(T), dataloader.dataset.class_names_coarse)}
+    coarse_filter_dict = dataloader.dataset.class_names_coarse_dict
 
-    fine_filter_dict = {class_num : specific_species
-                        for class_num, specific_species in zip(np.array(T), dataloader.dataset.class_names_fine)}
+    fine_filter_dict = dict(zip(dataloader.dataset.label_encoder.transform(
+                                                                    dataloader.dataset.label_encoder.classes_
+                                                        ),
+                                                        dataloader.dataset.label_encoder.classes_))
 
     y_preds = np.zeros(len(pictures_to_predict))
     for idx, pic in tqdm(enumerate(pictures_to_predict), total=len(pictures_to_predict), desc='Accuracy Analysis'):
-        neighbors_to_pic = [neigh.item() for neigh in neighbors[pic] if neigh not in pictures_to_predict]
+        neighbors_to_pic = np.array(neighbors[pic, :][~np.in1d(neighbors[pic, :], pictures_to_predict)])
 
         preds, counts = np.unique(T[neighbors_to_pic], return_counts=True)
         close_preds = preds[np.argsort(counts)[-2::]]
