@@ -319,7 +319,7 @@ def train(model, dl_tr, dl_val, dl_ev, criterion, opt, scheduler):
         wandb.log({'loss': losses_list[-1]}, step=epoch)
         scheduler.step()
 
-        if epoch % 3 == 0 or epoch == args.nb_epochs - 1:
+        if epoch % 1 == 0 or epoch == args.nb_epochs - 1:
             with torch.no_grad():
 
                 print('################################')
@@ -341,8 +341,8 @@ def train(model, dl_tr, dl_val, dl_ev, criterion, opt, scheduler):
                     wandb.log({'test ' + key: val.values[0]}, step=epoch)
 
             # Best model save
-            if best_recall[f"f1score@{recall_to_opt}"].values[0] < recalls_test[f"f1score@{recall_to_opt}"].values[0]:
-                best_recall[f"f1score@{recall_to_opt}"] = recalls_test[f"f1score@{recall_to_opt}"]
+            if best_recall[f"f1score@{recall_to_opt}"].values[0] < recalls[f"f1score@{recall_to_opt}"].values[0]:
+                best_recall[f"f1score@{recall_to_opt}"] = recalls[f"f1score@{recall_to_opt}"]
                 best_epoch = epoch
                 if not os.path.exists('{}'.format(LOG_DIR)):
                     os.makedirs('{}'.format(LOG_DIR))
@@ -352,7 +352,7 @@ def train(model, dl_tr, dl_val, dl_ev, criterion, opt, scheduler):
 
                 with open('{}/{}_{}_best_results.txt'.format(LOG_DIR, args.dataset, args.model), 'w') as f:
                     f.write('Best Epoch: {}\n'.format(best_epoch))
-                    for key, val in recalls_test.items():
+                    for key, val in recalls.items():
                         f.write(f'{key} : {val.values[0]}')
 
 

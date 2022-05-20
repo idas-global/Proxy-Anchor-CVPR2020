@@ -88,16 +88,11 @@ def predict_batchwise(model, train_gen, return_images=False):
                         image_array[i, :] = J
 
                     # move images to device of model (approximate device)
-                    J = model(torch.from_numpy(J).float())  # Second arg is a dummy input
+                    J = model(torch.from_numpy(J).float())   # Second arg is a dummy input
                     # because its not in training mode
                     predictions[idx, :] = J
-
                 else:
-                    J = np.vstack((filled_batch, empty_batch))
-
-            if i == 0:
-                if return_images:
-                    image_array[i, :] = J
+                    labels[idx, :] = J
 
     model.train()
     model.train(model_is_training)
@@ -174,11 +169,6 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
 
     recall['specific_accuracy'] = metrics['specific_accuracy'].values[0]
     recall['coarse_accuracy'] = metrics['coarse_accuracy'].values[0]
-
-
-    for k in [1, 3, 5, 7]:
-        metrics[f'f1score@{k}'] = calc_recall(T, Y, k)
-        print(metrics[f'f1score@{k}'])
 
     data_viz_frame = form_data_viz_frame(X[pictures_to_predict], coarse_filter_dict, dataloader, fine_filter_dict, y_preds, y_true)
 
