@@ -1,5 +1,7 @@
 import os
 import functools
+import uuid
+import math
 import itertools
 import traceback
 import warnings
@@ -24,8 +26,6 @@ from tqdm import tqdm
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# from dsprofiling.src.clustering_tools import break_down_clusters
-
 plt.ioff()
 import mplcursors
 
@@ -48,8 +48,10 @@ def combine_dims(a, i=0, n=1):
     combined = functools.reduce(lambda x, y: x * y, s[i:i + n + 1])
     return np.reshape(a, s[:i] + [combined] + s[i + n + 1:])
 
-
 def predict_batchwise(model, train_gen, return_images=False):
+    model_is_training = model.training
+    model.eval()
+
     batch_sz = train_gen.batch_size
     num_batches = train_gen.dataset.__len__()
 
@@ -63,20 +65,33 @@ def predict_batchwise(model, train_gen, return_images=False):
 
     missing_batch = 0
 
-    # extract batches (A becomes list of samples)
-    for idx in tqdm(range(num_batches), desc='Extracting Batches'):
-        batch = train_gen.dataset.__getitem__(idx)
-        for i, J in enumerate(batch):
-            # i = 0: sz_batch * images
-            # i = 1: sz_batch * labels
-            # i = 2: sz_batch * indices
-            if len(J) != batch_sz:
-                filled_batch = np.array(J, dtype=np.float32)
-                empty_batch = np.zeros((batch_sz - len(J), *filled_batch.shape[1::]), dtype=np.float32)
-                missing_batch = len(empty_batch)
+    with torch.no_grad():
+        # extract batches (A becomes list of samples)
+        for idx in tqdm(range(num_batches), desc='Extracting Batches'):
+            batch = train_gen.dataset.__getitem__(idx)
+            for i, J in enumerate(batch):
+                # i = 0: sz_batch * images
+                # i = 1: sz_batch * labels
+                # i = 2: sz_batch * indices
+                if len(J) != batch_sz:
+                    filled_batch = np.array(J, dtype=np.float32)
+                    empty_batch = np.zeros((batch_sz - len(J), *filled_batch.shape[1::]), dtype=np.float32)
+                    missing_batch = len(empty_batch)
 
-                if i == 1:
-                    J = np.hstack((filled_batch, empty_batch))
+                    if i == 1:
+                        J = np.hstack((filled_batch, empty_batch))
+                    else:
+                        J = np.vstack((filled_batch, empty_batch))
+
+                if i == 0:
+                    if return_images:
+                        image_array[i, :] = J
+
+                    # move images to device of model (approximate device)
+                    J = model(torch.from_numpy(J).float())  # Second arg is a dummy input
+                    # because its not in training mode
+                    predictions[idx, :] = J
+
                 else:
                     J = np.vstack((filled_batch, empty_batch))
 
@@ -84,12 +99,8 @@ def predict_batchwise(model, train_gen, return_images=False):
                 if return_images:
                     image_array[i, :] = J
 
-                # move images to device of model (approximate device)
-                J = model(torch.from_numpy(J).float())  # Second arg is a dummy input
-                # because its not in training mode
-                predictions[idx, :] = J
-            else:
-                labels[idx, :] = J
+    model.train()
+    model.train(model_is_training)
 
     if missing_batch == 0: missing_batch = -1 * num_batches * batch_sz
 
@@ -122,6 +133,14 @@ def parse_im_name(specific_species, exclude_trailing_consonants=False, fine=Fals
             filter = filter[0:-1]
     return filter
 
+def transform_generator(dataloader, model, k=32):
+    X, T, _ = predict_batchwise(model, dataloader, return_images=False)
+    X = l2_norm(X)
+    # get predictions by assigning nearest 8 neighbors with cosine
+    cos_sim = F.linear(torch.from_numpy(X), torch.from_numpy(X))
+    neighbors = cos_sim.topk(1 + k)[1][:, 1:]
+    Y = T[neighbors]
+    return T, X, Y, neighbors.numpy()
 
 def evaluate_cos(model, dataloader, epoch, args, validation=None):
     # calculate embeddings with model and get targets
@@ -155,7 +174,7 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
 
     recall['specific_accuracy'] = metrics['specific_accuracy'].values[0]
     recall['coarse_accuracy'] = metrics['coarse_accuracy'].values[0]
-    # plot_feature_space(X, dataloader)
+
 
     for k in [1, 3, 5, 7]:
         metrics[f'f1score@{k}'] = calc_recall(T, Y, k)
@@ -338,14 +357,12 @@ def plot_node_graph(X, data_viz_frame, dataloader, para, deg, dest):
     return centroids
 
 
-import math
-
-
-def cosine_similarity(v1, v2):
+def cosine_similarity(v1,v2):
     "compute cosine similarity of v1 to v2: (v1 dot v2)/{||v1||*||v2||)"
     sumxx, sumxy, sumyy = 0, 0, 0
     for i in range(len(v1)):
-        x = v1[i];
+        x = v1[i]
+
         y = v2[i]
         sumxx += x * x
         sumyy += y * y
@@ -387,7 +404,7 @@ def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict):
             predictions[close_pred] = (sum(cs) / np.sqrt(len(cs)))[0]
 
         y_preds[idx] = max(predictions, key=predictions.get)
-    
+
     ground_truth = np.array(ground_truth)
     print(f'Accuracy at Specific: {accuracy_score(y_preds, ground_truth) * 100}')
     print(f'Accuracy at Specific ( Mode ): {accuracy_score(y_preds_mode, ground_truth) * 100}')
