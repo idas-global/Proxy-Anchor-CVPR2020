@@ -31,7 +31,7 @@ def main():
 
             for side in sides_wanted:
                 for spec in specs_wanted:
-                    note_object = ImageBMP(rupert_location + rupert_notes[note] + f'/{rupert_notes[note]}_{spec}_{side}.bmp',
+                    note_object = ImageBMP(rupert_location + rupert_notes[int(note)] + f'/{rupert_notes[int(note)]}_{spec}_{side}.bmp',
                                            straighten=True,
                                            rotation=180)
                     note_image = note_object.array
