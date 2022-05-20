@@ -8,8 +8,9 @@ import warnings
 from operator import itemgetter
 import pandas as pd
 import numpy as np
-import torch
 import random
+
+import torch
 from matplotlib.colors import ListedColormap
 import networkx as nx
 
@@ -18,12 +19,12 @@ from sklearn.decomposition import KernelPCA
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
 from sklearn.preprocessing import MinMaxScaler
 
-from tqdm import tqdm
 import torch.nn.functional as F
+
+from tqdm import tqdm
 
 import seaborn as sns
 import matplotlib.pyplot as plt
-
 
 plt.ioff()
 import mplcursors
@@ -35,17 +36,7 @@ def l2_norm(input):
     output = input/normp[:, None]
     return output
 
-def calc_recall_at_k(T, Y, k):
-    """
-    T : [nb_samples] (target labels)
-    Y : [nb_samples x k] (k predicted labels/neighbours)
-    """
 
-    s = 0
-    for t,y in zip(T,Y):
-        if t == torch.mode(torch.Tensor(y).long()[:k]).values:
-            s += 1
-    return s / (1. * len(T))
 
 def combine_dims(a, i=0, n=1):
     """
@@ -56,7 +47,6 @@ def combine_dims(a, i=0, n=1):
     s = list(a.shape)
     combined = functools.reduce(lambda x, y: x * y, s[i:i + n + 1])
     return np.reshape(a, s[:i] + [combined] + s[i + n + 1:])
-
 
 def predict_batchwise(model, train_gen, return_images=False):
     model_is_training = model.training
@@ -74,6 +64,7 @@ def predict_batchwise(model, train_gen, return_images=False):
         image_array = np.zeros((num_batches, batch_sz, *train_gen.dataset.im_dimensions))
 
     missing_batch = 0
+
     with torch.no_grad():
         # extract batches (A becomes list of samples)
         for idx in tqdm(range(num_batches), desc='Extracting Batches'):
@@ -100,8 +91,13 @@ def predict_batchwise(model, train_gen, return_images=False):
                     J = model(torch.from_numpy(J).float())  # Second arg is a dummy input
                     # because its not in training mode
                     predictions[idx, :] = J
+
                 else:
-                    labels[idx, :] = J
+                    J = np.vstack((filled_batch, empty_batch))
+
+            if i == 0:
+                if return_images:
+                    image_array[i, :] = J
 
     model.train()
     model.train(model_is_training)
@@ -121,15 +117,6 @@ def predict_batchwise(model, train_gen, return_images=False):
     if return_images:
         return [predictions, labels, image_array]
     return [predictions, labels, None]
-
-
-def proxy_init_calc(model, dataloader):
-    nb_classes = dataloader.dataset.nb_classes()
-    X, T, *_ = predict_batchwise(model, dataloader)
-
-    proxy_mean = torch.stack([X[T==class_idx].mean(0) for class_idx in range(nb_classes)])
-
-    return proxy_mean
 
 
 def parse_im_name(specific_species, exclude_trailing_consonants=False, fine=False):
@@ -185,9 +172,9 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
                                                  pictures_to_predict,
                                             )
 
-
     recall['specific_accuracy'] = metrics['specific_accuracy'].values[0]
     recall['coarse_accuracy'] = metrics['coarse_accuracy'].values[0]
+
 
     for k in [1, 3, 5, 7]:
         metrics[f'f1score@{k}'] = calc_recall(T, Y, k)
@@ -282,9 +269,11 @@ def plot_confusion(data_viz_frame, dataloader, dest):
 def form_data_viz_frame(X, coarse_filter_dict, dataloader, fine_filter_dict, y_preds, y_true):
     data_viz_frame = pd.DataFrame(y_true.astype(int), columns=['truth'])
     data_viz_frame['prediction'] = y_preds
+
     data_viz_frame['truth_label_coarse'] = data_viz_frame['truth'].map(coarse_filter_dict, y_true)
-    data_viz_frame['prediction_label_coarse'] = data_viz_frame['prediction'].map(coarse_filter_dict, y_preds)
     data_viz_frame['truth_label_fine'] = data_viz_frame['truth'].map(fine_filter_dict, y_true)
+
+    data_viz_frame['prediction_label_coarse'] = data_viz_frame['prediction'].map(coarse_filter_dict, y_preds)
     data_viz_frame['prediction_label_fine'] = data_viz_frame['prediction'].map(fine_filter_dict, y_preds)
 
     if 'NoteStyles' == dataloader.dataset.name:
@@ -328,7 +317,6 @@ def plot_node_graph(X, data_viz_frame, dataloader, para, deg, dest):
 
     G = nx.from_numpy_matrix(dst_matrix)
 
-
     weight_dict = {}
     for (i, j) in itertools.permutations(range(len(G.nodes)), 2):
         if i not in weight_dict.keys():
@@ -339,8 +327,12 @@ def plot_node_graph(X, data_viz_frame, dataloader, para, deg, dest):
 
     num_nbors = 1
     for i in range(len(G.nodes)):
-
-        res = dict(sorted(weight_dict[i].items(), key=itemgetter(1))[:num_nbors])
+        try:
+            res = dict(sorted(weight_dict[i].items(), key=itemgetter(1))[:num_nbors])
+        except Exception:
+            print(traceback.format_exc())
+            print(weight_dict.keys())
+            print(G.nodes)
         small_edges = [key for key, val in res.items() if val < 0.6]
 
         for edg in small_edges:
@@ -362,14 +354,15 @@ def plot_node_graph(X, data_viz_frame, dataloader, para, deg, dest):
     nx.draw(G, node_size=600, pos=pos, with_labels=False, ax=fig.add_subplot(111))
     plt.show(block=False)
     fig.savefig(f'{dest}/node_graph_{para}_{deg}.png', bbox_inches='tight', dpi=200)
-    print('Graph Drawn')
     return centroids
+
 
 def cosine_similarity(v1,v2):
     "compute cosine similarity of v1 to v2: (v1 dot v2)/{||v1||*||v2||)"
     sumxx, sumxy, sumyy = 0, 0, 0
     for i in range(len(v1)):
         x = v1[i]
+
         y = v2[i]
         sumxx += x * x
         sumyy += y * y
@@ -408,7 +401,7 @@ def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict):
             two /= norms_Y[:, np.newaxis]
             cs = np.dot(one, two.T)
 
-            predictions[close_pred] = (sum(cs)/np.sqrt(len(cs)))[0]
+            predictions[close_pred] = (sum(cs) / np.sqrt(len(cs)))[0]
 
         y_preds[idx] = max(predictions, key=predictions.get)
 
@@ -433,7 +426,7 @@ def plot_feature_space(X, dataloader):
     kernel_key = 'sigmoid'
     pca = KernelPCA(n_components=3, kernel=kernel_key)
     transformed_space = pca.fit_transform(inspect_space)
-    coarse_filters = [parse_im_name(specific_species) for specific_species in dataloader.dataset.im_paths]
+    coarse_filters = [parse_im_name(specific_species) for specific_species in dataloader.im_paths]
     plot_based_on_cluster_id(np.array(coarse_filters), {kernel_key: transformed_space}, kernel=kernel_key)
 
 
@@ -458,82 +451,3 @@ def plot_based_on_cluster_id(cluster_id, transformedDfs, kernel='all'):
         # save
         fig.suptitle(kernel_key)
         plt.show()
-
-
-def evaluate_cos_Inshop(model, query_dataloader, gallery_dataloader):
-    nb_classes = query_dataloader.dataset.nb_classes()
-    
-    # calculate embeddings with model and get targets
-    query_X, query_T = predict_batchwise(model, query_dataloader)
-    gallery_X, gallery_T = predict_batchwise(model, gallery_dataloader)
-    
-    query_X = l2_norm(query_X)
-    gallery_X = l2_norm(gallery_X)
-    
-    # get predictions by assigning nearest 8 neighbors with cosine
-    K = 50
-    Y = []
-    xs = []
-    
-    cos_sim = F.linear(query_X, gallery_X)
-
-    def recall_k(cos_sim, query_T, gallery_T, k):
-        m = len(cos_sim)
-        match_counter = 0
-
-        for i in range(m):
-            pos_sim = cos_sim[i][gallery_T == query_T[i]]
-            neg_sim = cos_sim[i][gallery_T != query_T[i]]
-
-            thresh = torch.max(pos_sim).item()
-
-            if torch.sum(neg_sim > thresh) < k:
-                match_counter += 1
-            
-        return match_counter / m
-    
-    # calculate recall @ 1, 2, 4, 8
-    recall = []
-    for k in [1, 10, 20, 30, 40, 50]:
-        r_at_k = recall_k(cos_sim, query_T, gallery_T, k)
-        recall.append(r_at_k)
-        print("R@{} : {:.3f}".format(k, 100 * r_at_k))
-                
-    return recall
-
-def evaluate_cos_SOP(model, dataloader):
-    nb_classes = dataloader.dataset.nb_classes()
-    
-    # calculate embeddings with model and get targets
-    X, T = predict_batchwise(model, dataloader)
-    X = l2_norm(X)
-    
-    # get predictions by assigning nearest 8 neighbors with cosine
-    K = 1000
-    Y = []
-    xs = []
-    for x in X:
-        if len(xs)<10000:
-            xs.append(x)
-        else:
-            xs.append(x)            
-            xs = torch.stack(xs,dim=0)
-            cos_sim = F.linear(xs,X)
-            y = T[cos_sim.topk(1 + K)[1][:,1:]]
-            Y.append(y.float().cpu())
-            xs = []
-            
-    # Last Loop
-    xs = torch.stack(xs,dim=0)
-    cos_sim = F.linear(xs,X)
-    y = T[cos_sim.topk(1 + K)[1][:,1:]]
-    Y.append(y.float().cpu())
-    Y = torch.cat(Y, dim=0)
-
-    # calculate recall @ 1, 2, 4, 8
-    recall = []
-    for k in [1, 10, 100, 1000]:
-        r_at_k = calc_recall_at_k(T, Y, k)
-        recall.append(r_at_k)
-        print("R@{} : {:.3f}".format(k, 100 * r_at_k))
-    return recall

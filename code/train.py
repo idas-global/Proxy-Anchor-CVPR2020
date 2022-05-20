@@ -189,7 +189,7 @@ def create_generators(seed):
     #     assert train_y not in list(dl_ev.dataset.ys)
     return dl_tr, dl_val, dl_ev
 
-
+  
 def create_model():
     # Backbone Model
     if args.model.find('googlenet') + 1:
@@ -321,6 +321,7 @@ def train(model, dl_tr, dl_val, dl_ev, criterion, opt, scheduler):
 
         if epoch % 3 == 0 or epoch == args.nb_epochs - 1:
             with torch.no_grad():
+
                 print('################################')
                 print("**Evaluating Validation set...**")
                 print('################################')
@@ -334,7 +335,7 @@ def train(model, dl_tr, dl_val, dl_ev, criterion, opt, scheduler):
                 print("**Evaluating Test set...**")
                 print('################################')
 
-                recalls_test = utils.evaluate_cos(model, dl_ev, epoch, args)
+                recalls_test = utils.evaluate_cos(model, dl_ev, epoch, args, validation=None)
 
                 for key, val in recalls_test.items():
                     wandb.log({'test ' + key: val.values[0]}, step=epoch)

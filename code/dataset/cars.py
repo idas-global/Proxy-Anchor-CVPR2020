@@ -1,10 +1,9 @@
-from .base import *
-import scipy.io
 import random
 
 from .base import *
 import scipy.io
 from sklearn import preprocessing
+
 
 class Cars(BaseDataset):
     def __init__(self, root, mode, args, seed, le, transform = None):
