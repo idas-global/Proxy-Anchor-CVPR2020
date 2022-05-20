@@ -101,7 +101,7 @@ if __name__ == '__main__':
         # TODO make it work for non rgb/nir
         main()
 
-    aug_rupert_location = 'D:/Rupert_Book_Augmented_Test/'
+    aug_rupert_location = '/mnt/ssd1/Rupert_Book_Augmented/'
     empty_aug_dir()
 
     rupert_location = '/mnt/sanshare/Datasets/notes/genesys_capture/genuine/Rupert_Binders' + f'/Book 7/'
