@@ -13,6 +13,7 @@ from noteclasses import ImageBMP
 
 def main():
     rupert_notes = get_valid_dirs()
+    rupert_notes = sorted(rupert_notes, key=lambda x: int(x))
     assert len(rupert_notes) == len(rupert_data)
 
     #empty_aug_dir()
@@ -30,7 +31,8 @@ def main():
 
             for side in sides_wanted:
                 for spec in specs_wanted:
-                    note_object = ImageBMP(rupert_location + note + f'/{note}_{spec}_{side}.bmp', straighten=True,
+                    note_object = ImageBMP(rupert_location + rupert_notes[note] + f'/{rupert_notes[note]}_{spec}_{side}.bmp',
+                                           straighten=True,
                                            rotation=180)
                     note_image = note_object.array
 
@@ -85,7 +87,8 @@ if __name__ == '__main__':
                         for i in [0, 1, 2, 4, 5, 6]]
 
     rupert_data = pd.read_csv('/mnt/sanshare/Datasets/notes/genesys_capture/genuine/Rupert_Binders/'
-                              + 'rupert_pack_order.csv')
+                              + 'rupert_pack_order.csv', header=None)
+    rupert_data.columns = ['series', 'denom', 'serial']
     rupert_data['series'] = rupert_data['series'].map(lambda x : x.lower().replace('series', '').strip())
     rupert_data.index = rupert_data.index.astype(str)
 
