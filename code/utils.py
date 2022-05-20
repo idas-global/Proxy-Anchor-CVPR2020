@@ -1,7 +1,10 @@
 import os
 import functools
 import uuid
+import math
 import itertools
+import traceback
+import warnings
 from operator import itemgetter
 import pandas as pd
 import numpy as np
@@ -21,7 +24,6 @@ import torch.nn.functional as F
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-#from dsprofiling.src.clustering_tools import break_down_clusters
 
 plt.ioff()
 import mplcursors
@@ -46,14 +48,14 @@ def calc_recall_at_k(T, Y, k):
     return s / (1. * len(T))
 
 def combine_dims(a, i=0, n=1):
-  """
-  Combines dimensions of numpy array `a`,
-  starting at index `i`,
-  and combining `n` dimensions
-  """
-  s = list(a.shape)
-  combined = functools.reduce(lambda x,y: x*y, s[i:i+n+1])
-  return np.reshape(a, s[:i] + [combined] + s[i+n+1:])
+    """
+    Combines dimensions of numpy array `a`,
+    starting at index `i`,
+    and combining `n` dimensions
+    """
+    s = list(a.shape)
+    combined = functools.reduce(lambda x, y: x * y, s[i:i + n + 1])
+    return np.reshape(a, s[:i] + [combined] + s[i + n + 1:])
 
 
 def predict_batchwise(model, train_gen, return_images=False):
@@ -144,65 +146,117 @@ def parse_im_name(specific_species, exclude_trailing_consonants=False, fine=Fals
             filter = filter[0:-1]
     return filter
 
+def transform_generator(dataloader, model, k=32):
+    X, T, _ = predict_batchwise(model, dataloader, return_images=False)
+    X = l2_norm(X)
+    # get predictions by assigning nearest 8 neighbors with cosine
+    cos_sim = F.linear(torch.from_numpy(X), torch.from_numpy(X))
+    neighbors = cos_sim.topk(1 + k)[1][:, 1:]
+    Y = T[neighbors]
+    return T, X, Y, neighbors.numpy()
 
-def evaluate_cos(model, dataloader, epoch, args):
+def evaluate_cos(model, dataloader, epoch, args, validation=None):
     # calculate embeddings with model and get targets
     dest = f'../training/{args.dataset}/{epoch}/'
     os.makedirs(dest, exist_ok=True)
 
-    X, T, I = predict_batchwise(model, dataloader, return_images=False)
+    T, X, Y, neighbors = transform_generator(dataloader, model, k=64)
 
-    X = l2_norm(X)
+    if validation is not None:
+        T, X, Y, neighbors = transform_validation(validation, model, X, T, k=64)
 
-    # get predictions by assigning nearest 8 neighbors with cosine
-    K = 32
-    cos_sim = F.linear(torch.from_numpy(X), torch.from_numpy(X))
-    neighbors = cos_sim.topk(1 + K)[1][:, 1:]
-    Y = T[neighbors]
+    pictures_to_predict = random.choices(range(len(X)),
+                                         k=int(round(len(dataloader.dataset.im_paths) * 50 / 100)
+                                         ))
+
+    if validation is not None:
+        pictures_to_predict = np.array(range(len(X) - len(validation.dataset.ys), len(X)))
 
     recall = {}
+    coarse_filter_dict, \
+        fine_filter_dict, \
+            metrics, \
+                y_preds, \
+                    y_preds_mode, \
+                         y_true = get_accuracies(T,
+                                                 X,
+                                                 dataloader,
+                                                 neighbors,
+                                                 pictures_to_predict,
+                                            )
 
-    if epoch % 2 == 0:
-        coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors)
-        recall['specific_accuracy'] = metrics['specific_accuracy'].values[0]
-        recall['coarse_accuracy'] = metrics['coarse_accuracy'].values[0]
-    #plot_feature_space(X, dataloader)
 
-    for k in [3, 5, 7]:
-        y_preds, y_true = calc_recall(T, Y, epoch, k, metrics, recall)
+    recall['specific_accuracy'] = metrics['specific_accuracy'].values[0]
+    recall['coarse_accuracy'] = metrics['coarse_accuracy'].values[0]
 
-    if epoch % 2 == 0:
-        data_viz_frame = form_data_viz_frame(X, coarse_filter_dict, dataloader, fine_filter_dict, y_preds, y_true)
+    for k in [1, 3, 5, 7]:
+        metrics[f'f1score@{k}'] = calc_recall(T, Y, k)
+        print(metrics[f'f1score@{k}'])
 
-        params = ['prediction', 'truth']
-        degrees = ['fine', 'coarse']
-        for deg in degrees:
-            for para in params:
-                centroids = plot_node_graph(X, data_viz_frame, dataloader, para, deg, dest)
+    data_viz_frame = form_data_viz_frame(X[pictures_to_predict], coarse_filter_dict, dataloader, fine_filter_dict, y_preds, y_true)
 
+    params = ['prediction', 'truth']
+    degrees = ['fine', 'coarse']
+    for deg in degrees:
+        for para in params:
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore')
+                centroids = plot_node_graph(X[pictures_to_predict], data_viz_frame, dataloader, para, deg, dest)
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore')
         plot_confusion(data_viz_frame, dataloader, dest)
 
-        metrics.to_csv(dest + 'metrics.csv')
-    return recall
+    if validation:
+        metrics.to_csv(dest + f'val_metrics.csv')
+        data_viz_frame.to_csv(dest + f'val_vis_graph.csv')
+    else:
+        metrics.to_csv(dest + f'{dataloader.dataset.mode}_metrics.csv')
+        data_viz_frame.to_csv(dest + f'{dataloader.dataset.mode}_vis_graph.csv')
+
+    return metrics
 
 
-def calc_recall(T, Y, epoch, k, metrics, recall):
-    y_preds = []
+def transform_generator(dataloader, model, k=32):
+    X, T, _ = predict_batchwise(model, dataloader, return_images=False)
+    X = l2_norm(X)
+    # get predictions by assigning nearest 8 neighbors with cosine
+    cos_sim = F.linear(torch.from_numpy(X), torch.from_numpy(X))
+    neighbors = cos_sim.topk(1 + k)[1][:, 1:]
+    Y = T[neighbors]
+    return T, X, Y, neighbors.numpy()
+
+
+def transform_validation(validation, model, X, T, k=32):
+    val_X, val_T, _ = predict_batchwise(model, validation, return_images=False)
+
+    X = np.vstack((X, val_X))
+    T = np.hstack((T, val_T))
+
+    X = l2_norm(X)
+    # get predictions by assigning nearest 8 neighbors with cosine
+    cos_sim = F.linear(torch.from_numpy(X), torch.from_numpy(X))
+    neighbors = cos_sim.topk(1 + k)[1][:, 1:]
+    Y = T[neighbors]
+    return T, X, Y, neighbors.numpy()
+
+
+def calc_recall(T, Y, k):
+    """
+        T : [nb_samples] (target labels)
+        Y : [nb_samples x k] (k predicted labels/neighbours)
+        """
+
+    s = 0
     for t, y in zip(T, Y):
-        y_preds.append(torch.mode(torch.Tensor(y).long()[:k]).values)
-    y_preds = np.array(y_preds).astype(int)
-    y_true = np.array(T)
-    r_at_k = f1_score(y_true, y_preds, average='weighted')
-    recall[f"f1score@{k}"] = r_at_k
-    print("f1score@{} : {:.3f}".format(k, 100 * r_at_k))
-    if epoch % 2 == 0:
-        metrics[f'f1score@{k}'] = r_at_k * 100
-    return y_preds, y_true
+        if t == torch.mode(torch.Tensor(y).long()[:k]).values:
+            s += 1
+    return s / (1. * len(T))
 
 
 def plot_confusion(data_viz_frame, dataloader, dest):
     params = ['label_coarse', 'label_fine', 'denom']
-    if 'Rupert_Book' not in dataloader.dataset.im_paths[0]:
+    if 'NoteStyles' != dataloader.dataset.name:
         params = ['label_coarse', 'label_fine']
     for param in params:
         fig = plt.Figure(figsize=(48, 48))
@@ -232,7 +286,8 @@ def form_data_viz_frame(X, coarse_filter_dict, dataloader, fine_filter_dict, y_p
     data_viz_frame['prediction_label_coarse'] = data_viz_frame['prediction'].map(coarse_filter_dict, y_preds)
     data_viz_frame['truth_label_fine'] = data_viz_frame['truth'].map(fine_filter_dict, y_true)
     data_viz_frame['prediction_label_fine'] = data_viz_frame['prediction'].map(fine_filter_dict, y_preds)
-    if 'Rupert_Book' in dataloader.dataset.im_paths[0]:
+
+    if 'NoteStyles' == dataloader.dataset.name:
         data_viz_frame['truth_denom'] = [label.split('_')[0] for label in data_viz_frame['truth_label_fine']]
         data_viz_frame['prediction_denom'] = [label.split('_')[0] for label in data_viz_frame['prediction_label_fine']]
     data_viz_frame['mean_coarse'] = X.mean(axis=1)
@@ -310,20 +365,19 @@ def plot_node_graph(X, data_viz_frame, dataloader, para, deg, dest):
     print('Graph Drawn')
     return centroids
 
-import math
 def cosine_similarity(v1,v2):
     "compute cosine similarity of v1 to v2: (v1 dot v2)/{||v1||*||v2||)"
     sumxx, sumxy, sumyy = 0, 0, 0
     for i in range(len(v1)):
-        x = v1[i]; y = v2[i]
-        sumxx += x*x
-        sumyy += y*y
-        sumxy += x*y
-    return sumxy/math.sqrt(sumxx*sumyy)
+        x = v1[i]
+        y = v2[i]
+        sumxx += x * x
+        sumyy += y * y
+        sumxy += x * y
+    return sumxy / math.sqrt(sumxx * sumyy)
 
 
-def get_accuracies(T, X, dataloader, neighbors):
-    pictures_to_predict = random.choices(range(len(X)), k=int(round(len(X)*50/100)))
+def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict):
     ground_truth = T[pictures_to_predict]
 
     coarse_filter_dict = dataloader.dataset.class_names_coarse_dict
@@ -334,12 +388,15 @@ def get_accuracies(T, X, dataloader, neighbors):
                                                         dataloader.dataset.label_encoder.classes_))
 
     y_preds = np.zeros(len(pictures_to_predict))
+    y_preds_mode = np.zeros(len(pictures_to_predict))
     for idx, pic in tqdm(enumerate(pictures_to_predict), total=len(pictures_to_predict), desc='Accuracy Analysis'):
         neighbors_to_pic = np.array(neighbors[pic, :][~np.in1d(neighbors[pic, :], pictures_to_predict)])
 
-        preds, counts = np.unique(T[neighbors_to_pic], return_counts=True)
+        preds, counts = np.unique(T[neighbors_to_pic[0:7]], return_counts=True)
         close_preds = preds[np.argsort(counts)[-2::]]
+        y_preds_mode[idx] = preds[np.argsort(counts)[-1]]
         predictions = {}
+
         for close_pred in close_preds:
             neighbors_pred = [i for i in neighbors_to_pic if T[i] == close_pred]
             one = np.array(X[neighbors_pred])
@@ -353,18 +410,23 @@ def get_accuracies(T, X, dataloader, neighbors):
 
             predictions[close_pred] = (sum(cs)/np.sqrt(len(cs)))[0]
 
-        #y_preds[idx] = torch.mode(T[neighbors_to_pic]).values
         y_preds[idx] = max(predictions, key=predictions.get)
-    print(f'Accuracy at Specific: {accuracy_score(y_preds, np.array(ground_truth)) * 100}')
+
+    ground_truth = np.array(ground_truth)
+    print(f'Accuracy at Specific: {accuracy_score(y_preds, ground_truth) * 100}')
+    print(f'Accuracy at Specific ( Mode ): {accuracy_score(y_preds_mode, ground_truth) * 100}')
 
     coarse_predictions = [coarse_filter_dict[pred] for pred in y_preds]
-    coarse_truth = [coarse_filter_dict[truth] for truth in np.array(ground_truth)]
+
+    coarse_truth = [coarse_filter_dict[truth] for truth in ground_truth]
     print(f'Accuracy at Coarse: {accuracy_score(coarse_predictions, coarse_truth) * 100}')
 
-    metrics = pd.DataFrame([accuracy_score(y_preds, np.array(ground_truth)) * 100])
+    metrics = pd.DataFrame([accuracy_score(y_preds, ground_truth) * 100])
     metrics.columns = ['specific_accuracy']
+    metrics['Specific Mode Accuracy'] = accuracy_score(y_preds_mode, ground_truth) * 100
     metrics['coarse_accuracy'] = accuracy_score(coarse_predictions, coarse_truth) * 100
-    return coarse_filter_dict, fine_filter_dict, metrics
+    return coarse_filter_dict, fine_filter_dict, metrics, y_preds, y_preds_mode, ground_truth
+
 
 def plot_feature_space(X, dataloader):
     inspect_space = np.array(X)
