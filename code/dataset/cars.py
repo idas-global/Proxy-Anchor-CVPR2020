@@ -61,8 +61,6 @@ class Cars(BaseDataset):
 
         self.dataset_size = len(chosen_images)
 
-        random.shuffle(chosen_images)
-
         for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys']:
             setattr(self, param, self.slice_to_make_set(chosen_images, getattr(self, param)))
 

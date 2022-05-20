@@ -160,12 +160,12 @@ def create_generators(seed):
         pin_memory=True
     )
 
-    le_name_mapping_train = dict(zip(dl_tr.dataset.label_encoder.classes_,
-                               dl_tr.dataset.label_encoder.transform(dl_tr.dataset.label_encoder.classes_)))
-
-    le_name_mapping_val = dict(zip(dl_val.dataset.label_encoder.classes_,
-                                dl_val.dataset.label_encoder.transform(dl_val.dataset.label_encoder.classes_)))
-
+    # le_name_mapping_train = dict(zip(dl_tr.dataset.label_encoder.classes_,
+    #                            dl_tr.dataset.label_encoder.transform(dl_tr.dataset.label_encoder.classes_)))
+    #
+    # le_name_mapping_val = dict(zip(dl_val.dataset.label_encoder.classes_,
+    #                             dl_val.dataset.label_encoder.transform(dl_val.dataset.label_encoder.classes_)))
+    #
     # assert le_name_mapping_train == le_name_mapping_val
     # import matplotlib.pyplot as plt
     # import cv2

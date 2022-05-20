@@ -170,6 +170,10 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
     recall['specific_accuracy'] = metrics['specific_accuracy'].values[0]
     recall['coarse_accuracy'] = metrics['coarse_accuracy'].values[0]
 
+    for k in [1, 3, 5, 7]:
+        metrics[f'f1score@{k}'] = calc_recall(T, Y, k)
+        print(metrics[f'f1score@{k}'])
+
     data_viz_frame = form_data_viz_frame(X[pictures_to_predict], coarse_filter_dict, dataloader, fine_filter_dict, y_preds, y_true)
 
     params = ['prediction', 'truth']
