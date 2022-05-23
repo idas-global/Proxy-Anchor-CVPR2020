@@ -179,7 +179,7 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
     coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors, pictures_to_predict)
 
     for k in [3, 5, 7]:
-        y_preds, y_true = calc_recall(T, Y, epoch, k, metrics)
+        y_preds, y_true = calc_recall(T, Y, k, metrics)
 
     data_viz_frame = form_data_viz_frame(X, coarse_filter_dict, dataloader, fine_filter_dict, y_preds, y_true)
 
@@ -203,16 +203,14 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
     return metrics
 
 
-def calc_recall(T, Y, epoch, k, metrics):
+def calc_recall(T, Y, k, metrics):
     y_preds = []
     for t, y in zip(T, Y):
         y_preds.append(torch.mode(torch.Tensor(y).long()[:k]).values)
     y_preds = np.array(y_preds).astype(int)
     y_true = np.array(T)
     r_at_k = f1_score(y_true, y_preds, average='weighted')
-    print("f1score@{} : {:.3f}".format(k, 100 * r_at_k))
-    if epoch % 2 == 0:
-        metrics[f'f1score@{k}'] = r_at_k * 100
+    metrics[f'f1score@{k}'] = r_at_k * 100
     return y_preds, y_true
 
 
