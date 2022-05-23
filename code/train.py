@@ -1,5 +1,8 @@
 import argparse, os
 import random, dataset, utils, losses
+
+import pandas as pd
+
 from dataset.Inshop import Inshop_Dataset
 from net.resnet import *
 from net.googlenet import *
@@ -16,104 +19,84 @@ np.random.seed(seed)
 torch.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)  # set random seed for all gpus
 
-parser = argparse.ArgumentParser(description=
-                                 'Official implementation of `Proxy Anchor Loss for Deep Metric Learning`'
-                                 + 'Our code is modified from `https://github.com/dichotomies/proxy-nca`'
-                                 )
-# export directory, training and val datasets, test datasets
-parser.add_argument('--LOG_DIR',
-                    default='../logs',
-                    help='Path to log folder'
-                    )
-parser.add_argument('--dataset',
-                    default='cub',
-                    help='Training dataset, e.g. cub, cars, SOP, Inshop'
-                    )
-parser.add_argument('--embedding-size', default=512, type=int,
-                    dest='sz_embedding',
-                    help='Size of embedding that is appended to backbone model.'
-                    )
-parser.add_argument('--batch-size', default=150, type=int,
-                    dest='sz_batch',
-                    help='Number of samples per batch.'
-                    )
-parser.add_argument('--epochs', default=60, type=int,
-                    dest='nb_epochs',
-                    help='Number of training epochs.'
-                    )
-parser.add_argument('--gpu-id', default=0, type=int,
-                    help='ID of GPU that is used for training.'
-                    )
-parser.add_argument('--workers', default=0, type=int,
-                    dest='nb_workers',
-                    help='Number of workers for dataloader.'
-                    )
-parser.add_argument('--model', default='bn_inception',
-                    help='Model for training'
-                    )
-parser.add_argument('--loss', default='Proxy_Anchor',
-                    help='Criterion for training'
-                    )
-parser.add_argument('--optimizer', default='adamw',
-                    help='Optimizer setting'
-                    )
-parser.add_argument('--lr', default=1e-4, type=float,
-                    help='Learning rate setting'
-                    )
-parser.add_argument('--weight-decay', default=1e-4, type=float,
-                    help='Weight decay setting'
-                    )
-parser.add_argument('--lr-decay-step', default=10, type=int,
-                    help='Learning decay step setting'
-                    )
-parser.add_argument('--lr-decay-gamma', default=0.5, type=float,
-                    help='Learning decay gamma setting'
-                    )
-parser.add_argument('--alpha', default=32, type=float,
-                    help='Scaling Parameter setting'
-                    )
-parser.add_argument('--mrg', default=0.1, type=float,
-                    help='Margin parameter setting'
-                    )
-parser.add_argument('--IPC', type=int,
-                    help='Balanced sampling, images per class'
-                    )
-parser.add_argument('--warm', default=1, type=int,
-                    help='Warmup training epochs'
-                    )
-parser.add_argument('--bn-freeze', default=1, type=int,
-                    help='Batch normalization parameter freeze'
-                    )
-parser.add_argument('--l2-norm', default=1, type=int,
-                    help='L2 normlization'
-                    )
-parser.add_argument('--remark', default='',
-                    help='Any reamrk'
-                    )
 
-args = parser.parse_args()
-#
-# if args.gpu_id != -1:
-#     torch.cuda.set_device(args.gpu_id)
+def parse_arguments():
+    parser = argparse.ArgumentParser(description=
+                                     'Official implementation of `Proxy Anchor Loss for Deep Metric Learning`'
+                                     + 'Our code is modified from `https://github.com/dichotomies/proxy-nca`'
+                                     )
+    # export directory, training and val datasets, test datasets
+    parser.add_argument('--LOG_DIR',
+                        default='../logs',
+                        help='Path to log folder'
+                        )
+    parser.add_argument('--dataset',
+                        default='cub',
+                        help='Training dataset, e.g. cub, cars, SOP, Inshop'
+                        )
+    parser.add_argument('--embedding-size', default=512, type=int,
+                        dest='sz_embedding',
+                        help='Size of embedding that is appended to backbone model.'
+                        )
+    parser.add_argument('--batch-size', default=150, type=int,
+                        dest='sz_batch',
+                        help='Number of samples per batch.'
+                        )
+    parser.add_argument('--epochs', default=60, type=int,
+                        dest='nb_epochs',
+                        help='Number of training epochs.'
+                        )
+    parser.add_argument('--gpu-id', default=0, type=int,
+                        help='ID of GPU that is used for training.'
+                        )
+    parser.add_argument('--workers', default=0, type=int,
+                        dest='nb_workers',
+                        help='Number of workers for dataloader.'
+                        )
+    parser.add_argument('--model', default='bn_inception',
+                        help='Model for training'
+                        )
+    parser.add_argument('--loss', default='Proxy_Anchor',
+                        help='Criterion for training'
+                        )
+    parser.add_argument('--optimizer', default='adamw',
+                        help='Optimizer setting'
+                        )
+    parser.add_argument('--lr', default=1e-4, type=float,
+                        help='Learning rate setting'
+                        )
+    parser.add_argument('--weight-decay', default=1e-4, type=float,
+                        help='Weight decay setting'
+                        )
+    parser.add_argument('--lr-decay-step', default=10, type=int,
+                        help='Learning decay step setting'
+                        )
+    parser.add_argument('--lr-decay-gamma', default=0.5, type=float,
+                        help='Learning decay gamma setting'
+                        )
+    parser.add_argument('--alpha', default=32, type=float,
+                        help='Scaling Parameter setting'
+                        )
+    parser.add_argument('--mrg', default=0.1, type=float,
+                        help='Margin parameter setting'
+                        )
+    parser.add_argument('--IPC', type=int,
+                        help='Balanced sampling, images per class'
+                        )
+    parser.add_argument('--warm', default=1, type=int,
+                        help='Warmup training epochs'
+                        )
+    parser.add_argument('--bn-freeze', default=1, type=int,
+                        help='Batch normalization parameter freeze'
+                        )
+    parser.add_argument('--l2-norm', default=1, type=int,
+                        help='L2 normlization'
+                        )
+    parser.add_argument('--remark', default='',
+                        help='Any reamrk'
+                        )
+    return parser.parse_args()
 
-# Directory for Log
-LOG_DIR = args.LOG_DIR + '/logs_{}/{}_{}_embedding{}_alpha{}_mrg{}_{}_lr{}_batch{}{}'.format(args.dataset, args.model,
-                                                                                             args.loss,
-                                                                                             args.sz_embedding,
-                                                                                             args.alpha,
-                                                                                             args.mrg, args.optimizer,
-                                                                                             args.lr, args.sz_batch,
-                                                                                             args.remark)
-# Wandb Initialization
-wandb.login(key='f0a1711b34f7b07e32150c85c67697eb82c5120f')
-wandb.init(project=args.dataset + '_ProxyAnchor', notes=LOG_DIR)
-wandb.config.update(args)
-
-os.chdir('../data/')
-data_root = os.getcwd()
-
-
-# Dataset Loader and Sampler
 
 def get_transform(train):
     if args.dataset == 'note_styles':
@@ -177,10 +160,6 @@ def create_generators():
     return dl_tr, dl_val, dl_ev
 
 
-dl_tr, dl_val, dl_ev = create_generators()
-nb_classes = dl_tr.dataset.nb_classes()
-
-
 def create_model():
     # Backbone Model
     if args.model.find('googlenet') + 1:
@@ -204,7 +183,7 @@ def create_model():
     return model
 
 
-def create_loss():
+def create_loss(nb_classes):
     # DML Losses
     if args.loss == 'Proxy_Anchor':
         criterion = losses.Proxy_Anchor(nb_classes=nb_classes, sz_embed=args.sz_embedding, mrg=args.mrg,
@@ -288,7 +267,8 @@ def text_save(recalls, best_epoch):
 def train_model(args, model, dl_tr, dl_val, dl_ev):
     losses_list = []
     k = 7
-    best_recall = {f"f1score@{k}": 0}
+    best_recall = pd.DataFrame()
+    best_recall[f'f1score@{k}'] = [0]
 
     for epoch in range(0, args.nb_epochs):
         model.train()
@@ -305,6 +285,9 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
         pbar = tqdm(enumerate(dl_tr))
 
         for batch_idx, (x, y) in pbar:
+            if batch_idx != 0:
+                break
+
             m = model(x.squeeze())
             loss = criterion(m, y.squeeze())
 
@@ -326,24 +309,57 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
         wandb.log({'loss': losses_list[-1]}, step=epoch)
         scheduler.step()
 
-        if epoch % 5 == 0 and epoch > 0:
+        if epoch % 5 == 0 and epoch >= 0:
             with torch.no_grad():
-                recalls = utils.evaluate_cos(model, dl_ev, epoch, args)
 
-                for key, val in recalls.items():
-                    wandb.log({key: val}, step=epoch)
+                test_recalls = utils.evaluate_cos(model, dl_ev, epoch, args)
+
+                for key, val in test_recalls.items():
+                    wandb.log({key + '_test': val.values[0]}, step=epoch)
+                    print(f'{key} : {np.round(val.values[0], 3)}')
+
+                val_recalls = utils.evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
+
+                for key, val in val_recalls.items():
+                    wandb.log({key + '_validation': val.values[0]}, step=epoch)
+                    print(f'{key} : {np.round(val.values[0], 3)}')
 
             # Best model save
-            if best_recall[f"f1score@{k}"] < recalls[f"f1score@{k}"]:
-                best_recall = recalls
+            if best_recall[f"f1score@{k}"].values[0] < val_recalls[f"f1score@{k}"].values[0]:
+                best_recall = val_recalls
                 best_epoch = epoch
 
                 torch_save()
-                text_save(recalls, best_epoch)
+                text_save(val_recalls, best_epoch)
 
 if __name__ == '__main__':
+    args = parse_arguments()
+
     model = create_model()
-    criterion = create_loss()
+
+    # Directory for Log
+    LOG_DIR = args.LOG_DIR + '/logs_{}/{}_{}_embedding{}_alpha{}_mrg{}_{}_lr{}_batch{}{}'.format(args.dataset,
+                                                                                                 args.model,
+                                                                                                 args.loss,
+                                                                                                 args.sz_embedding,
+                                                                                                 args.alpha,
+                                                                                                 args.mrg,
+                                                                                                 args.optimizer,
+                                                                                                 args.lr, args.sz_batch,
+                                                                                                 args.remark)
+    # Wandb Initialization
+    wandb.login(key='f0a1711b34f7b07e32150c85c67697eb82c5120f')
+    wandb.init(project=args.dataset + '_ProxyAnchor', notes=LOG_DIR)
+    wandb.config.update(args)
+
+    os.chdir('../data/')
+    data_root = os.getcwd()
+
+    dl_tr, dl_val, dl_ev = create_generators()
+    nb_classes = dl_tr.dataset.nb_classes()
+
+    criterion = create_loss(nb_classes)
     opt, scheduler = create_optimizer_and_prepare_layers()
+
     print("Training for {} epochs.".format(args.nb_epochs))
     train_model(args, model, dl_tr, dl_val, dl_ev)
