@@ -17,7 +17,9 @@ eggs/
 lib/
 lib64/
 parts/
+logs/
 sdist/
+mrcnn/
 var/
 new_jsons/
 note_jsons/

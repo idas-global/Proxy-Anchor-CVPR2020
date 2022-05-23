@@ -35,7 +35,6 @@ def main():
 
             missing_per_frame = 0
 
-
             for side in sides_wanted:
                 for spec in specs_wanted:
                     pack = note['pack'].values[0]

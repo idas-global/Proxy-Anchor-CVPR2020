@@ -2,6 +2,7 @@ import os
 import functools
 import uuid
 import itertools
+from collections import Counter
 from operator import itemgetter
 import pandas as pd
 import numpy as np
@@ -153,11 +154,7 @@ def evaluate_cos(model, dataloader, epoch, args):
     dest = f'../training/{args.dataset}/{epoch}/'
     os.makedirs(dest, exist_ok=True)
 
-    if epoch % 2 == 0:
-        X, T, I = predict_batchwise(model, dataloader, return_images=True)
-    else:
-        X, T = predict_batchwise(model, dataloader, return_images=False)
-
+    X, T = predict_batchwise(model, dataloader, return_images=False)
     X = l2_norm(X)
 
     # get predictions by assigning nearest 8 neighbors with cosine
@@ -166,34 +163,19 @@ def evaluate_cos(model, dataloader, epoch, args):
     neighbors = cos_sim.topk(1 + K)[1][:, 1:]
     Y = T[neighbors]
     Y = Y.float().cpu()
-
-    pred_dict = {}
-    k = 5
-    for idx, (t, y) in enumerate(zip(T, Y)):
-        label = torch.mode(torch.Tensor(y).long()[:k]).values
-        if label not in pred_dict.keys():
-            pred_dict[label.item()] = []
-
-        pred_dict[label.item()] = list([i.item() for i in neighbors[idx]])
-
-    centroids = {}
-    for label, items in pred_dict.items():
-        centroids[label] = np.array(X[items].mean(axis=1))
+    neighbors = neighbors.numpy()
 
     recall = {}
 
-    if epoch % 2 == 0:
-        coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors, pred_dict, centroids)
-        recall['specific_accuracy'] = metrics['specific_accuracy'].values[0]
-        recall['coarse_accuracy'] = metrics['coarse_accuracy'].values[0]
-    #plot_feature_space(X, dataloader)
+    coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors)
+    recall['specific_accuracy'] = metrics['specific_accuracy'].values[0]
+    recall['coarse_accuracy'] = metrics['coarse_accuracy'].values[0]
 
     for k in [3, 5, 7]:
         y_preds, y_true = calc_recall(T, Y, epoch, k, metrics, recall)
 
-    if epoch % 2 == 0:
-        data_viz_frame = form_data_viz_frame(X, coarse_filter_dict, dataloader, fine_filter_dict, y_preds, y_true)
-
+    data_viz_frame = form_data_viz_frame(X, coarse_filter_dict, dataloader, fine_filter_dict, y_preds, y_true)
+    if False or epoch % 2 == 0:
         params = ['prediction', 'truth']
         degrees = ['fine', 'coarse']
         for deg in degrees:
@@ -202,7 +184,8 @@ def evaluate_cos(model, dataloader, epoch, args):
 
         plot_confusion(data_viz_frame, dataloader, dest)
 
-        metrics.to_csv(dest + 'metrics.csv')
+    metrics.to_csv(dest + 'metrics.csv')
+    data_viz_frame.to_csv(dest + 'data_viz_frame.csv')
     return recall
 
 
@@ -342,7 +325,7 @@ def cosine_similarity(v1,v2):
     return sumxy/math.sqrt(sumxx*sumyy)
 
 
-def get_accuracies(T, X, dataloader, neighbors, pred_dict, centroids):
+def get_accuracies(T, X, dataloader, neighbors):
     pictures_to_predict = random.choices(range(len(X)), k=int(round(len(dataloader.dataset.im_paths)*50/100)))
     ground_truth = T[pictures_to_predict]
 
@@ -353,14 +336,17 @@ def get_accuracies(T, X, dataloader, neighbors, pred_dict, centroids):
                         for class_num, specific_species in zip(np.array(T), dataloader.dataset.class_names_fine)}
 
     y_preds = np.zeros(len(pictures_to_predict))
+    y_preds_mode = np.zeros(len(pictures_to_predict))
     for idx, pic in tqdm(enumerate(pictures_to_predict), total=len(pictures_to_predict), desc='Accuracy Analysis'):
-        neighbors_to_pic = [neigh.item() for neigh in neighbors[pic] if neigh not in pictures_to_predict]
+        neighbors_to_pic = np.array(neighbors[pic, :][~np.in1d(neighbors[pic, :], pictures_to_predict)])
 
-        preds, counts = np.unique(T[neighbors_to_pic], return_counts=True)
+        preds, counts = np.unique(T[neighbors_to_pic[0:7]], return_counts=True)
         close_preds = preds[np.argsort(counts)[-2::]]
+        y_preds_mode[idx] = preds[np.argsort(counts)[-1]]
         predictions = {}
+
         for close_pred in close_preds:
-            neighbors_pred = [i for i in neighbors_to_pic if T[i] == close_pred]
+            neighbors_pred = [i for i in neighbors_to_pic[0:7] if T[i] == close_pred]
             one = np.array(X[neighbors_pred])
             two = np.array(X[pic]).reshape(-1, 1).T
 
@@ -370,19 +356,30 @@ def get_accuracies(T, X, dataloader, neighbors, pred_dict, centroids):
             two /= norms_Y[:, np.newaxis]
             cs = np.dot(one, two.T)
 
-            predictions[close_pred] = (sum(cs)/np.sqrt(len(cs)))[0]
+            predictions[close_pred] = (sum(cs) / np.sqrt(len(cs)))[0]
 
-        #y_preds[idx] = torch.mode(T[neighbors_to_pic]).values
         y_preds[idx] = max(predictions, key=predictions.get)
-    print(f'Accuracy at Specific: {accuracy_score(y_preds, np.array(ground_truth)) * 100}')
+
+    ground_truth = np.array(ground_truth)
+    print(f'Accuracy at Specific: {accuracy_score(y_preds, ground_truth) * 100}')
+    print(f'Accuracy at Specific ( Mode ): {accuracy_score(y_preds_mode, ground_truth) * 100}')
 
     coarse_predictions = [coarse_filter_dict[pred] for pred in y_preds]
-    coarse_truth = [coarse_filter_dict[truth] for truth in np.array(ground_truth)]
+
+    coarse_truth = [coarse_filter_dict[truth] for truth in ground_truth]
     print(f'Accuracy at Coarse: {accuracy_score(coarse_predictions, coarse_truth) * 100}')
 
-    metrics = pd.DataFrame([accuracy_score(y_preds, np.array(ground_truth)) * 100])
+    metrics = pd.DataFrame([accuracy_score(y_preds, ground_truth) * 100])
     metrics.columns = ['specific_accuracy']
+    metrics['Specific Mode Accuracy'] = accuracy_score(y_preds_mode, ground_truth) * 100
     metrics['coarse_accuracy'] = accuracy_score(coarse_predictions, coarse_truth) * 100
+
+    for (key, val), (true, true_val) in zip(sorted(dict(Counter(y_preds)).items()),
+                                            sorted(dict(Counter(ground_truth)).items())):
+        pred_fac = np.round(100 * val / len(pictures_to_predict), 2)
+        true_fac = np.round(100 * true_val / len(pictures_to_predict), 2)
+        if abs(pred_fac - true_fac) > 1:
+            print(f'{int(key)}: {val} - {pred_fac}% vs {true_fac}%')
     return coarse_filter_dict, fine_filter_dict, metrics
 
 def plot_feature_space(X, dataloader):

@@ -266,7 +266,8 @@ scheduler = torch.optim.lr_scheduler.StepLR(opt, step_size=args.lr_decay_step, g
 print("Training parameters: {}".format(vars(args)))
 print("Training for {} epochs.".format(args.nb_epochs))
 losses_list = []
-best_recall = {"f1score@16": 0}
+k = 7
+best_recall = {f"f1score@{k}": 0}
 best_epoch = 0
 
 for epoch in range(0, args.nb_epochs):
@@ -296,7 +297,7 @@ for epoch in range(0, args.nb_epochs):
 
     pbar = tqdm(enumerate(dl_tr))
 
-    for batch_idx, (x, y) in pbar:                         
+    for batch_idx, (x, y) in pbar:
         m = model(x.squeeze())
         loss = criterion(m, y.squeeze())
         
@@ -320,7 +321,7 @@ for epoch in range(0, args.nb_epochs):
     wandb.log({'loss': losses_list[-1]}, step=epoch)
     scheduler.step()
     
-    if epoch % 3 == 0:
+    if epoch % 5 == 0 and epoch > 0:
         with torch.no_grad():
             print("**Evaluating...**")
             if args.dataset == 'Inshop':
@@ -342,7 +343,7 @@ for epoch in range(0, args.nb_epochs):
                 wandb.log({"f1score@{}".format(10**i): Recalls[i]}, step=epoch)
         
         # Best model save
-        if best_recall["f1score@16"] < Recalls["f1score@16"]:
+        if best_recall[f"f1score@{k}"] < Recalls[f"f1score@{k}"]:
             best_recall = Recalls
             best_epoch = epoch
             if not os.path.exists('{}'.format(LOG_DIR)):
