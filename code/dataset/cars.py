@@ -2,7 +2,7 @@ from .base import *
 import scipy.io
 
 class Cars(BaseDataset):
-    def __init__(self, root, mode, transform = None):
+    def __init__(self, root, mode, seed, transform = None):
         self.root = root + '/cars196'
         self.mode = mode
         self.transform = transform
