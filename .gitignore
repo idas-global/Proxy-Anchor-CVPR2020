@@ -135,6 +135,7 @@ dmypy.json
 diagnostics/
 /training
 /code/dsprofiling/
+mrcnn/
 /misc
 saved_profiling_objects/
 templates/

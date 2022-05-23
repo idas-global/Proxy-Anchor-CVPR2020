@@ -8,6 +8,7 @@ import albumentations as aug
 import pandas as pd
 from tqdm import tqdm
 
+from maskrcnn import MaskRCNN
 from noteclasses import ImageBMP
 
 
@@ -63,8 +64,14 @@ def main():
                     root_loc = location_genuine_notes
 
                 note_object = ImageBMP(f'{root_loc}{note_num}/{note_num}_{spec}_{side}.bmp',
-                                       straighten=True, rotation=180)
+                                       straighten=True, rotation=None)
                 note_image = note_object.array
+
+                df = maskrcnn.detect(note_image, determineOrientation=False)
+
+                df = df[~df['classID'].duplicated(keep='first')]
+                seal_roi = df[df['className'] == 'TrsSeal']['roi'].values[0]
+                seal = note_image[seal_roi[1]:seal_roi[3], seal_roi[0]: seal_roi[2]]
 
                 if extra_notes_per_note >= 1:
                     iters = int(np.ceil(extra_notes_per_note))
@@ -154,10 +161,14 @@ def get_valid_dirs():
 if __name__ == '__main__':
     location_1604_notes = 'D:/1604_notes/'
     location_genuine_notes = 'D:/genuines/Pack_100_4/'
+
     aug_location_1604_notes = 'D:/1604_notes_augmented/'
 
+    aug_location_1604_seals = 'D:/1604_seals_augmented/'
     sides_wanted = ['Front'] # (0 / 1)
     specs_wanted = ['RGB']
     aug_fac = 5
     # TODO make it work for non rgb/nir
+    maskrcnn = MaskRCNN()
+
     main()
