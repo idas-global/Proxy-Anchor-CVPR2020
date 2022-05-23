@@ -163,6 +163,7 @@ def create_generators():
     ev_dataset = dataset.load(
         name=args.dataset,
         root=data_root,
+        seed=None,
         mode='eval',
         transform=get_transform(False)
     )
