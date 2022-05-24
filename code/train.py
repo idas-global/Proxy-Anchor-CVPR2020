@@ -159,10 +159,10 @@ def create_generators():
             num_workers=args.nb_workers,
             pin_memory=True
         )
-    print(dict(Counter(dl_tr.dataset.ys)))
-    print(dict(Counter(dl_val.dataset.ys)))
+    print(dict(Counter(dl_tr.dataset.class_names_coarse)))
+    print(dict(Counter(dl_val.dataset.class_names_coarse)))
     if dl_ev:
-        print(dict(Counter(dl_ev.dataset.ys)))
+        print(dict(Counter(dl_ev.dataset.class_names_coarse)))
 
     # le_name_mapping_train = dict(zip(dl_tr.dataset.label_encoder.classes_,
     #                            dl_tr.dataset.label_encoder.transform(dl_tr.dataset.label_encoder.classes_)))
