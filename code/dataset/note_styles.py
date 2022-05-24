@@ -31,14 +31,6 @@ class Notes(BaseDataset):
         self.class_names_coarse = [name.split('_')[0] for name in self.class_names]
         self.class_names_fine = [name[0:-1] if name[-1].isalpha() else name for name in self.class_names]
 
-        if self.mode == 'train' or self.mode == 'val':
-            self.classes = range(0, 60)
-            random.seed(seed)
-            chosen_idxs = random.choices(range(len(self.class_names)), k=int(round(0.8*len(self.class_names))))
-
-            if self.mode == 'val':
-                chosen_idxs = [i for i in range(len(self.class_names)) if i not in chosen_idxs]
-
         if le is None:
             le = LabelEncoder()
             le.fit(self.class_names_fine)

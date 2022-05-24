@@ -1,5 +1,6 @@
 import argparse, os
 import random, dataset, utils, losses
+from collections import Counter
 
 import pandas as pd
 
@@ -142,7 +143,7 @@ def create_generators():
     )
 
     dl_ev = None
-    if args.dataset != 'note_styles':
+    if args.dataset not in ['note_styles', 'note_families_front', 'note_families_back', 'note_families_seal']:
         ev_dataset = dataset.load(
             name=args.dataset,
             root=data_root,
@@ -158,35 +159,39 @@ def create_generators():
             num_workers=args.nb_workers,
             pin_memory=True
         )
+    print(dict(Counter(dl_tr.dataset.class_names_coarse)))
+    print(dict(Counter(dl_val.dataset.class_names_coarse)))
+    if dl_ev:
+        print(dict(Counter(dl_ev.dataset.class_names_coarse)))
 
-    # le_name_mapping_train = dict(zip(dl_tr.dataset.label_encoder.classes_,
-    #                            dl_tr.dataset.label_encoder.transform(dl_tr.dataset.label_encoder.classes_)))
-    #
-    # le_name_mapping_val = dict(zip(dl_val.dataset.label_encoder.classes_,
-    #                             dl_val.dataset.label_encoder.transform(dl_val.dataset.label_encoder.classes_)))
-    #
-    # assert le_name_mapping_train == le_name_mapping_val
-    # import matplotlib.pyplot as plt
-    # import cv2
-    # for i in random.choices(range(len(dl_tr.dataset.im_paths)), k=5):
-    #     train_y = dl_tr.dataset.ys[i]
-    #     plt.imshow(cv2.imread(dl_tr.dataset.im_paths[i]))
-    #     plt.title(dl_tr.dataset.class_names_fine[i])
-    #     plt.suptitle(dl_tr.dataset.class_names_coarse_dict[train_y])
-    #     plt.show()
-    #
-    #     assert train_y == le_name_mapping_train[dl_tr.dataset.class_names_fine[i]]
-    #
-    #     val_idx = list(dl_val.dataset.ys).index(train_y)
-    #     assert train_y == le_name_mapping_val[dl_val.dataset.class_names_fine[val_idx]]
-    #
-    #     plt.imshow(cv2.imread(dl_val.dataset.im_paths[val_idx]))
-    #     plt.title(dl_val.dataset.class_names_fine[val_idx])
-    #     plt.suptitle(dl_val.dataset.class_names_coarse_dict[train_y])
-    #     plt.show()
-    #
-    #     if dl_ev is not None:
-    #         assert train_y not in list(dl_ev.dataset.ys)
+    le_name_mapping_train = dict(zip(dl_tr.dataset.label_encoder.classes_,
+                               dl_tr.dataset.label_encoder.transform(dl_tr.dataset.label_encoder.classes_)))
+
+    le_name_mapping_val = dict(zip(dl_val.dataset.label_encoder.classes_,
+                                dl_val.dataset.label_encoder.transform(dl_val.dataset.label_encoder.classes_)))
+
+    assert le_name_mapping_train == le_name_mapping_val
+    import matplotlib.pyplot as plt
+    import cv2
+    for i in random.choices(range(len(dl_tr.dataset.im_paths)), k=5):
+        train_y = dl_tr.dataset.ys[i]
+        plt.imshow(cv2.imread(dl_tr.dataset.im_paths[i]))
+        plt.title(dl_tr.dataset.class_names_fine[i])
+        plt.suptitle(dl_tr.dataset.class_names_coarse_dict[train_y])
+        plt.show()
+
+        assert train_y == le_name_mapping_train[dl_tr.dataset.class_names_fine[i]]
+
+        val_idx = list(dl_val.dataset.ys).index(train_y)
+        assert train_y == le_name_mapping_val[dl_val.dataset.class_names_fine[val_idx]]
+
+        plt.imshow(cv2.imread(dl_val.dataset.im_paths[val_idx]))
+        plt.title(dl_val.dataset.class_names_fine[val_idx])
+        plt.suptitle(dl_val.dataset.class_names_coarse_dict[train_y])
+        plt.show()
+
+        if dl_ev is not None:
+            assert train_y not in list(dl_ev.dataset.ys)
     return dl_tr, dl_val, dl_ev
 
 
@@ -314,9 +319,6 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
         pbar = tqdm(enumerate(dl_tr))
 
         for batch_idx, (x, y) in pbar:
-            if batch_idx != 0:
-                break
-
             m = model(x.squeeze())
             loss = criterion(m, y.squeeze())
 

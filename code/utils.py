@@ -165,7 +165,7 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
     X = l2_norm(X)
     X = torch.from_numpy(X)
     # get predictions by assigning nearest 8 neighbors with cosine
-    K = 32
+    K = min(32, len(X) - 1)
     cos_sim = F.linear(X, X)
     neighbors = cos_sim.topk(1 + K)[1][:, 1:]
     Y = T[neighbors]
@@ -195,8 +195,11 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
                     import traceback
                     print(traceback.format_exc())
                     print('WARNING: Cant create Graph')
-
-        plot_confusion(data_viz_frame, dataloader, dest)
+        try:
+            plot_confusion(data_viz_frame, dataloader, dest)
+        except Exception:
+            import traceback
+            print(traceback.format_exc())
 
     metrics.to_csv(dest + 'metrics.csv')
     data_viz_frame.to_csv(dest + 'data_viz_frame.csv')
