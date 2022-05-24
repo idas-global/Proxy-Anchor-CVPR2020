@@ -83,7 +83,7 @@ def main():
                                                                  int(back_aug_image.shape[0] / 10)))
 
                     cv2.imwrite(dest_front + f'/{aug_key}_{spec}_{side}.bmp', aug_image)
-                    cv2.imwrite(dest_back  + f'/{aug_key}_{spec}_Back.bmp', back_aug_image)
+                    cv2.imwrite(dest_back  + f'/{aug_key}_{spec}_{side}.bmp', back_aug_image)
 
                     if not df[df['className'] == 'TrsSeal']['roi'].empty:
                         aug_seal = aug_obj(image=seal)['image']
@@ -185,16 +185,16 @@ def get_valid_dirs():
 
 
 if __name__ == '__main__':
-    location_1604_notes = 'D:/1604_notes/'
+    location_1604_notes = '/mnt/ssd1/Genesys_2_Capture/counterfeit/'
     location_genuine_notes = 'D:/genuines/Pack_100_4/'
 
-    aug_location_1604_fronts = 'D:/1604_fronts_augmented/'
+    aug_location_1604_fronts = '/mnt/ssd1/Genesys_2_Capture/1604_fronts_augmented/'
     empty_aug_dir(aug_location_1604_fronts)
 
-    aug_location_1604_backs = 'D:/1604_backs_augmented/'
+    aug_location_1604_backs = '/mnt/ssd1/Genesys_2_Capture/1604_backs_augmented/'
     empty_aug_dir(aug_location_1604_backs)
 
-    aug_location_1604_seals = 'D:/1604_seals_augmented/'
+    aug_location_1604_seals = '/mnt/ssd1/Genesys_2_Capture/1604_seals_augmented/'
     empty_aug_dir(aug_location_1604_seals)
 
     sides_wanted = ['Front'] # (0 / 1)
