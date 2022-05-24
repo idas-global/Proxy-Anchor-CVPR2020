@@ -42,3 +42,5 @@ class Cars(BaseDataset):
                     self.ys.append(y)
                     self.I += [index]
                 index += 1
+
+        self.label_encoder = None
