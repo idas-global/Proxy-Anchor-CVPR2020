@@ -5,6 +5,9 @@ import numpy as np
 from .base import *
 import scipy.io
 
+from .note_families import slice_to_make_set
+
+
 class Cars(BaseDataset):
     def __init__(self, root, mode, seed, le, transform = None):
         self.name = 'cars'
@@ -34,13 +37,11 @@ class Cars(BaseDataset):
 
         ys = [int(a[5][0] - 1) for a in cars['annotations'][0]]
         im_paths = [a[0][0] for a in cars['annotations'][0]]
-        index = 0
         for im_path, y in zip(im_paths, ys):
             if y in self.classes: # choose only specified classes
-                if index in chosen_idxs:
                     self.im_paths.append(os.path.join(self.root, im_path))
                     self.ys.append(y)
-                    self.I += [index]
-                index += 1
 
+        for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys', 'classes']:
+            setattr(self, param, slice_to_make_set(chosen_idxs, getattr(self, param)))
         self.label_encoder = None
