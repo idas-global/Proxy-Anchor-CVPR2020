@@ -6,7 +6,8 @@ from .base import *
 import scipy.io
 
 class Cars(BaseDataset):
-    def __init__(self, root, mode, seed, transform = None):
+    def __init__(self, root, mode, seed, le, transform = None):
+        self.name = 'cars'
         self.root = root + '/cars196'
         self.mode = mode
         self.transform = transform

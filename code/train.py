@@ -99,17 +99,10 @@ def parse_arguments():
 
 
 def get_transform(train):
-    if args.dataset == 'note_styles':
-        trans = dataset.utils.make_transform(
-            is_train=train,
-            is_inception=(args.model == 'bn_inception'),
-            crop=False
-        )
-    elif args.dataset != 'Inshop':
-        trans = dataset.utils.make_transform(
-            is_train=train,
-            is_inception=(args.model == 'bn_inception')
-        )
+    trans = dataset.utils.make_transform(
+        is_train=train,
+        is_inception=(args.model == 'bn_inception')
+    )
     return trans
 
 
@@ -120,7 +113,9 @@ def create_generators():
         root=data_root,
         seed=seed,
         mode='train',
+        le=None,
         transform=get_transform(True))
+
     dl_tr = torch.utils.data.DataLoader(
         trn_dataset,
         batch_size=args.sz_batch,
@@ -129,11 +124,13 @@ def create_generators():
         drop_last=True,
         pin_memory=True
     )
+
     val_dataset = dataset.load(
         name=args.dataset,
         root=data_root,
         seed=seed,
         mode='train',
+        le=dl_tr.dataset.label_encoder,
         transform=get_transform(True))
     dl_val = torch.utils.data.DataLoader(
         val_dataset,
@@ -143,20 +140,53 @@ def create_generators():
         drop_last=True,
         pin_memory=True
     )
-    ev_dataset = dataset.load(
-        name=args.dataset,
-        root=data_root,
-        seed=None,
-        mode='eval',
-        transform=get_transform(False)
-    )
-    dl_ev = torch.utils.data.DataLoader(
-        ev_dataset,
-        batch_size=args.sz_batch,
-        shuffle=False,
-        num_workers=args.nb_workers,
-        pin_memory=True
-    )
+
+    dl_ev = None
+    if args.dataset != 'note_styles':
+        ev_dataset = dataset.load(
+            name=args.dataset,
+            root=data_root,
+            seed=None,
+            mode='eval',
+            le=dl_tr.dataset.label_encoder,
+            transform=get_transform(False)
+        )
+        dl_ev = torch.utils.data.DataLoader(
+            ev_dataset,
+            batch_size=args.sz_batch,
+            shuffle=False,
+            num_workers=args.nb_workers,
+            pin_memory=True
+        )
+
+    # le_name_mapping_train = dict(zip(dl_tr.dataset.label_encoder.classes_,
+    #                            dl_tr.dataset.label_encoder.transform(dl_tr.dataset.label_encoder.classes_)))
+    #
+    # le_name_mapping_val = dict(zip(dl_val.dataset.label_encoder.classes_,
+    #                             dl_val.dataset.label_encoder.transform(dl_val.dataset.label_encoder.classes_)))
+    #
+    # assert le_name_mapping_train == le_name_mapping_val
+    # import matplotlib.pyplot as plt
+    # import cv2
+    # for i in random.choices(range(len(dl_tr.dataset.im_paths)), k=5):
+    #     train_y = dl_tr.dataset.ys[i]
+    #     plt.imshow(cv2.imread(dl_tr.dataset.im_paths[i]))
+    #     plt.title(dl_tr.dataset.class_names_fine[i])
+    #     plt.suptitle(dl_tr.dataset.class_names_coarse_dict[train_y])
+    #     plt.show()
+    #
+    #     assert train_y == le_name_mapping_train[dl_tr.dataset.class_names_fine[i]]
+    #
+    #     val_idx = list(dl_val.dataset.ys).index(train_y)
+    #     assert train_y == le_name_mapping_val[dl_val.dataset.class_names_fine[val_idx]]
+    #
+    #     plt.imshow(cv2.imread(dl_val.dataset.im_paths[val_idx]))
+    #     plt.title(dl_val.dataset.class_names_fine[val_idx])
+    #     plt.suptitle(dl_val.dataset.class_names_coarse_dict[train_y])
+    #     plt.show()
+    #
+    #     if dl_ev is not None:
+    #         assert train_y not in list(dl_ev.dataset.ys)
     return dl_tr, dl_val, dl_ev
 
 
@@ -250,11 +280,10 @@ def perform_warmup(epoch):
             param.requires_grad = True
 
 
-def torch_save():
-    if not os.path.exists('{}'.format(LOG_DIR)):
-        os.makedirs('{}'.format(LOG_DIR))
+def torch_save(save_dir):
+    os.makedirs(save_dir, exist_ok=True)
     torch.save({'model_state_dict': model.state_dict()},
-               '{}/{}_{}_best.pth'.format(LOG_DIR, args.dataset, args.model))
+               '{}/{}_{}_best.pth'.format(save_dir, args.dataset, args.model))
 
 
 def text_save(recalls, best_epoch):
@@ -285,6 +314,9 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
         pbar = tqdm(enumerate(dl_tr))
 
         for batch_idx, (x, y) in pbar:
+            if batch_idx != 0:
+                break
+
             m = model(x.squeeze())
             loss = criterion(m, y.squeeze())
 
@@ -306,14 +338,14 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
         wandb.log({'loss': losses_list[-1]}, step=epoch)
         scheduler.step()
 
-        if epoch % 5 == 0 or epoch == args.nb_epochs - 1:
+        if epoch > 0 and (epoch % 5 == 0 or epoch == args.nb_epochs - 1):
             with torch.no_grad():
+                if dl_ev:
+                    test_recalls = utils.evaluate_cos(model, dl_ev, epoch, args)
 
-                test_recalls = utils.evaluate_cos(model, dl_ev, epoch, args)
-
-                for key, val in test_recalls.items():
-                    wandb.log({key + '_test': val.values[0]}, step=epoch)
-                    print(f'{key} : {np.round(val.values[0], 3)}')
+                    for key, val in test_recalls.items():
+                        wandb.log({key + '_test': val.values[0]}, step=epoch)
+                        print(f'{key} : {np.round(val.values[0], 3)}')
 
                 val_recalls = utils.evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
 
@@ -326,8 +358,10 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
                 best_recall = val_recalls
                 best_epoch = epoch
 
-                torch_save()
+                save_dir = '{}/{}_{}'.format(LOG_DIR, wandb.run.name, np.round(best_recall[f"f1score@{k}"].values[0], 3))
+                torch_save(save_dir)
                 text_save(val_recalls, best_epoch)
+
 
 if __name__ == '__main__':
     args = parse_arguments()
