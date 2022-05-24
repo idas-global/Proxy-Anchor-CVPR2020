@@ -130,7 +130,7 @@ def create_generators():
         name=args.dataset,
         root=data_root,
         seed=seed,
-        mode='train',
+        mode='val',
         le=dl_tr.dataset.label_encoder,
         transform=get_transform(True))
     dl_val = torch.utils.data.DataLoader(
