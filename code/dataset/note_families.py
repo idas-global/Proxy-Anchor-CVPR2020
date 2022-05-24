@@ -48,8 +48,8 @@ class Families(BaseDataset):
 
         self.ys = le.transform(self.class_names_fine)
         self.class_names_coarse_dict = dict(zip(self.ys, self.class_names_coarse))
-        self.classes = self.ys
+        self.classes = set(self.ys)
 
-        for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys', 'classes']:
+        for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys']:
             setattr(self, param, slice_to_make_set(chosen_idxs, getattr(self, param)))
 
