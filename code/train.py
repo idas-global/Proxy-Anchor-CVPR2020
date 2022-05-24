@@ -306,7 +306,7 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
         wandb.log({'loss': losses_list[-1]}, step=epoch)
         scheduler.step()
 
-        if epoch % 5 == 0 and epoch > 0:
+        if epoch % 5 == 0 or epoch == args.nb_epochs - 1:
             with torch.no_grad():
 
                 test_recalls = utils.evaluate_cos(model, dl_ev, epoch, args)

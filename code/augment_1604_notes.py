@@ -199,7 +199,7 @@ if __name__ == '__main__':
 
     sides_wanted = ['Front'] # (0 / 1)
     specs_wanted = ['RGB']
-    aug_fac = 5
+    aug_fac = 2
     # TODO make it work for non rgb/nir
     maskrcnn = MaskRCNN()
 
