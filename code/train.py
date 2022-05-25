@@ -171,8 +171,15 @@ def create_generators():
         for v in dl_ev_labels:
             print(f'{v}')
         print('#####             #####')
+    try:
+        assert len(dl_tr_labels) == len(dl_val_labels)
+    except AssertionError:
+        for i in dl_tr_labels:
+            print(i)
+        print('---------------')
+        for i in dl_val_labels:
+            print(i)
 
-    assert len(dl_tr_labels) == len(dl_val_labels)
     for t, v in zip(dl_tr_labels, dl_val_labels):
         print(f'{t}      {v}')
 

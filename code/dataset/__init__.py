@@ -17,7 +17,7 @@ _type = {
 }
 
 
-def load(name, root, mode, seed, le=None, transform=None, plate='front'):
+def load(name, root, mode, seed, le=None, transform=None):
     if name.startswith('note_families'):
         return _type[name](root=root, mode=mode, seed=seed, le=le, transform=transform, plate=name.split('_')[-1])
     return _type[name](root=root, mode=mode, seed=seed, le=le, transform=transform)
