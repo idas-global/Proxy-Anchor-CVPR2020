@@ -24,18 +24,18 @@ class Cars(BaseDataset):
                                    else ''.join(name.split(' ')[0:2]) for name in self.class_names]
         self.class_names_fine = [name for name in [' '.join(name.split(' ')[0:-1]) for name in self.class_names]]
 
-        if self.mode == 'train' or self.mode == 'val':
-            self.classes = range(0,98)
+        if self.mode == 'train' or self.mode == 'validation':
+            self.classes = range(0,10)
             observations = [i for i, y in zip(self.class_names, ys) if y in self.classes]
 
             random.seed(seed)
             chosen_idxs = random.choices(range(len(observations)), k=int(round(0.8*len(observations))))
 
-            if self.mode == 'val':
+            if self.mode == 'validation':
                 chosen_idxs = [i for i in range(len(observations)) if i not in chosen_idxs]
 
         elif self.mode == 'eval':
-            self.classes = range(98,196)
+            self.classes = range(10,20)
             observations = [i for i, y in zip(self.class_names, ys) if y in self.classes]
             chosen_idxs = list(range(len(observations)))
 

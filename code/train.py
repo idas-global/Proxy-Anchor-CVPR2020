@@ -10,7 +10,9 @@ from net.googlenet import *
 from net.bn_inception import *
 from dataset import sampler
 from torch.utils.data.sampler import BatchSampler
-
+from utils import get_accuracies, get_X_T_Y, f1_score_calc, create_and_save_viz_frame, confusion_matrices, \
+    plot_relationships, save_metrics
+import warnings
 from tqdm import *
 import wandb
 
@@ -130,7 +132,7 @@ def create_generators():
         name=args.dataset,
         root=data_root,
         seed=seed,
-        mode='val',
+        mode='validation',
         le=dl_tr.dataset.label_encoder,
         transform=get_transform(True))
     dl_val = torch.utils.data.DataLoader(
@@ -300,9 +302,9 @@ def text_save(recalls, best_epoch):
 
 def train_model(args, model, dl_tr, dl_val, dl_ev):
     losses_list = []
-    k = 7
+    key_to_opt = f'validation_f1score@7'
     best_recall = pd.DataFrame()
-    best_recall[f'f1score@{k}'] = [0]
+    best_recall[key_to_opt] = [0]
 
     for epoch in range(0, args.nb_epochs):
         model.train()
@@ -319,6 +321,9 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
         pbar = tqdm(enumerate(dl_tr))
 
         for batch_idx, (x, y) in pbar:
+            if batch_idx != 0:
+                break
+
             m = model(x.squeeze())
             loss = criterion(m, y.squeeze())
 
@@ -342,27 +347,86 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
 
         if epoch > 0 and (epoch % 5 == 0 or epoch == args.nb_epochs - 1):
             with torch.no_grad():
-                if dl_ev:
-                    test_recalls = utils.evaluate_cos(model, dl_ev, epoch, args)
-
-                    for key, val in test_recalls.items():
-                        wandb.log({key + '_test': val.values[0]}, step=epoch)
-                        print(f'{key} : {np.round(val.values[0], 3)}')
-
-                val_recalls = utils.evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
+                val_recalls = evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
 
                 for key, val in val_recalls.items():
                     wandb.log({key + '_validation': val.values[0]}, step=epoch)
                     print(f'{key} : {np.round(val.values[0], 3)}')
 
+                if dl_ev:
+                    test_recalls = evaluate_cos(model, dl_ev, epoch, args)
+
+                    for key, val in test_recalls.items():
+                        wandb.log({key + '_test': val.values[0]}, step=epoch)
+                        print(f'{key} : {np.round(val.values[0], 3)}')
+
             # Best model save
-            if best_recall[f"f1score@{k}"].values[0] < val_recalls[f"f1score@{k}"].values[0]:
+            if best_recall[key_to_opt].values[0] < val_recalls[key_to_opt].values[0]:
                 best_recall = val_recalls
                 best_epoch = epoch
 
-                save_dir = '{}/{}_{}'.format(LOG_DIR, wandb.run.name, np.round(best_recall[f"f1score@{k}"].values[0], 3))
+                save_dir = '{}/{}_{}'.format(LOG_DIR, wandb.run.name, np.round(best_recall[key_to_opt].values[0], 3))
                 torch_save(save_dir)
                 text_save(val_recalls, best_epoch)
+
+
+def evaluate_cos(model, dataloader, epoch, args, validation=None):
+    # calculate embeddings with model and get targets
+    test_dest = f'../training/{args.dataset}/{wandb.run.name}/{epoch}/test/'
+    val_dest = f'../training/{args.dataset}/{wandb.run.name}/{epoch}/validation/'
+    train_dest = f'../training/{args.dataset}/{wandb.run.name}/{epoch}/train_and_validation/'
+
+    os.makedirs(train_dest, exist_ok=True)
+    os.makedirs(val_dest, exist_ok=True)
+    os.makedirs(test_dest, exist_ok=True)
+
+    X, T, Y, neighbors = get_X_T_Y(dataloader, model, validation) # X: Embeddings, T: True Labels,
+                                                                  # Y: True Labels of neighbors
+
+    pictures_to_predict = random.choices(range(len(X)), k=int(round(len(X)*50/100)))
+    if validation is not None:
+        pictures_to_predict = list(range(len(X) - len(validation.dataset.ys), len(X)))
+
+        coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, validation, neighbors, pictures_to_predict)
+    else:
+        coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors, pictures_to_predict)
+
+
+    val_y_preds, val_y_true, y_preds, y_true = f1_score_calc(T, Y, dataloader, metrics, pictures_to_predict, validation)
+
+    data_viz_frame, val_data_viz_frame = create_and_save_viz_frame(X, coarse_filter_dict,
+                                                                   dataloader, fine_filter_dict, pictures_to_predict,
+                                                                   test_dest, train_dest, val_dest,
+                                                                   validation,
+                                                                   y_preds, y_true,
+                                                                   val_y_preds, val_y_true)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        params = ['prediction', 'truth']
+        degrees = ['fine', 'coarse']
+        for deg in degrees:
+            for para in params:
+                try:
+                    plot_relationships(X, data_viz_frame, dataloader, deg, para, pictures_to_predict, test_dest,
+                                       train_dest, val_data_viz_frame, val_dest, validation)
+
+                except Exception:
+                    import traceback
+                    print(traceback.format_exc())
+                    print('WARNING: Cant create Graph')
+    try:
+        confusion_matrices(data_viz_frame, dataloader, test_dest, train_dest, val_data_viz_frame, val_dest, validation)
+
+    except Exception:
+        import traceback
+        print(traceback.format_exc())
+
+    save_metrics(dataloader, metrics, test_dest, train_dest, val_dest, validation)
+
+    return metrics
+
+
 
 
 if __name__ == '__main__':
