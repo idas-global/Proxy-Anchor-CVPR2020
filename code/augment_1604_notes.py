@@ -40,34 +40,15 @@ def main():
                 os.makedirs(dest_seal, exist_ok=True)
 
                 root_loc = f'{location_1604_notes}Pack_{pack}/'
-                if pack == 'G':
-                    root_loc = location_genuine_notes
-
-                note_object = ImageBMP(f'{root_loc}{note_num}/{note_num}_{spec}_{side}.bmp',
-                                       straighten=True, rotation=None)
-                note_image = note_object.array
-
-                note_object = ImageBMP(f'{root_loc}{note_num}/{note_num}_{spec}_Back.bmp',
-                                       straighten=True, rotation=None)
-                back_note_image = note_object.array
-
-                df = maskrcnn.detect(note_image, determineOrientation=False)
-                scaleY = note_image.shape[0] / 512
-                scaleX = note_image.shape[1] / 1024
-
-                df = df[~df['classID'].duplicated(keep='first')]
-                if not df[df['className'] == 'TrsSeal']['roi'].empty:
-                    seal_roi = df[df['className'] == 'TrsSeal']['roi'].values[0]
-
-                    seal = note_image[int(round(seal_roi[0]*scaleY)):int(round(seal_roi[2]*scaleY)),
-                                      int(round(seal_roi[1]*scaleX)): int(round(seal_roi[3]*scaleX))]
+                note_image, back_note_image, seal, df = get_front_back_seal(note_num, pack, root_loc, side, spec)
 
                 if extra_notes_per_note >= 1:
                     iters = int(np.ceil(extra_notes_per_note))
                 else:
                     iters = 1
-                    if np.isclose(iter * extra_notes_per_note, 1):
-                        iters = 2
+
+                if np.isclose(iter * extra_notes_per_note, 1):
+                    iters = 2
 
                 aug_obj = augment()
                 for aug_num in range(iters):
@@ -89,6 +70,34 @@ def main():
                         aug_seal = aug_obj(image=seal)['image']
                         aug_seal = cv2.resize(aug_seal, (int(aug_seal.shape[1] / 2), int(aug_seal.shape[0] / 2)))
                         cv2.imwrite(dest_seal + f'/{aug_key}_{spec}_{side}.bmp', aug_seal)
+
+
+def get_front_back_seal(note_num, pack, root_loc, side, spec):
+    if pack == 'G':
+        root_loc = location_genuine_notes
+
+    note_object = ImageBMP(f'{root_loc}{note_num}/{note_num}_{spec}_{side}.bmp',
+                           straighten=True, rotation=None)
+    note_image = note_object.array
+    note_object = ImageBMP(f'{root_loc}{note_num}/{note_num}_{spec}_Back.bmp',
+                           straighten=True, rotation=None)
+    back_note_image = note_object.array
+
+    df = maskrcnn.detect(note_image, determineOrientation=False)
+
+    scaleY = note_image.shape[0] / 512
+    scaleX = note_image.shape[1] / 1024
+
+    df = df[~df['classID'].duplicated(keep='first')]
+
+    seal = None
+    if not df[df['className'] == 'TrsSeal']['roi'].empty:
+        seal_roi = df[df['className'] == 'TrsSeal']['roi'].values[0]
+
+        seal = note_image[int(round(seal_roi[0] * scaleY)):int(round(seal_roi[2] * scaleY)),
+               int(round(seal_roi[1] * scaleX)): int(round(seal_roi[3] * scaleX))]
+
+    return note_image, back_note_image, seal, df
 
 
 def get_valid_notes(notes_frame):
