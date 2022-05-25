@@ -15,7 +15,7 @@ class Families(BaseDataset):
         if mode == 'train':
             self.root = f'/mnt/ssd1/1604_{plate}s_augmented/'
             self.root = f'D:/1604_{plate}s_augmented/'
-        if mode == 'val':
+        if mode == 'validation':
             #self.root = 'D:/Rupert_Book_Augmented/'
             self.root = f'/mnt/ssd1/1604_{plate}s_augmented/'
             self.root = f'D:/1604_{plate}s_augmented/'
@@ -39,11 +39,11 @@ class Families(BaseDataset):
             le.fit(self.class_names_fine)
         self.label_encoder = le
 
-        if self.mode == 'train' or self.mode == 'val':
+        if self.mode == 'train' or self.mode == 'validation':
             random.seed(seed)
             chosen_idxs = random.choices(range(len(self.class_names)), k=int(round(0.8*len(self.class_names))))
 
-            if self.mode == 'val':
+            if self.mode == 'validation':
                 chosen_idxs = [i for i in range(len(self.class_names)) if i not in chosen_idxs]
 
         self.ys = le.transform(self.class_names_fine)

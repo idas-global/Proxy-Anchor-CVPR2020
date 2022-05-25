@@ -149,71 +149,86 @@ def parse_im_name(specific_species, exclude_trailing_consonants=False, fine=Fals
     return filter
 
 
-def evaluate_cos(model, dataloader, epoch, args, validation=None):
-    # calculate embeddings with model and get targets
-    dest = f'../training/{args.dataset}/{epoch}/{dataloader.dataset.mode}_'
-    os.makedirs(os.path.split(dest)[0], exist_ok=True)
-
+def get_X_T_Y(dataloader, model, validation):
     X, T = predict_batchwise(model, dataloader, return_images=False)
 
     if validation is not None:
         X2, T2 = predict_batchwise(model, validation, return_images=False)
         X = np.vstack((X, X2))
         T = np.hstack((T, T2))
-    T = torch.from_numpy(T)
 
+    T = torch.from_numpy(T)
     X = l2_norm(X)
     X = torch.from_numpy(X)
     # get predictions by assigning nearest 8 neighbors with cosine
+
     K = min(32, len(X) - 1)
     cos_sim = F.linear(X, X)
     neighbors = cos_sim.topk(1 + K)[1][:, 1:]
+
     Y = T[neighbors]
     Y = Y.float().cpu()
+
     neighbors = neighbors.numpy()
-
-    pictures_to_predict = random.choices(range(len(X)), k=int(round(len(X)*50/100)))
-    if validation is not None:
-        pictures_to_predict = list(range(len(X) - len(X2), len(X)))
-
-    coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors, pictures_to_predict)
-
-    for k in [3, 5, 7]:
-        y_preds, y_true = calc_recall(T, Y, k, metrics)
-
-    data_viz_frame = form_data_viz_frame(X, coarse_filter_dict, dataloader, fine_filter_dict, y_preds, y_true)
-
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
-        params = ['prediction', 'truth']
-        degrees = ['fine', 'coarse']
-        for deg in degrees:
-            for para in params:
-                try:
-                    centroids = plot_node_graph(X, data_viz_frame, dataloader, para, deg, dest)
-                except Exception:
-                    import traceback
-                    print(traceback.format_exc())
-                    print('WARNING: Cant create Graph')
-        try:
-            plot_confusion(data_viz_frame, dataloader, dest)
-        except Exception:
-            import traceback
-            print(traceback.format_exc())
-
-    metrics.to_csv(dest + 'metrics.csv')
-    data_viz_frame.to_csv(dest + 'data_viz_frame.csv')
-    return metrics
+    return X, T, Y, neighbors
 
 
-def calc_recall(T, Y, k, metrics):
+def save_metrics(dataloader, metrics, test_dest, train_dest, val_dest, validation):
+    if dataloader.dataset.mode == 'train':
+        metrics.to_csv(train_dest + 'metrics.csv')
+
+        if validation:
+            metrics.to_csv(val_dest + 'metrics.csv')
+    else:
+        metrics.to_csv(test_dest + 'metrics.csv')
+
+
+def confusion_matrices(data_viz_frame, dataloader, test_dest, train_dest, val_data_viz_frame, val_dest, validation):
+    if dataloader.dataset.mode == 'train':
+        plot_confusion(data_viz_frame, dataloader, train_dest)
+
+        if validation:
+            plot_confusion(val_data_viz_frame, dataloader, val_dest)
+    else:
+        plot_confusion(data_viz_frame, dataloader, test_dest)
+
+
+def create_and_save_viz_frame(X, coarse_filter_dict, dataloader, fine_filter_dict, pictures_to_predict,
+                              test_dest, train_dest, val_dest, validation, y_preds, y_true, val_y_preds, val_y_true):
+    data_viz_frame = form_data_viz_frame(X, coarse_filter_dict, fine_filter_dict, dataloader, y_preds, y_true)
+    val_data_viz_frame = None
+    if dataloader.dataset.mode == 'train':
+        data_viz_frame.to_csv(train_dest + 'train_and_validation_data_combined.csv')
+
+        if validation:
+            val_data_viz_frame = form_data_viz_frame(X[pictures_to_predict], coarse_filter_dict, fine_filter_dict,
+                                                     dataloader, val_y_preds, val_y_true)
+            val_data_viz_frame.to_csv(val_dest + 'validation_data.csv')
+
+    else:
+        data_viz_frame.to_csv(test_dest + 'test_data.csv')
+    return data_viz_frame, val_data_viz_frame
+
+
+def plot_relationships(X, data_viz_frame, dataloader, deg, para, pictures_to_predict, test_dest, train_dest,
+                       val_data_viz_frame, val_dest, validation):
+    if dataloader.dataset.mode == 'train':
+        plot_node_graph(X, data_viz_frame, para, deg, train_dest)
+
+        if validation:
+            plot_node_graph(X[pictures_to_predict], val_data_viz_frame, para, deg, val_dest)
+    else:
+        plot_node_graph(X, data_viz_frame, para, deg, test_dest)
+
+
+def calc_recall(T, Y, k, metrics, prepend=''):
     y_preds = []
     for t, y in zip(T, Y):
         y_preds.append(torch.mode(torch.Tensor(y).long()[:k]).values)
     y_preds = np.array(y_preds).astype(int)
     y_true = np.array(T)
     r_at_k = f1_score(y_true, y_preds, average='weighted')
-    metrics[f'f1score@{k}'] = r_at_k * 100
+    metrics[f'{prepend}f1score@{k}'] = r_at_k * 100
     return y_preds, y_true
 
 
@@ -221,6 +236,7 @@ def plot_confusion(data_viz_frame, dataloader, dest):
     params = ['label_coarse', 'label_fine', 'denom']
     if 'Rupert_Book' not in dataloader.dataset.im_paths[0]:
         params = ['label_coarse', 'label_fine']
+
     for param in params:
         fig = plt.Figure(figsize=(48, 48))
         ax = plt.subplot()
@@ -242,7 +258,7 @@ def plot_confusion(data_viz_frame, dataloader, dest):
         plt.close()
 
 
-def form_data_viz_frame(X, coarse_filter_dict, dataloader, fine_filter_dict, y_preds, y_true):
+def form_data_viz_frame(X, coarse_filter_dict, fine_filter_dict, dataloader, y_preds, y_true):
     data_viz_frame = pd.DataFrame(y_true.astype(int), columns=['truth'])
     data_viz_frame['prediction'] = y_preds
     data_viz_frame['truth_label_coarse'] = data_viz_frame['truth'].map(coarse_filter_dict, y_true)
@@ -263,19 +279,11 @@ def stratified_sample_df(df, col, n_samples):
     return df_
 
 
-def plot_node_graph(X, data_viz_frame, dataloader, para, deg, dest):
+def plot_node_graph(X, data_viz_frame, para, deg, dest):
     # TODO make this works for individual points
     centroids = {}
     full_items = []
     for idx, (coarse, frame) in enumerate(data_viz_frame.groupby(f'{para}_label_{deg}')):
-
-        # clusters, idNo = break_down_clusters(pd.DataFrame(np.array(X[frame.index]).astype(np.float64)),
-        #                     f'./dsprofiling/saved_profiling_objects/{dataloader.dataset.name}/',
-        #                     dataloader.dataset.name)
-        #
-        # for idx, internal_cluster in enumerate(clusters):
-        #     centroids[coarse + '_' + str(idx + 1)] = internal_cluster.mean()
-
         centroids[coarse] = X[frame.index].mean(axis=0)
 
         for note in frame.index:
@@ -289,7 +297,6 @@ def plot_node_graph(X, data_viz_frame, dataloader, para, deg, dest):
     fig = plt.Figure(figsize=(120, 60))
 
     G = nx.from_numpy_matrix(dst_matrix)
-
 
     weight_dict = {}
     for (i, j) in itertools.permutations(range(len(G.nodes)), 2):
@@ -323,8 +330,7 @@ def plot_node_graph(X, data_viz_frame, dataloader, para, deg, dest):
                             verticalalignment='center', ax=fig.add_subplot(111))
     nx.draw(G, node_size=600, pos=pos, with_labels=False, ax=fig.add_subplot(111))
     plt.show(block=False)
-    fig.savefig(f'{dest}node_graph_{para}_{deg}.png', bbox_inches='tight', dpi=200)
-    print('Graph Drawn')
+    fig.savefig(f'{dest}{para}_{deg}_graph.png', bbox_inches='tight', dpi=200)
     return centroids
 
 import math
@@ -337,6 +343,17 @@ def cosine_similarity(v1,v2):
         sumyy += y*y
         sumxy += x*y
     return sumxy/math.sqrt(sumxx*sumyy)
+
+
+def f1_score_calc(T, Y, dataloader, metrics, pictures_to_predict, validation):
+    for k in [3, 5, 7]:
+        y_preds, y_true = calc_recall(T, Y, k, metrics, dataloader.dataset.mode + '_')
+    val_y_preds, val_y_true = None, None
+    if validation:
+        for k in [3, 5, 7]:
+            val_y_preds, val_y_true = calc_recall(T[pictures_to_predict], Y[pictures_to_predict],
+                                                  k, metrics, prepend=validation.dataset.mode + '_')
+    return val_y_preds, val_y_true, y_preds, y_true
 
 
 def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict):
@@ -390,113 +407,3 @@ def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict):
             print(f'{int(key)}: pred: {val} - {pred_fac}% vs true: {true_fac}%')
 
     return coarse_filter_dict, fine_filter_dict, metrics
-
-def plot_feature_space(X, dataloader):
-    inspect_space = np.array(X)
-    kernel_key = 'sigmoid'
-    pca = KernelPCA(n_components=3, kernel=kernel_key)
-    transformed_space = pca.fit_transform(inspect_space)
-    coarse_filters = [parse_im_name(specific_species) for specific_species in dataloader.dataset.im_paths]
-    plot_based_on_cluster_id(np.array(coarse_filters), {kernel_key: transformed_space}, kernel=kernel_key)
-
-
-def plot_based_on_cluster_id(cluster_id, transformedDfs, kernel='all'):
-    cmap = ListedColormap(sns.color_palette("husl", len(np.unique(cluster_id))).as_hex())
-    colours = {pnt: cmap.colors[idx] for idx, pnt in enumerate(np.unique(cluster_id))}
-
-    for kernel_key, transformedDf in transformedDfs.items():
-        if kernel != 'all' and kernel != kernel_key:
-            continue
-
-        fig = plt.figure(figsize=(12, 12))
-        ax = plt.axes(projection='3d')
-        for pnt in np.unique(cluster_id):
-            pnt_bool = [pnt == ii for ii in cluster_id]
-            ax.scatter(transformedDf[pnt_bool, 0],
-                       transformedDf[pnt_bool, 1],
-                       transformedDf[pnt_bool, 2],
-                       s=40, c=colours[pnt], marker='o', alpha=1, label=pnt)
-        ax.legend()
-        mplcursors.cursor(ax).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))
-        # save
-        fig.suptitle(kernel_key)
-        plt.show()
-
-
-def evaluate_cos_Inshop(model, query_dataloader, gallery_dataloader):
-    nb_classes = query_dataloader.dataset.nb_classes()
-    
-    # calculate embeddings with model and get targets
-    query_X, query_T = predict_batchwise(model, query_dataloader)
-    gallery_X, gallery_T = predict_batchwise(model, gallery_dataloader)
-    
-    query_X = l2_norm(query_X)
-    gallery_X = l2_norm(gallery_X)
-    
-    # get predictions by assigning nearest 8 neighbors with cosine
-    K = 50
-    Y = []
-    xs = []
-    
-    cos_sim = F.linear(query_X, gallery_X)
-
-    def recall_k(cos_sim, query_T, gallery_T, k):
-        m = len(cos_sim)
-        match_counter = 0
-
-        for i in range(m):
-            pos_sim = cos_sim[i][gallery_T == query_T[i]]
-            neg_sim = cos_sim[i][gallery_T != query_T[i]]
-
-            thresh = torch.max(pos_sim).item()
-
-            if torch.sum(neg_sim > thresh) < k:
-                match_counter += 1
-            
-        return match_counter / m
-    
-    # calculate recall @ 1, 2, 4, 8
-    recall = []
-    for k in [1, 10, 20, 30, 40, 50]:
-        r_at_k = recall_k(cos_sim, query_T, gallery_T, k)
-        recall.append(r_at_k)
-        print("R@{} : {:.3f}".format(k, 100 * r_at_k))
-                
-    return recall
-
-def evaluate_cos_SOP(model, dataloader):
-    nb_classes = dataloader.dataset.nb_classes()
-    
-    # calculate embeddings with model and get targets
-    X, T = predict_batchwise(model, dataloader)
-    X = l2_norm(X)
-    
-    # get predictions by assigning nearest 8 neighbors with cosine
-    K = 1000
-    Y = []
-    xs = []
-    for x in X:
-        if len(xs)<10000:
-            xs.append(x)
-        else:
-            xs.append(x)            
-            xs = torch.stack(xs,dim=0)
-            cos_sim = F.linear(xs,X)
-            y = T[cos_sim.topk(1 + K)[1][:,1:]]
-            Y.append(y.float().cpu())
-            xs = []
-            
-    # Last Loop
-    xs = torch.stack(xs,dim=0)
-    cos_sim = F.linear(xs,X)
-    y = T[cos_sim.topk(1 + K)[1][:,1:]]
-    Y.append(y.float().cpu())
-    Y = torch.cat(Y, dim=0)
-
-    # calculate recall @ 1, 2, 4, 8
-    recall = []
-    for k in [1, 10, 100, 1000]:
-        r_at_k = calc_recall_at_k(T, Y, k)
-        recall.append(r_at_k)
-        print("R@{} : {:.3f}".format(k, 100 * r_at_k))
-    return recall
