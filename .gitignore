@@ -19,6 +19,7 @@ lib64/
 parts/
 logs/
 sdist/
+wandb/
 mrcnn/
 var/
 new_jsons/
