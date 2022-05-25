@@ -186,7 +186,7 @@ def get_valid_dirs():
 
 if __name__ == '__main__':
     location_1604_notes = '/mnt/ssd1/Genesys_2_Capture/counterfeit/'
-    location_genuine_notes = 'D:/genuines/Pack_100_4/'
+    location_genuine_notes = '/mnt/ssd1/Genesys_2_Capture/genuine/100_4/'
 
     aug_location_1604_fronts = '/mnt/ssd1/Genesys_2_Capture/1604_fronts_augmented/'
     empty_aug_dir(aug_location_1604_fronts)
