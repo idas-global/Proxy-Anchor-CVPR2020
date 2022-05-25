@@ -14,11 +14,11 @@ class Families(BaseDataset):
 
         if mode == 'train':
             self.root = f'/mnt/ssd1/Genesys_2_Capture/1604_{plate}s_augmented/'
-            self.root = f'D:/1604_{plate}s_augmented/'
+            #self.root = f'D:/1604_{plate}s_augmented/'
         if mode == 'validation':
             #self.root = 'D:/Rupert_Book_Augmented/'
             self.root = f'/mnt/ssd1/Genesys_2_Capture/1604_{plate}s_augmented/'
-            self.root = f'D:/1604_{plate}s_augmented/'
+            #self.root = f'D:/1604_{plate}s_augmented/'
 
         self.mode = mode
         self.transform = transform
