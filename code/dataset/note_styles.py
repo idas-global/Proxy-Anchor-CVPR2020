@@ -1,5 +1,6 @@
 import os
 import random
+import sys
 
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
@@ -11,12 +12,16 @@ class Notes(BaseDataset):
     def __init__(self, root, mode, seed, le, transform = None):
         self.name = 'note_styles'
 
-        if mode == 'train':
-            self.root = '/mnt/ssd1/Rupert_Book_Augmented/'
-            #self.root = 'D:/Rupert_Book_Augmented/'
-        if mode == 'validation':
-            #self.root = 'D:/Rupert_Book_Augmented/'
-            self.root = '/mnt/ssd1/Rupert_Book_Augmented_Test/'
+        if sys.platform == 'linux':
+            if mode == 'train':
+                self.root = '/mnt/ssd1/Rupert_Book_Augmented/'
+            if mode == 'validation':
+                self.root = '/mnt/ssd1/Rupert_Book_Augmented_Test/'
+        else:
+            if mode == 'train':
+                self.root = 'D:/Rupert_Book_Augmented/'
+            if mode == 'validation':
+                self.root = 'D:/Rupert_Book_Augmented/'
 
         self.mode = mode
         self.transform = transform

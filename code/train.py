@@ -135,6 +135,7 @@ def create_generators():
         mode='validation',
         le=dl_tr.dataset.label_encoder,
         transform=get_transform(True))
+
     dl_val = torch.utils.data.DataLoader(
         val_dataset,
         batch_size=args.sz_batch,
@@ -161,10 +162,18 @@ def create_generators():
             num_workers=args.nb_workers,
             pin_memory=True
         )
-    print(sorted(dict(Counter(dl_tr.dataset.class_names_coarse)).items(), key=lambda x: x[0]))
-    print(sorted(dict(Counter(dl_val.dataset.class_names_coarse)).items(), key=lambda x: x[0]))
+    dl_tr_labels = sorted(dict(Counter(dl_tr.dataset.class_names_coarse)).items(), key=lambda x: x[0])
+    dl_val_labels = sorted(dict(Counter(dl_val.dataset.class_names_coarse)).items(), key=lambda x: x[0])
     if dl_ev:
-        print(sorted(dict(Counter(dl_ev.dataset.class_names_coarse)).items(), key=lambda x: x[0]))
+        dl_ev_labels = sorted(dict(Counter(dl_ev.dataset.class_names_coarse)).items(), key=lambda x: x[0])
+        print('##### TEST LABELS #####')
+        for v in dl_ev_labels:
+            print(f'{v}')
+        print('#####             #####')
+        
+    assert len(dl_tr_labels) == len(dl_val_labels)
+    for t, v in zip(dl_tr_labels, dl_val_labels):
+        print(f'{t}      {v}')
 
     # le_name_mapping_train = dict(zip(dl_tr.dataset.label_encoder.classes_,
     #                            dl_tr.dataset.label_encoder.transform(dl_tr.dataset.label_encoder.classes_)))
