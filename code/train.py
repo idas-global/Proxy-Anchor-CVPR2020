@@ -321,9 +321,6 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
         pbar = tqdm(enumerate(dl_tr))
 
         for batch_idx, (x, y) in pbar:
-            if batch_idx != 0:
-                break
-
             m = model(x.squeeze())
             loss = criterion(m, y.squeeze())
 
