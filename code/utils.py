@@ -349,6 +349,7 @@ def f1_score_calc(T, Y, dataloader, metrics, pictures_to_predict, validation):
     for k in [3, 5, 7]:
         y_preds, y_true = calc_recall(T, Y, k, metrics, dataloader.dataset.mode + '_')
     val_y_preds, val_y_true = None, None
+
     if validation:
         for k in [3, 5, 7]:
             val_y_preds, val_y_true = calc_recall(T[pictures_to_predict], Y[pictures_to_predict],
@@ -369,7 +370,7 @@ def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict):
         neighbors_to_pic = np.array(neighbors[pic, :][~np.in1d(neighbors[pic, :], pictures_to_predict)])
 
         preds, counts = np.unique(T[neighbors_to_pic[0:7]], return_counts=True)
-        close_preds = preds[np.argsort(counts)[-2::]]
+        close_preds = preds[counts >= np.max(counts) - 1]
         y_preds_mode[idx] = preds[np.argsort(counts)[-1]]
         predictions = {}
 

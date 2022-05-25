@@ -172,6 +172,7 @@ def create_generators():
         print('---------------')
         for i in dl_val_labels:
             print(i)
+        return
 
     for t, v in zip(dl_tr_labels, dl_val_labels):
         print(f'{t}      {v}')
