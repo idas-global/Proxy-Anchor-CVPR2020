@@ -1,5 +1,6 @@
 import os
 import shutil
+import sys
 import uuid
 from distutils.dir_util import copy_tree
 import matplotlib.pyplot as plt
@@ -31,6 +32,10 @@ def main():
 
         valid_notes = get_valid_notes(notes_frame)
 
+        if len(valid_notes) == 1:
+            print()
+
+
         if len(valid_notes) > 0:
             iters = aug_fac - len(valid_notes)
             extra_notes_per_note = iters/len(valid_notes)
@@ -48,13 +53,12 @@ def main():
                 else:
                     iters = 1
 
-                if np.isclose(iter * extra_notes_per_note, 1):
+                if np.isclose(iters * extra_notes_per_note, 1):
                     iters = 2
 
                 aug_obj = augment()
                 for aug_num in range(iters):
-
-                    aug_key = note_num + str(uuid.uuid4())[0:3] + str(aug_num)
+                    aug_key = note_num + '_' + str(uuid.uuid4())[0:3] + '_' + str(aug_num)
                     aug_image = aug_obj(image=note_image)['image']
                     back_aug_image = aug_obj(image=back_note_image)['image']
 
@@ -195,17 +199,30 @@ def get_valid_dirs():
 
 
 if __name__ == '__main__':
-    location_1604_notes = '/mnt/ssd1/Genesys_2_Capture/counterfeit/'
-    location_genuine_notes = '/mnt/ssd1/Genesys_2_Capture/genuine/100_4/'
+    if sys.platform == 'linux':
+        location_1604_notes = '/mnt/ssd1/Genesys_2_Capture/counterfeit/'
+        location_genuine_notes = '/mnt/ssd1/Genesys_2_Capture/genuine/100_4/'
 
-    aug_location_1604_fronts = '/mnt/ssd1/Genesys_2_Capture/1604_fronts_augmented/'
-    empty_aug_dir(aug_location_1604_fronts)
+        aug_location_1604_fronts = '/mnt/ssd1/Genesys_2_Capture/1604_fronts_augmented/'
+        empty_aug_dir(aug_location_1604_fronts)
 
-    aug_location_1604_backs = '/mnt/ssd1/Genesys_2_Capture/1604_backs_augmented/'
-    empty_aug_dir(aug_location_1604_backs)
+        aug_location_1604_backs = '/mnt/ssd1/Genesys_2_Capture/1604_backs_augmented/'
+        empty_aug_dir(aug_location_1604_backs)
 
-    aug_location_1604_seals = '/mnt/ssd1/Genesys_2_Capture/1604_seals_augmented/'
-    empty_aug_dir(aug_location_1604_seals)
+        aug_location_1604_seals = '/mnt/ssd1/Genesys_2_Capture/1604_seals_augmented/'
+        empty_aug_dir(aug_location_1604_seals)
+    else:
+        location_1604_notes = 'D:/1604_notes/'
+        location_genuine_notes = 'D:/genuines/Pack_100_4/'
+
+        aug_location_1604_fronts = 'D:/1604_fronts_augmented/'
+        empty_aug_dir(aug_location_1604_fronts)
+
+        aug_location_1604_backs = 'D:/1604_backs_augmented/'
+        empty_aug_dir(aug_location_1604_backs)
+
+        aug_location_1604_seals = 'D:/1604_seals_augmented/'
+        empty_aug_dir(aug_location_1604_seals)
 
     sides_wanted = ['Front'] # (0 / 1)
     specs_wanted = ['RGB']
