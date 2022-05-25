@@ -45,6 +45,9 @@ class Cars(BaseDataset):
                 self.im_paths.append(os.path.join(self.root, im_path))
                 self.ys.append(y)
 
+        self.class_names_coarse_dict = dict(zip(self.ys, self.class_names_coarse))
+        self.class_names_fine_dict = dict(zip(self.ys, self.class_names_fine))
+
         for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys']:
             setattr(self, param, slice_to_make_set(chosen_idxs, getattr(self, param)))
         self.label_encoder = None

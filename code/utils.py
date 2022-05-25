@@ -359,11 +359,9 @@ def f1_score_calc(T, Y, dataloader, metrics, pictures_to_predict, validation):
 def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict):
     ground_truth = T[pictures_to_predict]
 
-    coarse_filter_dict = {class_num: specific_species
-                          for class_num, specific_species in zip(np.array(T), dataloader.dataset.class_names_coarse)}
+    coarse_filter_dict = dataloader.dataset.class_names_coarse_dict
 
-    fine_filter_dict = {class_num : specific_species
-                        for class_num, specific_species in zip(np.array(T), dataloader.dataset.class_names_fine)}
+    fine_filter_dict = dataloader.dataset.class_names_fine_dict
 
     y_preds = np.zeros(len(pictures_to_predict))
     y_preds_mode = np.zeros(len(pictures_to_predict))

@@ -43,5 +43,8 @@ class Notes(BaseDataset):
 
         self.ys = le.transform(self.class_names_fine)
         self.class_names_coarse_dict = dict(zip(self.ys, self.class_names_coarse))
+        self.class_names_fine_dict = dict(zip(self.ys, self.class_names_fine))
+
         self.im_paths = im_paths
         self.classes = set(self.ys)
+

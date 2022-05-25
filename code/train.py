@@ -1,5 +1,6 @@
 import argparse, os
 import random, dataset, utils, losses
+import sys
 from collections import Counter
 
 import pandas as pd
@@ -170,39 +171,33 @@ def create_generators():
         for v in dl_ev_labels:
             print(f'{v}')
         print('#####             #####')
-        
+
     assert len(dl_tr_labels) == len(dl_val_labels)
     for t, v in zip(dl_tr_labels, dl_val_labels):
         print(f'{t}      {v}')
 
-    # le_name_mapping_train = dict(zip(dl_tr.dataset.label_encoder.classes_,
-    #                            dl_tr.dataset.label_encoder.transform(dl_tr.dataset.label_encoder.classes_)))
-    #
-    # le_name_mapping_val = dict(zip(dl_val.dataset.label_encoder.classes_,
-    #                             dl_val.dataset.label_encoder.transform(dl_val.dataset.label_encoder.classes_)))
-    #
-    # assert le_name_mapping_train == le_name_mapping_val
-    # import matplotlib.pyplot as plt
-    # import cv2
-    # for i in random.choices(range(len(dl_tr.dataset.im_paths)), k=5):
-    #     train_y = dl_tr.dataset.ys[i]
-    #     plt.imshow(cv2.imread(dl_tr.dataset.im_paths[i]))
-    #     plt.title(dl_tr.dataset.class_names_fine[i])
-    #     plt.suptitle(dl_tr.dataset.class_names_coarse_dict[train_y])
-    #     plt.show()
-    #
-    #     assert train_y == le_name_mapping_train[dl_tr.dataset.class_names_fine[i]]
-    #
-    #     val_idx = list(dl_val.dataset.ys).index(train_y)
-    #     assert train_y == le_name_mapping_val[dl_val.dataset.class_names_fine[val_idx]]
-    #
-    #     plt.imshow(cv2.imread(dl_val.dataset.im_paths[val_idx]))
-    #     plt.title(dl_val.dataset.class_names_fine[val_idx])
-    #     plt.suptitle(dl_val.dataset.class_names_coarse_dict[train_y])
-    #     plt.show()
-    #
-    #     if dl_ev is not None:
-    #         assert train_y not in list(dl_ev.dataset.ys)
+    assert dl_tr.dataset.class_names_coarse_dict == dl_val.dataset.class_names_coarse_dict
+    assert dl_tr.dataset.class_names_fine_dict == dl_val.dataset.class_names_fine_dict
+
+    import matplotlib.pyplot as plt
+    import cv2
+    if sys.platform != 'linux':
+        for i in random.choices(range(len(dl_tr.dataset.im_paths)), k=5):
+            train_y = dl_tr.dataset.ys[i]
+            plt.imshow(cv2.imread(dl_tr.dataset.im_paths[i]))
+            plt.title(dl_tr.dataset.class_names_fine_dict[train_y])
+            plt.suptitle(dl_tr.dataset.class_names_coarse_dict[train_y])
+            plt.show()
+
+            val_idx = list(dl_val.dataset.ys).index(train_y)
+
+            plt.imshow(cv2.imread(dl_val.dataset.im_paths[val_idx]))
+            plt.title(dl_val.dataset.class_names_fine_dict[train_y])
+            plt.suptitle(dl_val.dataset.class_names_coarse_dict[train_y])
+            plt.show()
+
+            if dl_ev is not None:
+                assert train_y not in list(dl_ev.dataset.ys)
     return dl_tr, dl_val, dl_ev
 
 

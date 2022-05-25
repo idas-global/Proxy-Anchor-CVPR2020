@@ -1,4 +1,5 @@
 import random
+import sys
 
 from sklearn.preprocessing import LabelEncoder
 
@@ -11,14 +12,16 @@ def slice_to_make_set(chosen_images, param):
 class Families(BaseDataset):
     def __init__(self, root, mode, seed, le, transform = None, plate='front'):
         self.name = 'note_families'
-
-        if mode == 'train':
-            self.root = f'/mnt/ssd1/Genesys_2_Capture/1604_{plate}s_augmented/'
-            #self.root = f'D:/1604_{plate}s_augmented/'
-        if mode == 'validation':
-            #self.root = 'D:/Rupert_Book_Augmented/'
-            self.root = f'/mnt/ssd1/Genesys_2_Capture/1604_{plate}s_augmented/'
-            #self.root = f'D:/1604_{plate}s_augmented/'
+        if sys.platform == 'linux':
+            if mode == 'train':
+                self.root = f'/mnt/ssd1/Genesys_2_Capture/1604_{plate}s_augmented/'
+            if mode == 'validation':
+                self.root = f'/mnt/ssd1/Genesys_2_Capture/1604_{plate}s_augmented/'
+        else:
+            if mode == 'train':
+                self.root = f'D:/1604_{plate}s_augmented/'
+            if mode == 'validation':
+                self.root = f'D:/1604_{plate}s_augmented/'
 
         self.mode = mode
         self.transform = transform
@@ -48,8 +51,10 @@ class Families(BaseDataset):
 
         self.ys = le.transform(self.class_names_fine)
         self.class_names_coarse_dict = dict(zip(self.ys, self.class_names_coarse))
-        self.classes = set(self.ys)
+        self.class_names_fine_dict = dict(zip(self.ys, self.class_names_fine))
 
         for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys']:
             setattr(self, param, slice_to_make_set(chosen_idxs, getattr(self, param)))
+
+        self.classes = set(self.ys)
 
