@@ -14,7 +14,7 @@ class Notes(BaseDataset):
         if mode == 'train':
             self.root = '/mnt/ssd1/Rupert_Book_Augmented/'
             #self.root = 'D:/Rupert_Book_Augmented/'
-        if mode == 'val':
+        if mode == 'validation':
             #self.root = 'D:/Rupert_Book_Augmented/'
             self.root = '/mnt/ssd1/Rupert_Book_Augmented_Test/'
 
