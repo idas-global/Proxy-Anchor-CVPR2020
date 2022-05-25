@@ -49,7 +49,7 @@ class Families(BaseDataset):
                 chosen_idxs = train_index
             if self.mode == 'validation':
                 chosen_idxs = test_index
-            if self.mode == 'eval'
+            if self.mode == 'eval':
                 chosen_idxs = train_index + test_index
 
         self.ys = le.transform(self.class_names_fine)

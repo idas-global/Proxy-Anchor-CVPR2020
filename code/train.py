@@ -181,7 +181,7 @@ def create_generators():
 
     import matplotlib.pyplot as plt
     import cv2
-    if False and sys.platform != 'linux':
+    if sys.platform != 'linux':
         for i in random.choices(range(len(dl_tr.dataset.im_paths)), k=5):
             train_y = dl_tr.dataset.ys[i]
             plt.imshow(cv2.imread(dl_tr.dataset.im_paths[i]))
