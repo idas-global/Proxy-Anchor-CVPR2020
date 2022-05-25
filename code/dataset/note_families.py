@@ -1,6 +1,7 @@
 import random
 import sys
 
+from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.preprocessing import LabelEncoder
 
 from .base import *
@@ -42,12 +43,14 @@ class Families(BaseDataset):
             le.fit(self.class_names_fine)
         self.label_encoder = le
 
-        if self.mode == 'train' or self.mode == 'validation':
-            random.seed(seed)
-            chosen_idxs = random.choices(range(len(self.class_names)), k=int(round(0.8*len(self.class_names))))
-
+        sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=seed)
+        for train_index, test_index in sss.split(range(len(self.class_names)), self.class_names_fine):
+            if self.mode == 'train':
+                chosen_idxs = train_index
             if self.mode == 'validation':
-                chosen_idxs = [i for i in range(len(self.class_names)) if i not in chosen_idxs]
+                chosen_idxs = test_index
+            if self.mode == 'eval'
+                chosen_idxs = train_index + test_index
 
         self.ys = le.transform(self.class_names_fine)
         self.class_names_coarse_dict = dict(zip(self.ys, self.class_names_coarse))

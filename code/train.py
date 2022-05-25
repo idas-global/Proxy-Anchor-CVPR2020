@@ -17,13 +17,6 @@ import warnings
 from tqdm import *
 import wandb
 
-seed = 1
-random.seed(seed)
-np.random.seed(seed)
-torch.manual_seed(seed)
-torch.cuda.manual_seed_all(seed)  # set random seed for all gpus
-
-
 def parse_arguments():
     parser = argparse.ArgumentParser(description=
                                      'Official implementation of `Proxy Anchor Loss for Deep Metric Learning`'
@@ -188,7 +181,7 @@ def create_generators():
 
     import matplotlib.pyplot as plt
     import cv2
-    if sys.platform != 'linux':
+    if False and sys.platform != 'linux':
         for i in random.choices(range(len(dl_tr.dataset.im_paths)), k=5):
             train_y = dl_tr.dataset.ys[i]
             plt.imshow(cv2.imread(dl_tr.dataset.im_paths[i]))
