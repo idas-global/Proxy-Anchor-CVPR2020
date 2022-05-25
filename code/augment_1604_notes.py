@@ -32,10 +32,6 @@ def main():
 
         valid_notes = get_valid_notes(notes_frame)
 
-        if len(valid_notes) == 1:
-            print()
-
-
         if len(valid_notes) > 0:
             iters = aug_fac - len(valid_notes)
             extra_notes_per_note = iters/len(valid_notes)
@@ -226,7 +222,7 @@ if __name__ == '__main__':
 
     sides_wanted = ['Front'] # (0 / 1)
     specs_wanted = ['RGB']
-    aug_fac = 2
+    aug_fac = 8
     # TODO make it work for non rgb/nir
     maskrcnn = MaskRCNN()
 
