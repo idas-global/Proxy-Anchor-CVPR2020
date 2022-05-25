@@ -347,7 +347,7 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
         wandb.log({'loss': losses_list[-1]}, step=epoch)
         scheduler.step()
 
-        if epoch > 0 and (epoch % 5 == 0 or epoch == args.nb_epochs - 1):
+        if epoch >= 0 and (epoch % 5 == 0 or epoch == args.nb_epochs - 1):
             with torch.no_grad():
                 val_recalls = evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
 
@@ -386,22 +386,19 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
                                                                   # Y: True Labels of neighbors
 
     pictures_to_predict = random.choices(range(len(X)), k=int(round(len(X)*50/100)))
+    dl_loader = dataloader
     if validation is not None:
         pictures_to_predict = list(range(len(X) - len(validation.dataset.ys), len(X)))
+        dl_loader = validation
 
-        coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, validation, neighbors, pictures_to_predict)
-    else:
-        coarse_filter_dict, fine_filter_dict, metrics = get_accuracies(T, X, dataloader, neighbors, pictures_to_predict)
+    metrics = f1_score_calc(T, Y, dl_loader, pictures_to_predict)
+    coarse_filter_dict, fine_filter_dict, y_preds, y_true = get_accuracies(T, X, dl_loader,
+                                                                           neighbors, pictures_to_predict, metrics)
 
-
-    val_y_preds, val_y_true, y_preds, y_true = f1_score_calc(T, Y, dataloader, metrics, pictures_to_predict, validation)
-
-    data_viz_frame, val_data_viz_frame = create_and_save_viz_frame(X, coarse_filter_dict,
-                                                                   dataloader, fine_filter_dict, pictures_to_predict,
-                                                                   test_dest, train_dest, val_dest,
-                                                                   validation,
-                                                                   y_preds, y_true,
-                                                                   val_y_preds, val_y_true)
+    data_viz_frame = create_and_save_viz_frame(X, dataloader, coarse_filter_dict, fine_filter_dict,
+                                               pictures_to_predict,
+                                               train_dest, val_dest, test_dest,
+                                               y_preds, y_true)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
@@ -410,21 +407,20 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
         for deg in degrees:
             for para in params:
                 try:
-                    plot_relationships(X, data_viz_frame, dataloader, deg, para, pictures_to_predict, test_dest,
-                                       train_dest, val_data_viz_frame, val_dest, validation)
+                    plot_relationships(X, data_viz_frame, dataloader, deg, para, pictures_to_predict,
+                                       train_dest, val_dest, test_dest)
 
                 except Exception:
                     import traceback
                     print(traceback.format_exc())
                     print('WARNING: Cant create Graph')
     try:
-        confusion_matrices(data_viz_frame, dataloader, test_dest, train_dest, val_data_viz_frame, val_dest, validation)
-
+        confusion_matrices(data_viz_frame, dataloader, train_dest, val_dest, test_dest)
     except Exception:
         import traceback
         print(traceback.format_exc())
 
-    save_metrics(dataloader, metrics, test_dest, train_dest, val_dest, validation)
+    save_metrics(dataloader, metrics, train_dest, val_dest, test_dest)
 
     return metrics
 

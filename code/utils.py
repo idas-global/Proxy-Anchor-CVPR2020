@@ -24,16 +24,16 @@ import torch.nn.functional as F
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-#from dsprofiling.src.clustering_tools import break_down_clusters
+# from dsprofiling.src.clustering_tools import break_down_clusters
 
 plt.ioff()
 import mplcursors
 
 
 def l2_norm(input):
-    buffer = input**2
+    buffer = input ** 2
     normp = np.sqrt(np.sum(buffer, axis=1))
-    output = input/normp[:, None]
+    output = input / normp[:, None]
     return output
 
 
@@ -44,20 +44,21 @@ def calc_recall_at_k(T, Y, k):
     """
 
     s = 0
-    for t,y in zip(T,Y):
+    for t, y in zip(T, Y):
         if t == torch.mode(torch.Tensor(y).long()[:k]).values:
             s += 1
     return s / (1. * len(T))
 
+
 def combine_dims(a, i=0, n=1):
-  """
+    """
   Combines dimensions of numpy array `a`,
   starting at index `i`,
   and combining `n` dimensions
   """
-  s = list(a.shape)
-  combined = functools.reduce(lambda x,y: x*y, s[i:i+n+1])
-  return np.reshape(a, s[:i] + [combined] + s[i+n+1:])
+    s = list(a.shape)
+    combined = functools.reduce(lambda x, y: x * y, s[i:i + n + 1])
+    return np.reshape(a, s[:i] + [combined] + s[i + n + 1:])
 
 
 def predict_batchwise(model, dataloader, return_images=False):
@@ -72,7 +73,7 @@ def predict_batchwise(model, dataloader, return_images=False):
 
     if return_images:
         # TODO add a attribute to dataloader that gives the shape
-        #image_array = np.zeros((len(dataloader.dataset.im_paths), 3, 224, 224))
+        # image_array = np.zeros((len(dataloader.dataset.im_paths), 3, 224, 224))
         image_array = np.zeros((num_batches, batch_sz, 3, 224, 224))
 
     missing_batch = 0
@@ -105,7 +106,7 @@ def predict_batchwise(model, dataloader, return_images=False):
                     labels[idx, :] = J
 
     model.train()
-    model.train(model_is_training) # revert to previous training state
+    model.train(model_is_training)  # revert to previous training state
 
     if not missing_batch:
         missing_batch = -1 * num_batches * batch_sz
@@ -129,7 +130,7 @@ def proxy_init_calc(model, dataloader):
     nb_classes = dataloader.dataset.nb_classes()
     X, T, *_ = predict_batchwise(model, dataloader)
 
-    proxy_mean = torch.stack([X[T==class_idx].mean(0) for class_idx in range(nb_classes)])
+    proxy_mean = torch.stack([X[T == class_idx].mean(0) for class_idx in range(nb_classes)])
 
     return proxy_mean
 
@@ -173,63 +174,59 @@ def get_X_T_Y(dataloader, model, validation):
     return X, T, Y, neighbors
 
 
-def save_metrics(dataloader, metrics, test_dest, train_dest, val_dest, validation):
+def save_metrics(dataloader, metrics, train_dest, val_dest, test_dest):
     if dataloader.dataset.mode == 'train':
         metrics.to_csv(train_dest + 'metrics.csv')
-
-        if validation:
-            metrics.to_csv(val_dest + 'metrics.csv')
-    else:
+    if dataloader.dataset.mode == 'validation':
+        metrics.to_csv(val_dest + 'metrics.csv')
+    if dataloader.dataset.mode == 'eval':
         metrics.to_csv(test_dest + 'metrics.csv')
 
-
-def confusion_matrices(data_viz_frame, dataloader, test_dest, train_dest, val_data_viz_frame, val_dest, validation):
+def confusion_matrices(data_viz_frame, dataloader, train_dest, val_dest, test_dest):
     if dataloader.dataset.mode == 'train':
         plot_confusion(data_viz_frame, dataloader, train_dest)
-
-        if validation:
-            plot_confusion(val_data_viz_frame, dataloader, val_dest)
-    else:
+    if dataloader.dataset.mode == 'validation':
+        plot_confusion(data_viz_frame, dataloader, val_dest)
+    if dataloader.dataset.mode == 'eval':
         plot_confusion(data_viz_frame, dataloader, test_dest)
 
+def create_and_save_viz_frame(X, dataloader, coarse_filter_dict, fine_filter_dict,
+                              pictures_to_predict,
+                              train_dest, val_dest, test_dest,
+                              y_preds, y_true):
+    data_viz_frame = form_data_viz_frame(X[pictures_to_predict], coarse_filter_dict, fine_filter_dict,
+                                         dataloader, y_preds, y_true)
 
-def create_and_save_viz_frame(X, coarse_filter_dict, dataloader, fine_filter_dict, pictures_to_predict,
-                              test_dest, train_dest, val_dest, validation, y_preds, y_true, val_y_preds, val_y_true):
-    data_viz_frame = form_data_viz_frame(X, coarse_filter_dict, fine_filter_dict, dataloader, y_preds, y_true)
-    val_data_viz_frame = None
     if dataloader.dataset.mode == 'train':
         data_viz_frame.to_csv(train_dest + 'train_and_validation_data_combined.csv')
-
-        if validation:
-            val_data_viz_frame = form_data_viz_frame(X[pictures_to_predict], coarse_filter_dict, fine_filter_dict,
-                                                     dataloader, val_y_preds, val_y_true)
-            val_data_viz_frame.to_csv(val_dest + 'validation_data.csv')
-
-    else:
+    if dataloader.dataset.mode == 'validation':
+        data_viz_frame.to_csv(val_dest + 'validation_data.csv')
+    if dataloader.dataset.mode == 'eval':
         data_viz_frame.to_csv(test_dest + 'test_data.csv')
-    return data_viz_frame, val_data_viz_frame
+    return data_viz_frame
 
 
-def plot_relationships(X, data_viz_frame, dataloader, deg, para, pictures_to_predict, test_dest, train_dest,
-                       val_data_viz_frame, val_dest, validation):
+def plot_relationships(X, data_viz_frame, dataloader, deg, para, pictures_to_predict,
+                       train_dest, val_dest, test_dest):
     if dataloader.dataset.mode == 'train':
-        plot_node_graph(X, data_viz_frame, para, deg, train_dest)
+        plot_node_graph(X[pictures_to_predict], data_viz_frame, para, deg, train_dest)
+    if dataloader.dataset.mode == 'validation':
+        plot_node_graph(X[pictures_to_predict], data_viz_frame, para, deg, val_dest)
+    if dataloader.dataset.mode == 'eval':
+        plot_node_graph(X[pictures_to_predict], data_viz_frame, para, deg, test_dest)
 
-        if validation:
-            plot_node_graph(X[pictures_to_predict], val_data_viz_frame, para, deg, val_dest)
-    else:
-        plot_node_graph(X, data_viz_frame, para, deg, test_dest)
 
 
-def calc_recall(T, Y, k, metrics, prepend=''):
+def calc_recall(T, Y, k, prepend=''):
+    metrics = pd.DataFrame()
     y_preds = []
     for t, y in zip(T, Y):
         y_preds.append(torch.mode(torch.Tensor(y).long()[:k]).values)
     y_preds = np.array(y_preds).astype(int)
     y_true = np.array(T)
     r_at_k = f1_score(y_true, y_preds, average='weighted')
-    metrics[f'{prepend}f1score@{k}'] = r_at_k * 100
-    return y_preds, y_true
+    metrics[f'{prepend}f1score@{k}'] = [r_at_k * 100]
+    return y_preds, y_true, metrics
 
 
 def plot_confusion(data_viz_frame, dataloader, dest):
@@ -333,31 +330,30 @@ def plot_node_graph(X, data_viz_frame, para, deg, dest):
     fig.savefig(f'{dest}{para}_{deg}_graph.png', bbox_inches='tight', dpi=200)
     return centroids
 
+
 import math
-def cosine_similarity(v1,v2):
+
+
+def cosine_similarity(v1, v2):
     "compute cosine similarity of v1 to v2: (v1 dot v2)/{||v1||*||v2||)"
     sumxx, sumxy, sumyy = 0, 0, 0
     for i in range(len(v1)):
-        x = v1[i]; y = v2[i]
-        sumxx += x*x
-        sumyy += y*y
-        sumxy += x*y
-    return sumxy/math.sqrt(sumxx*sumyy)
+        x = v1[i];
+        y = v2[i]
+        sumxx += x * x
+        sumyy += y * y
+        sumxy += x * y
+    return sumxy / math.sqrt(sumxx * sumyy)
 
 
-def f1_score_calc(T, Y, dataloader, metrics, pictures_to_predict, validation):
+def f1_score_calc(T, Y, dataloader, pictures_to_predict):
     for k in [3, 5, 7]:
-        y_preds, y_true = calc_recall(T, Y, k, metrics, dataloader.dataset.mode + '_')
-    val_y_preds, val_y_true = None, None
-
-    if validation:
-        for k in [3, 5, 7]:
-            val_y_preds, val_y_true = calc_recall(T[pictures_to_predict], Y[pictures_to_predict],
-                                                  k, metrics, prepend=validation.dataset.mode + '_')
-    return val_y_preds, val_y_true, y_preds, y_true
+        val_y_preds, val_y_true, metrics = calc_recall(T[pictures_to_predict], Y[pictures_to_predict],
+                                                       k, prepend=dataloader.dataset.mode + '_')
+    return metrics
 
 
-def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict):
+def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict, metrics):
     ground_truth = T[pictures_to_predict]
 
     coarse_filter_dict = dataloader.dataset.class_names_coarse_dict
@@ -393,8 +389,7 @@ def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict):
     coarse_predictions = [coarse_filter_dict[pred] for pred in y_preds]
     coarse_truth = [coarse_filter_dict[truth] for truth in ground_truth]
 
-    metrics = pd.DataFrame([accuracy_score(y_preds, ground_truth) * 100])
-    metrics.columns = [f'{dataloader.dataset.mode}_specific_accuracy']
+    metrics[f'{dataloader.dataset.mode}_specific_accuracy'] = accuracy_score(y_preds, ground_truth) * 100
     metrics[f'{dataloader.dataset.mode}_specific_mode_accuracy'] = accuracy_score(y_preds_mode, ground_truth) * 100
     metrics[f'{dataloader.dataset.mode}_coarse_accuracy'] = accuracy_score(coarse_predictions, coarse_truth) * 100
 
@@ -405,4 +400,4 @@ def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict):
         if abs(pred_fac - true_fac) > 3:
             print(f'{int(key)}: pred: {val} - {pred_fac}% vs true: {true_fac}%')
 
-    return coarse_filter_dict, fine_filter_dict, metrics
+    return coarse_filter_dict, fine_filter_dict, y_preds, ground_truth
