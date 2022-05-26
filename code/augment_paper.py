@@ -31,7 +31,6 @@ def main():
         dest_back = get_filepath(aug_location_1604_backs, f'{pnt_key}_{circ_key}')
         dest_seal = get_filepath(aug_location_1604_seals, f'{pnt_key}_{circ_key}')
         dest_paper = get_filepath('D:/paper_samples/', f'{pnt_key}_{circ_key}')
-        empty_aug_dir('D:/paper_samples/')
 
         valid_notes = get_valid_notes(notes_frame)
 
@@ -271,5 +270,5 @@ if __name__ == '__main__':
     aug_fac = 8
     # TODO make it work for non rgb/nir
     maskrcnn = MaskRCNN()
-
+    empty_aug_dir('D:/paper_samples/')
     main()
