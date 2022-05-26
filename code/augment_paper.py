@@ -133,9 +133,12 @@ def get_front_back_seal(note_num, pack, root_loc, side, spec):
                     paper = note_image.reshape(-1, 3)[thresh.ravel() == 255, :]
                 prevN = math.floor(math.sqrt(len(paper)))
                 paper = np.reshape(paper[0:prevN ** 2, :], (prevN, prevN, 3))
-                aaa = np.lexsort((paper,a))
-                plt.imshow(aaa)
-                plt.show()
+                paper = cv2.cvtColor(paper, cv2.COLOR_BGR2HSV_FULL)
+                paper_flat = paper.reshape(-1, 3)
+                aaa = np.lexsort((paper_flat[:,0], paper_flat[:,1], paper_flat[:,2]))
+                sample = paper_flat[aaa].reshape(paper.shape)
+                sample = cv2.cvtColor(sample, cv2.COLOR_HSV2BGR_FULL)
+                paper = sample
                 break
 
             thresh_before = thresh.copy()

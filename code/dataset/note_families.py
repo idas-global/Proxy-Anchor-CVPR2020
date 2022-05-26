@@ -65,4 +65,4 @@ class Families(BaseDataset):
             setattr(self, param, slice_to_make_set(chosen_idxs, getattr(self, param)))
 
         self.classes = set(self.ys)
-        random.shuffle(self.ys)
+        #random.shuffle(self.ys)
