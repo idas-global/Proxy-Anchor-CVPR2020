@@ -1,5 +1,6 @@
 import math
 import os
+import random
 import shutil
 import sys
 import uuid
@@ -13,7 +14,7 @@ from tqdm import tqdm
 
 from maskrcnn import MaskRCNN
 from noteclasses import ImageBMP
-
+import random
 
 def main():
     global_csv = form_1604_frame()
@@ -30,7 +31,11 @@ def main():
         dest_front = get_filepath(aug_location_1604_fronts, f'{pnt_key}_{circ_key}')
         dest_back = get_filepath(aug_location_1604_backs, f'{pnt_key}_{circ_key}')
         dest_seal = get_filepath(aug_location_1604_seals, f'{pnt_key}_{circ_key}')
+<<<<<<< HEAD
         dest_paper = get_filepath('/mnt/ssd1/paper_samples/', f'{pnt_key}_{circ_key}')
+=======
+        dest_paper = get_filepath(aug_location_1604_paper, f'{pnt_key}_{circ_key}')
+>>>>>>> 597ef5a944556bd6b7a5a136c5e387f0e1110cc7
 
         valid_notes = get_valid_notes(notes_frame)
 
@@ -45,41 +50,45 @@ def main():
                 os.makedirs(dest_paper, exist_ok=True)
 
                 root_loc = f'{location_1604_notes}Pack_{pack}/'
-                note_image, back_note_image, seal, df, paper = get_front_back_seal(note_num, pack, root_loc, side, spec)
-                if paper is not None:
-                    aug_key = note_num + '_' + str(uuid.uuid4())[0:3] + '_' + str(3)
-                    cv2.imwrite(dest_paper + f'/{aug_key}_{spec}_{side}.bmp', paper)
+                note_image, back_note_image, seal, df = get_front_back_seal(note_num, pack, root_loc, side, spec)
 
+                if extra_notes_per_note < 0:
+                    iters = 1
+                else:
+                    frac, iters = math.modf(extra_notes_per_note)
+                    iters += 1 + random.choices(range(2), weights=[1 - frac, frac])[0]
 
-                # if extra_notes_per_note >= 1:
-                #     iters = int(np.ceil(extra_notes_per_note))
-                # else:
-                #     iters = 1
-                #
-                # if np.isclose(iters * extra_notes_per_note, 1):
-                #     iters = 2
-                #
-                # aug_obj = augment()
-                # for aug_num in range(iters):
-                #     aug_key = note_num + '_' + str(uuid.uuid4())[0:3] + '_' + str(aug_num)
-                #
-                #     aug_image = aug_obj(image=note_image)['image']
-                #     back_aug_image = aug_obj(image=back_note_image)['image']
-                #
-                #     # plt.imshow(aug_image)
-                #     # plt.show()
-                #     aug_image = cv2.resize(aug_image, (int(aug_image.shape[1] / 10), int(aug_image.shape[0] / 10)))
-                #     back_aug_image = cv2.resize(back_aug_image, (int(back_aug_image.shape[1] / 10),
-                #                                                  int(back_aug_image.shape[0] / 10)))
-                #
-                #     cv2.imwrite(dest_front + f'/{aug_key}_{spec}_{side}.bmp', aug_image)
-                #     cv2.imwrite(dest_back  + f'/{aug_key}_{spec}_{side}.bmp', back_aug_image)
-                #
-                #     if not df[df['className'] == 'TrsSeal']['roi'].empty:
-                #         aug_seal = aug_obj(image=seal)['image']
-                #         aug_seal = cv2.resize(aug_seal, (int(aug_seal.shape[1] / 2), int(aug_seal.shape[0] / 2)))
-                #         cv2.imwrite(dest_seal + f'/{aug_key}_{spec}_{side}.bmp', aug_seal)
+                for aug_num in range(iters):
+                    aug_obj = augment()
 
+                    aug_key = note_num + '_' + str(uuid.uuid4())[0:3] + '_' + str(aug_num)
+
+                    aug_image = aug_obj(image=note_image)['image']
+
+                    back_aug_image = aug_obj(image=back_note_image)['image']
+
+                    # plt.imshow(aug_image)
+                    # plt.show()
+                    aug_image_rz = cv2.resize(aug_image, (int(aug_image.shape[1] / 10), int(aug_image.shape[0] / 10)))
+                    back_aug_image = cv2.resize(back_aug_image, (int(back_aug_image.shape[1] / 10),
+                                                                 int(back_aug_image.shape[0] / 10)))
+
+                    cv2.imwrite(dest_front + f'/{aug_key}_{spec}_{side}.bmp', aug_image_rz)
+                    cv2.imwrite(dest_back  + f'/{aug_key}_{spec}_{side}.bmp', back_aug_image)
+
+                    if not df[df['className'] == 'TrsSeal']['roi'].empty:
+                        aug_seal = aug_obj(image=seal)['image']
+                        aug_seal = cv2.resize(aug_seal, (int(aug_seal.shape[1] / 2), int(aug_seal.shape[0] / 2)))
+                        cv2.imwrite(dest_seal + f'/{aug_key}_{spec}_{side}.bmp', aug_seal)
+
+                    if not df[df['className'] == 'FedSeal']['roi'].empty:
+                        scaleY = note_image.shape[0] / 512
+                        scaleX = note_image.shape[1] / 1024
+
+                        paper = get_paper_sample(df, aug_image, scaleX, scaleY)
+
+                        aug_key = note_num + '_' + str(uuid.uuid4())[0:3] + '_' + str(3)
+                        cv2.imwrite(dest_paper + f'/{aug_key}_{spec}_{side}.bmp', paper)
 
 def get_front_back_seal(note_num, pack, root_loc, side, spec):
     if pack == 'G':
@@ -99,7 +108,6 @@ def get_front_back_seal(note_num, pack, root_loc, side, spec):
 
     df = df[~df['classID'].duplicated(keep='first')]
 
-    fed_roi = None
     seal = None
     if not df[df['className'] == 'TrsSeal']['roi'].empty:
         seal_roi = df[df['className'] == 'TrsSeal']['roi'].values[0]
@@ -107,6 +115,7 @@ def get_front_back_seal(note_num, pack, root_loc, side, spec):
         seal = note_image[int(round(seal_roi[0] * scaleY)):int(round(seal_roi[2] * scaleY)),
                           int(round(seal_roi[1] * scaleX)): int(round(seal_roi[3] * scaleX))]
 
+<<<<<<< HEAD
     paper = None
     if not df[df['className'] == 'FedSeal']['roi'].empty:
         fed_roi = df[df['className'] == 'FedSeal']['roi'].values[0]
@@ -139,11 +148,47 @@ def get_front_back_seal(note_num, pack, root_loc, side, spec):
                 sample = cv2.cvtColor(sample, cv2.COLOR_HSV2BGR_FULL)
                 paper = sample
                 break
+=======
+    return note_image, back_note_image, seal, df
+>>>>>>> 597ef5a944556bd6b7a5a136c5e387f0e1110cc7
 
-            thresh_before = thresh.copy()
-            prc_before = prc
 
-    return note_image, back_note_image, seal, df, paper
+def get_paper_sample(df, note_image, scaleX, scaleY):
+    fed_roi = df[df['className'] == 'FedSeal']['roi'].values[0]
+    paper = None
+    thresh_before = None
+    prc_before = 0
+    for filter_size in [120, 100, 80, 60]:
+        note_image_blurred = cv2.bilateralFilter(note_image, 30, filter_size, filter_size)
+        hsv_note = cv2.cvtColor(note_image_blurred, cv2.COLOR_BGR2HSV_FULL)
+
+        paper_sample = hsv_note[int(round((fed_roi[2] + 20) * scaleY)):int(round((fed_roi[2] + 40) * scaleY)),
+                       int(round((fed_roi[3] - 25) * scaleX)): int(round((fed_roi[3] - 5) * scaleX))]
+
+        thresh = cv2.inRange(hsv_note,
+                             np.array([np.min(paper_sample[:, :, i]) for i in range(paper_sample.shape[-1])]),
+                             np.array([np.max(paper_sample[:, :, i]) for i in range(paper_sample.shape[-1])]))
+        prc = np.sum(thresh) / (255 * thresh.shape[0] * thresh.shape[1])
+        if prc > 0.25:
+            a = abs(prc_before - 0.25)
+            b = abs(prc - 0.25)
+            if a < b:
+                paper = note_image.reshape(-1, 3)[thresh_before.ravel() == 255, :]
+            else:
+                paper = note_image.reshape(-1, 3)[thresh.ravel() == 255, :]
+            prevN = math.floor(math.sqrt(len(paper)))
+            paper = np.reshape(paper[0:prevN ** 2, :], (prevN, prevN, 3))
+            paper = cv2.cvtColor(paper, cv2.COLOR_BGR2HSV_FULL)
+            paper_flat = paper.reshape(-1, 3)
+            aaa = np.lexsort((paper_flat[:, 0], paper_flat[:, 1], paper_flat[:, 2]))
+            sample = paper_flat[aaa].reshape(paper.shape)
+            sample = cv2.cvtColor(sample, cv2.COLOR_HSV2BGR_FULL)
+            paper = sample
+            break
+
+        thresh_before = thresh.copy()
+        prc_before = prc
+    return paper
 
 
 def get_valid_notes(notes_frame):
@@ -265,10 +310,17 @@ if __name__ == '__main__':
         aug_location_1604_seals = 'D:/1604_seals_augmented/'
         empty_aug_dir(aug_location_1604_seals)
 
+        aug_location_1604_paper = 'D:/1604_paper_augmented/'
+        empty_aug_dir(aug_location_1604_paper)
+
+
     sides_wanted = ['Front'] # (0 / 1)
     specs_wanted = ['RGB']
     aug_fac = 8
     # TODO make it work for non rgb/nir
     maskrcnn = MaskRCNN()
+<<<<<<< HEAD
     empty_aug_dir('/mnt/ssd1/paper_samples/')
+=======
+>>>>>>> 597ef5a944556bd6b7a5a136c5e387f0e1110cc7
     main()
