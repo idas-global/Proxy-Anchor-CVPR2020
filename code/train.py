@@ -140,7 +140,7 @@ def create_generators():
     )
 
     dl_ev = None
-    if args.dataset not in ['note_styles', 'note_families_front', 'note_families_back', 'note_families_seal']:
+    if args.dataset not in ['note_styles']:
         ev_dataset = dataset.load(
             name=args.dataset,
             root=data_root,
@@ -307,7 +307,7 @@ def text_save(recalls, best_epoch):
 
 def train_model(args, model, dl_tr, dl_val, dl_ev):
     losses_list = []
-    key_to_opt = f'validation_f1score@7'
+    key_to_opt = f'eval_f1score@7'
     best_recall = pd.DataFrame()
     best_recall[key_to_opt] = [0]
 

@@ -1,6 +1,7 @@
 import random
 import sys
 
+import numpy as np
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.preprocessing import LabelEncoder
 
@@ -18,10 +19,14 @@ class Families(BaseDataset):
                 self.root = f'/mnt/ssd1/Genesys_2_Capture/1604_{plate}s_augmented/'
             if mode == 'validation':
                 self.root = f'/mnt/ssd1/Genesys_2_Capture/1604_{plate}s_augmented/'
+            if mode == 'eval':
+                self.root = f'/mnt/ssd1/Genesys_2_Capture/1604_{plate}s_augmented/'
         else:
             if mode == 'train':
                 self.root = f'D:/1604_{plate}s_augmented/'
             if mode == 'validation':
+                self.root = f'D:/1604_{plate}s_augmented/'
+            if mode == 'eval':
                 self.root = f'D:/1604_{plate}s_augmented/'
 
         self.mode = mode
@@ -50,7 +55,7 @@ class Families(BaseDataset):
             if self.mode == 'validation':
                 chosen_idxs = test_index
             if self.mode == 'eval':
-                chosen_idxs = train_index + test_index
+                chosen_idxs = np.hstack((train_index, test_index))
 
         self.ys = le.transform(self.class_names_fine)
         self.class_names_coarse_dict = dict(zip(self.ys, self.class_names_coarse))
