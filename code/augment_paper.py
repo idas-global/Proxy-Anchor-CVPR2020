@@ -86,8 +86,10 @@ def main():
 
                         paper = get_paper_sample(df, aug_image, scaleX, scaleY)
 
-                        aug_key = note_num + '_' + str(uuid.uuid4())[0:3] + '_' + str(3)
-                        cv2.imwrite(dest_paper + f'/{aug_key}_{spec}_{side}.bmp', paper)
+                        if paper:
+                            print('No paper Sample')
+                            aug_key = note_num + '_' + str(uuid.uuid4())[0:3] + '_' + str(3)
+                            cv2.imwrite(dest_paper + f'/{aug_key}_{spec}_{side}.bmp', paper)
 
 def get_front_back_seal(note_num, pack, root_loc, side, spec):
     if pack == 'G':
@@ -121,7 +123,7 @@ def get_paper_sample(df, note_image, scaleX, scaleY):
     paper = None
     thresh_before = None
     prc_before = 0
-    for filter_size in [120, 100, 80, 60]:
+    for filter_size in [120, 100, 80, 60, 50]:
         note_image_blurred = cv2.bilateralFilter(note_image, 30, filter_size, filter_size)
         hsv_note = cv2.cvtColor(note_image_blurred, cv2.COLOR_BGR2HSV_FULL)
 
