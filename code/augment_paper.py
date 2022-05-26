@@ -297,6 +297,9 @@ if __name__ == '__main__':
 
         aug_location_1604_seals = '/mnt/ssd1/Genesys_2_Capture/1604_seals_augmented/'
         empty_aug_dir(aug_location_1604_seals)
+
+        aug_location_1604_paper = '/mnt/ssd1/paper_samples/'
+        empty_aug_dir(aug_location_1604_paper)
     else:
         location_1604_notes = 'D:/1604_notes/'
         location_genuine_notes = 'D:/genuines/Pack_100_4/'
@@ -312,7 +315,6 @@ if __name__ == '__main__':
 
         aug_location_1604_paper = 'D:/1604_paper_augmented/'
         empty_aug_dir(aug_location_1604_paper)
-
 
     sides_wanted = ['Front'] # (0 / 1)
     specs_wanted = ['RGB']
