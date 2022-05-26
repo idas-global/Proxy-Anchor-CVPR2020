@@ -30,6 +30,7 @@ def main():
         dest_back = get_filepath(aug_location_1604_backs, f'{pnt_key}_{circ_key}')
         dest_seal = get_filepath(aug_location_1604_seals, f'{pnt_key}_{circ_key}')
 
+
         valid_notes = get_valid_notes(notes_frame)
 
         if len(valid_notes) > 0:
@@ -44,6 +45,17 @@ def main():
                 root_loc = f'{location_1604_notes}Pack_{pack}/'
                 note_image, back_note_image, seal, df = get_front_back_seal(note_num, pack, root_loc, side, spec)
 
+                df = maskrcnn.detect(note_image, determineOrientation=False)
+                scaleY = note_image.shape[0] / 512
+                scaleX = note_image.shape[1] / 1024
+
+                df = df[~df['classID'].duplicated(keep='first')]
+                if not df[df['className'] == 'TrsSeal']['roi'].empty:
+                    seal_roi = df[df['className'] == 'TrsSeal']['roi'].values[0]
+
+                    seal = note_image[int(round(seal_roi[0]*scaleY)):int(round(seal_roi[2]*scaleY)),
+                                      int(round(seal_roi[1]*scaleX)): int(round(seal_roi[3]*scaleX))]
+
                 if extra_notes_per_note >= 1:
                     iters = int(np.ceil(extra_notes_per_note))
                 else:
@@ -56,8 +68,8 @@ def main():
                 for aug_num in range(iters):
                     aug_key = note_num + '_' + str(uuid.uuid4())[0:3] + '_' + str(aug_num)
                     aug_image = aug_obj(image=note_image)['image']
-                    back_aug_image = aug_obj(image=back_note_image)['image']
 
+                    back_aug_image = aug_obj(image=back_note_image)['image']
                     # plt.imshow(aug_image)
                     # plt.show()
                     aug_image = cv2.resize(aug_image, (int(aug_image.shape[1] / 10), int(aug_image.shape[0] / 10)))
@@ -126,6 +138,9 @@ def get_valid_notes(notes_frame):
                                     f'{location_1604_notes}Pack_{pack}/{note_num}/{note_num}_{spec}_{side}.bmp'))
     return valid_notes
 
+                    if not df[df['className'] == 'TrsSeal']['roi'].empty:
+                        aug_seal = cv2.resize(aug_seal, (int(aug_seal.shape[1] / 2), int(aug_seal.shape[0] / 2)))
+                        cv2.imwrite(dest_seal + f'/{aug_key}_{spec}_{side}.bmp', aug_seal)
 
 def form_genuine_frame():
     genuine_frame = []
@@ -220,6 +235,7 @@ if __name__ == '__main__':
         aug_location_1604_seals = 'D:/1604_seals_augmented/'
         empty_aug_dir(aug_location_1604_seals)
 
+    aug_location_1604_seals = 'D:/1604_seals_augmented/'
     sides_wanted = ['Front'] # (0 / 1)
     specs_wanted = ['RGB']
     aug_fac = 8

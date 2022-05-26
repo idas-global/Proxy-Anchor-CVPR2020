@@ -2,14 +2,16 @@ import os
 import functools
 import traceback
 import uuid
+import math
 import itertools
 import warnings
 from collections import Counter
 from operator import itemgetter
 import pandas as pd
 import numpy as np
-import torch
 import random
+
+import torch
 from matplotlib.colors import ListedColormap
 import networkx as nx
 
@@ -18,13 +20,12 @@ from sklearn.decomposition import KernelPCA
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
 from sklearn.preprocessing import MinMaxScaler
 
-from tqdm import tqdm
 import torch.nn.functional as F
+
+from tqdm import tqdm
 
 import seaborn as sns
 import matplotlib.pyplot as plt
-
-# from dsprofiling.src.clustering_tools import break_down_clusters
 
 plt.ioff()
 import mplcursors
@@ -50,6 +51,7 @@ def calc_recall_at_k(T, Y, k):
     return s / (1. * len(T))
 
 
+
 def combine_dims(a, i=0, n=1):
     """
   Combines dimensions of numpy array `a`,
@@ -61,26 +63,29 @@ def combine_dims(a, i=0, n=1):
     return np.reshape(a, s[:i] + [combined] + s[i + n + 1:])
 
 
-def predict_batchwise(model, dataloader, return_images=False):
+
+def predict_batchwise(model, train_gen, return_images=False):
     model_is_training = model.training
     model.eval()
 
-    batch_sz = dataloader.batch_sampler.batch_size
-    num_batches = len(dataloader.batch_sampler)
+    batch_sz = train_gen.batch_size
+    num_batches = train_gen.dataset.__len__()
 
-    predictions = np.zeros((num_batches, batch_sz, 512))
+    predictions = np.zeros((num_batches, batch_sz, train_gen.dataset.sz_embedding))
     labels = np.zeros((num_batches, batch_sz))
 
     if return_images:
         # TODO add a attribute to dataloader that gives the shape
         # image_array = np.zeros((len(dataloader.dataset.im_paths), 3, 224, 224))
-        image_array = np.zeros((num_batches, batch_sz, 3, 224, 224))
+        image_array = np.zeros((num_batches, batch_sz, *train_gen.dataset.im_dimensions))
+
 
     missing_batch = 0
 
     with torch.no_grad():
         # extract batches (A becomes list of samples)
-        for idx, batch in tqdm(enumerate(dataloader), total=num_batches, desc='Getting Predictions'):
+        for idx in tqdm(range(num_batches), desc='Extracting Batches'):
+            batch = train_gen.dataset.__getitem__(idx)
             for i, J in enumerate(batch):
                 # i = 0: sz_batch * images
                 # i = 1: sz_batch * labels
@@ -91,16 +96,17 @@ def predict_batchwise(model, dataloader, return_images=False):
                     missing_batch = len(empty_batch)
 
                     if i == 1:
-                        J = torch.from_numpy(np.hstack((filled_batch, empty_batch)))
+                        J = np.hstack((filled_batch, empty_batch))
                     else:
-                        J = torch.from_numpy(np.vstack((filled_batch, empty_batch)))
+                        J = np.vstack((filled_batch, empty_batch))
 
                 if i == 0:
                     if return_images:
                         image_array[i, :] = J
 
                     # move images to device of model (approximate device)
-                    J = model(J)
+                    J = model(torch.from_numpy(J).float())   # Second arg is a dummy input
+                    # because its not in training mode
                     predictions[idx, :] = J
                 else:
                     labels[idx, :] = J
@@ -110,6 +116,7 @@ def predict_batchwise(model, dataloader, return_images=False):
 
     if not missing_batch:
         missing_batch = -1 * num_batches * batch_sz
+
 
     if return_images:
         image_array = combine_dims(image_array, 0, 1)
@@ -148,6 +155,15 @@ def parse_im_name(specific_species, exclude_trailing_consonants=False, fine=Fals
         if filter[-1].isalpha():
             filter = filter[0:-1]
     return filter
+
+def transform_generator(dataloader, model, k=32):
+    X, T, _ = predict_batchwise(model, dataloader, return_images=False)
+    X = l2_norm(X)
+    # get predictions by assigning nearest 8 neighbors with cosine
+    cos_sim = F.linear(torch.from_numpy(X), torch.from_numpy(X))
+    neighbors = cos_sim.topk(1 + k)[1][:, 1:]
+    Y = T[neighbors]
+    return T, X, Y, neighbors.numpy()
 
 
 def get_X_T_Y(dataloader, model, validation):
@@ -216,6 +232,11 @@ def plot_relationships(X, data_viz_frame, dataloader, deg, para, pictures_to_pre
         plot_node_graph(X[pictures_to_predict], data_viz_frame, para, deg, test_dest)
 
 
+def calc_recall(T, Y, k):
+    """
+        T : [nb_samples] (target labels)
+        Y : [nb_samples x k] (k predicted labels/neighbours)
+        """
 
 def calc_recall(T, Y, k, prepend=''):
     metrics = pd.DataFrame()
@@ -231,7 +252,7 @@ def calc_recall(T, Y, k, prepend=''):
 
 def plot_confusion(data_viz_frame, dataloader, dest):
     params = ['label_coarse', 'label_fine', 'denom']
-    if 'Rupert_Book' not in dataloader.dataset.im_paths[0]:
+    if 'NoteStyles' != dataloader.dataset.name:
         params = ['label_coarse', 'label_fine']
 
     for param in params:
@@ -258,11 +279,14 @@ def plot_confusion(data_viz_frame, dataloader, dest):
 def form_data_viz_frame(X, coarse_filter_dict, fine_filter_dict, dataloader, y_preds, y_true):
     data_viz_frame = pd.DataFrame(y_true.astype(int), columns=['truth'])
     data_viz_frame['prediction'] = y_preds
+
     data_viz_frame['truth_label_coarse'] = data_viz_frame['truth'].map(coarse_filter_dict, y_true)
-    data_viz_frame['prediction_label_coarse'] = data_viz_frame['prediction'].map(coarse_filter_dict, y_preds)
     data_viz_frame['truth_label_fine'] = data_viz_frame['truth'].map(fine_filter_dict, y_true)
+
+    data_viz_frame['prediction_label_coarse'] = data_viz_frame['prediction'].map(coarse_filter_dict, y_preds)
     data_viz_frame['prediction_label_fine'] = data_viz_frame['prediction'].map(fine_filter_dict, y_preds)
-    if 'Rupert_Book' in dataloader.dataset.im_paths[0]:
+
+    if 'NoteStyles' == dataloader.dataset.name:
         data_viz_frame['truth_denom'] = [label.split('_')[0] for label in data_viz_frame['truth_label_fine']]
         data_viz_frame['prediction_denom'] = [label.split('_')[0] for label in data_viz_frame['prediction_label_fine']]
     data_viz_frame['mean_coarse'] = X.mean(axis=1)
@@ -305,8 +329,12 @@ def plot_node_graph(X, data_viz_frame, para, deg, dest):
 
     num_nbors = 1
     for i in range(len(G.nodes)):
-
-        res = dict(sorted(weight_dict[i].items(), key=itemgetter(1))[:num_nbors])
+        try:
+            res = dict(sorted(weight_dict[i].items(), key=itemgetter(1))[:num_nbors])
+        except Exception:
+            print(traceback.format_exc())
+            print(weight_dict.keys())
+            print(G.nodes)
         small_edges = [key for key, val in res.items() if val < 0.6]
 
         for edg in small_edges:
@@ -344,7 +372,7 @@ def cosine_similarity(v1, v2):
         sumyy += y * y
         sumxy += x * y
     return sumxy / math.sqrt(sumxx * sumyy)
-
+  
 
 def f1_score_calc(T, Y, dataloader, pictures_to_predict):
     for k in [3, 5, 7]:
@@ -357,8 +385,8 @@ def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict, metrics):
     ground_truth = T[pictures_to_predict]
 
     coarse_filter_dict = dataloader.dataset.class_names_coarse_dict
-
     fine_filter_dict = dataloader.dataset.class_names_fine_dict
+
 
     y_preds = np.zeros(len(pictures_to_predict))
     y_preds_mode = np.zeros(len(pictures_to_predict))
@@ -401,3 +429,4 @@ def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict, metrics):
             print(f'{int(key)}: pred: {val} - {pred_fac}% vs true: {true_fac}%')
 
     return coarse_filter_dict, fine_filter_dict, y_preds, ground_truth
+

@@ -1,5 +1,6 @@
 import os
 import shutil
+import uuid
 from distutils.dir_util import copy_tree
 import matplotlib.pyplot as plt
 import cv2
@@ -12,11 +13,8 @@ from noteclasses import ImageBMP
 
 
 def main():
-    rupert_data = pd.read_csv(rupert_location + 'rupert_pack_order.csv')
-    rupert_data['series'] = rupert_data['series'].map(lambda x : x.lower().replace('series', '').strip())
-    rupert_data.index = rupert_data.index.astype(str)
-
     rupert_notes = get_valid_dirs()
+    rupert_notes = sorted(rupert_notes, key=lambda x: int(x))
     assert len(rupert_notes) == len(rupert_data)
 
     #empty_aug_dir()
@@ -34,7 +32,8 @@ def main():
 
             for side in sides_wanted:
                 for spec in specs_wanted:
-                    note_object = ImageBMP(rupert_location + note + f'/{note}_{spec}_{side}.bmp', straighten=True,
+                    note_object = ImageBMP(rupert_location + rupert_notes[int(note)] + f'/{rupert_notes[int(note)]}_{spec}_{side}.bmp',
+                                           straighten=True,
                                            rotation=180)
                     note_image = note_object.array
 
@@ -47,7 +46,8 @@ def main():
                         else:
                             aug_obj = augment()
                             for aug_num in range(iters):
-                                aug_key = note + '0000' + str(aug_num)
+                                import uuid
+                                aug_key = note + '0000' + str(aug_num) + '_' + str(uuid.uuid4())[0:5]
                                 aug_image = aug_obj(image=note_image)['image']
                                 # plt.imshow(aug_image)
                                 # plt.show()
@@ -82,10 +82,32 @@ def get_valid_dirs():
 
 
 if __name__ == '__main__':
-    rupert_location = 'D:/Rupert_Book_Captures/'
-    aug_rupert_location = 'D:/Rupert_Book_Augmented/'
-    sides_wanted = [0] # (0 / 1)
+    # aug_rupert_location = '/mnt/ssd1/Rupert_Book_Augmented/'
+    # empty_aug_dir()
+    #
+    # rupert_locations = ['/mnt/sanshare/Datasets/notes/genesys_capture/genuine/Rupert_Binders' + f'/Book {i}/'
+    #                     for i in [0, 1, 2, 4, 5, 6]]
+
+    rupert_data = pd.read_csv('/mnt/sanshare/Datasets/notes/genesys_capture/genuine/Rupert_Binders/'
+                              + 'rupert_pack_order.csv', header=None)
+    rupert_data.columns = ['series', 'denom', 'serial']
+    rupert_data['series'] = rupert_data['series'].map(lambda x : x.lower().replace('series', '').strip())
+    rupert_data.index = rupert_data.index.astype(str)
+
+    # for rupert_location in rupert_locations:
+    #     sides_wanted = [0] # (0 / 1)
+    #     specs_wanted = ['RGB']
+    #     aug_fac = 5
+    #     # TODO make it work for non rgb/nir
+    #     main()
+
+    aug_rupert_location = '/mnt/ssd1/Rupert_Book_Augmented_Test/'
+    empty_aug_dir()
+
+    rupert_location = '/mnt/sanshare/Datasets/notes/genesys_capture/genuine/Rupert_Binders' + f'/Book 7/'
+
+    sides_wanted = [0]  # (0 / 1)
     specs_wanted = ['RGB']
-    aug_fac = 40
+    aug_fac = 5
     # TODO make it work for non rgb/nir
     main()
