@@ -6,10 +6,10 @@ from collections import Counter
 import pandas as pd
 
 from dataset.Inshop import Inshop_Dataset
-
 from net.resnet import *
 from net.googlenet import *
 from net.bn_inception import *
+from dataset import sampler
 from torch.utils.data.sampler import BatchSampler
 from utils import get_accuracies, get_X_T_Y, f1_score_calc, create_and_save_viz_frame, confusion_matrices, \
     plot_relationships, save_metrics
@@ -345,8 +345,8 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
 
             opt.zero_grad()
             loss.backward()
-            torch.nn.utils.clip_grad_value_(criterion.parameters(), 10)
 
+            torch.nn.utils.clip_grad_value_(criterion.parameters(), 10)
 
             losses_per_epoch.append(loss.data.cpu().numpy())
             opt.step()
@@ -355,7 +355,6 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
                 'Train Epoch: {} [{}/{} ({:.0f}%)] Loss: {:.6f}'.format(
                     epoch, batch_idx + 1, len(dl_tr),
                            100. * batch_idx / len(dl_tr),
-
                     loss.item()))
 
         losses_list.append(np.mean(losses_per_epoch))
@@ -448,7 +447,6 @@ if __name__ == '__main__':
     model = create_model()
 
     # Directory for Log
-
     LOG_DIR = args.LOG_DIR + '/logs_{}/{}_{}_embedding{}_alpha{}_mrg{}_{}_lr{}_batch{}{}'.format(args.dataset,
                                                                                                  args.model,
                                                                                                  args.loss,
@@ -474,4 +472,3 @@ if __name__ == '__main__':
 
     print("Training for {} epochs.".format(args.nb_epochs))
     train_model(args, model, dl_tr, dl_val, dl_ev)
-

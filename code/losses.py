@@ -24,8 +24,9 @@ def l2_norm(input):
     return output
 
 class Proxy_Anchor(torch.nn.Module):
-    def __init__(self, nb_classes, sz_embed, mrg=0.1, alpha=32):
+    def __init__(self, nb_classes, sz_embed, mrg = 0.1, alpha = 32):
         torch.nn.Module.__init__(self)
+        # Proxy Anchor Initialization
         self.proxies = torch.nn.Parameter(torch.randn(nb_classes, sz_embed))
         nn.init.kaiming_normal_(self.proxies, mode='fan_out')
 
@@ -53,6 +54,7 @@ class Proxy_Anchor(torch.nn.Module):
         pos_term = torch.log(1 + P_sim_sum).sum() / num_valid_proxies
         neg_term = torch.log(1 + N_sim_sum).sum() / self.nb_classes
         loss = pos_term + neg_term     
+        
         return loss
 
 # We use PyTorch Metric Learning library for the following codes.
