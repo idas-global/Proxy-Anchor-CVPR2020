@@ -210,8 +210,8 @@ def create_generators():
             plt.suptitle(dl_val.dataset.class_names_coarse_dict[train_y])
             plt.show()
 
-            if dl_ev is not None:
-                assert train_y not in list(dl_ev.dataset.ys)
+            #if dl_ev is not None:
+                #assert train_y not in list(dl_ev.dataset.ys)
 
     return dl_tr, dl_val, dl_ev
 
