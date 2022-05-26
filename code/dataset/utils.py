@@ -92,7 +92,7 @@ def make_transform(is_train = True, is_inception = False, crop = True):
         transforms.RandomResizedCrop(inception_sz_crop) if is_train else Identity(),
         transforms.RandomHorizontalFlip() if is_train else Identity(),
         transforms.Resize(inception_sz_resize) if not is_train else Identity(),
-        transforms.CenterCrop(inception_sz_crop) if not is_train else Identity(),
+        transforms.CenterCrop(inception_sz_crop) if not is_train and crop else Identity(),
         transforms.ToTensor(),
         ScaleIntensities([0, 1], [0, 255]),
         transforms.Normalize(mean=inception_mean, std=inception_std)

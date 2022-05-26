@@ -95,9 +95,10 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def get_transform(train):
+def get_transform(train, crop=True):
     trans = dataset.utils.make_transform(
         is_train=train,
+        crop=crop,
         is_inception=(args.model == 'bn_inception')
     )
     return trans
@@ -147,7 +148,7 @@ def create_generators():
             seed=None,
             mode='eval',
             le=dl_tr.dataset.label_encoder,
-            transform=get_transform(False)
+            transform=get_transform(False, crop=False)
         )
         dl_ev = torch.utils.data.DataLoader(
             ev_dataset,
@@ -183,6 +184,18 @@ def create_generators():
     import matplotlib.pyplot as plt
     import cv2
     if sys.platform != 'linux':
+        dl_list = [dl_tr, dl_val]
+        if dl_ev:
+            dl_list = [dl_ev, dl_tr, dl_val]
+
+        for dataloader in dl_list:
+            for i in random.choices(range(len(dataloader.dataset.im_paths)), k=5):
+                x, y = dataloader.dataset.__getitem__(i)
+                plt.imshow(np.moveaxis(np.array(x), 0, -1))
+                plt.title(f'Sample from {dataloader.dataset.mode} : {dataloader.dataset.class_names_coarse_dict[y]}')
+                plt.suptitle(dataloader.dataset.class_names_fine_dict[y])
+                plt.show()
+
         for i in random.choices(range(len(dl_tr.dataset.im_paths)), k=5):
             train_y = dl_tr.dataset.ys[i]
             plt.imshow(cv2.imread(dl_tr.dataset.im_paths[i]))
@@ -199,6 +212,7 @@ def create_generators():
 
             if dl_ev is not None:
                 assert train_y not in list(dl_ev.dataset.ys)
+
     return dl_tr, dl_val, dl_ev
 
 
