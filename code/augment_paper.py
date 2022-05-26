@@ -30,7 +30,7 @@ def main():
         dest_front = get_filepath(aug_location_1604_fronts, f'{pnt_key}_{circ_key}')
         dest_back = get_filepath(aug_location_1604_backs, f'{pnt_key}_{circ_key}')
         dest_seal = get_filepath(aug_location_1604_seals, f'{pnt_key}_{circ_key}')
-        dest_paper = get_filepath('D:/paper_samples/', f'{pnt_key}_{circ_key}')
+        dest_paper = get_filepath('/mnt/ssd1/paper_samples/', f'{pnt_key}_{circ_key}')
 
         valid_notes = get_valid_notes(notes_frame)
 
@@ -126,7 +126,7 @@ def get_front_back_seal(note_num, pack, root_loc, side, spec):
             if prc > 0.25:
                 a = abs(prc_before - 0.25)
                 b = abs(prc        - 0.25)
-                if a < b:
+                if a < b and thresh_before is not None:
                     paper = note_image.reshape(-1, 3)[thresh_before.ravel() == 255, :]
                 else:
                     paper = note_image.reshape(-1, 3)[thresh.ravel() == 255, :]
@@ -270,5 +270,5 @@ if __name__ == '__main__':
     aug_fac = 8
     # TODO make it work for non rgb/nir
     maskrcnn = MaskRCNN()
-    empty_aug_dir('D:/paper_samples/')
+    empty_aug_dir('/mnt/ssd1/paper_samples/')
     main()
