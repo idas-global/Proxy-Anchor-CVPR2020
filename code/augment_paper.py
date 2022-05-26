@@ -86,7 +86,7 @@ def main():
 
                         paper = get_paper_sample(df, aug_image, scaleX, scaleY)
 
-                        if paper:
+                        if paper is not None:
                             print('No paper Sample')
                             aug_key = note_num + '_' + str(uuid.uuid4())[0:3] + '_' + str(3)
                             cv2.imwrite(dest_paper + f'/{aug_key}_{spec}_{side}.bmp', paper)
