@@ -157,10 +157,10 @@ def create_generators():
             num_workers=args.nb_workers,
             pin_memory=True
         )
-    dl_tr_labels = sorted(dict(Counter(dl_tr.dataset.class_names_fine_dict)).items(), key=lambda x: x[0])
-    dl_val_labels = sorted(dict(Counter(dl_val.dataset.class_names_fine_dict)).items(), key=lambda x: x[0])
+    dl_tr_labels = sorted(dict(Counter(dl_tr.dataset.class_names_fine)).items(), key=lambda x: x[0])
+    dl_val_labels = sorted(dict(Counter(dl_val.dataset.class_names_fine)).items(), key=lambda x: x[0])
     if dl_ev:
-        dl_ev_labels = sorted(dict(Counter(dl_ev.dataset.class_names_fine_dict)).items(), key=lambda x: x[0])
+        dl_ev_labels = sorted(dict(Counter(dl_ev.dataset.class_names_fine)).items(), key=lambda x: x[0])
         print('##### TEST LABELS #####')
         for v in dl_ev_labels:
             print(f'{v}')
