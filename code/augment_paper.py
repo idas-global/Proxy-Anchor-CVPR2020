@@ -123,7 +123,7 @@ def get_paper_sample(df, note_image, scaleX, scaleY):
     paper = None
     thresh_before = None
     prc_before = 0
-    for filter_size in [120, 100, 80, 60, 50]:
+    for filter_size in [120, 110, 100, 80, 60, 50]:
         note_image_blurred = cv2.bilateralFilter(note_image, 30, filter_size, filter_size)
         hsv_note = cv2.cvtColor(note_image_blurred, cv2.COLOR_BGR2HSV_FULL)
 
@@ -137,7 +137,7 @@ def get_paper_sample(df, note_image, scaleX, scaleY):
         if prc > 0.25:
             a = abs(prc_before - 0.25)
             b = abs(prc - 0.25)
-            if a < b:
+            if a < b and thresh_before is not None:
                 paper = note_image.reshape(-1, 3)[thresh_before.ravel() == 255, :]
             else:
                 paper = note_image.reshape(-1, 3)[thresh.ravel() == 255, :]
