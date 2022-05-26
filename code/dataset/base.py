@@ -35,11 +35,3 @@ class BaseDataset(torch.utils.data.Dataset):
         target = self.ys[index]
 
         return im, target
-
-    def get_label(self, index):
-        return self.ys[index]
-
-    def set_subset(self, I):
-        self.ys = [self.ys[i] for i in I]
-        self.I = [self.I[i] for i in I]
-        self.im_paths = [self.im_paths[i] for i in I]

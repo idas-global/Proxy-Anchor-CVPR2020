@@ -2,21 +2,22 @@ from .cars import Cars
 from .cub import CUBirds
 from .SOP import SOP
 from .note_styles import Notes
-from .note_families import NoteFamilies
-from .import utils
+from .note_families import Families
+from . import utils
 from .base import BaseDataset
-
 
 _type = {
     'cars': Cars,
     'cub': CUBirds,
     'SOP': SOP,
     'note_styles': Notes,
-    'note_families': NoteFamilies
-
+    'note_families_front': Families,
+    'note_families_back': Families,
+    'note_families_seal': Families
 }
 
+def load(name, root, mode, seed, le=None, transform=None):
+    if name.startswith('note_families'):
+        return _type[name](root=root, mode=mode, seed=seed, le=le, transform=transform, plate=name.split('_')[-1])
+    return _type[name](root=root, mode=mode, seed=seed, le=le, transform=transform)
 
-def load(name, root, mode, args, seed, le=None, transform = None):
-    return _type[name](root = root, mode = mode, args=args, seed=seed, le=le, transform = transform)
-    

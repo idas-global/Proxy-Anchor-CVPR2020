@@ -1,12 +1,19 @@
 import random
 
+import numpy as np
+
 from .base import *
 import scipy.io
 from sklearn import preprocessing
 
 
+from .note_families import slice_to_make_set
+
+
 class Cars(BaseDataset):
-    def __init__(self, root, mode, args, seed, le, transform = None):
+    def __init__(self, root, mode, seed, le, transform = None):
+        self.name = 'cars'
+
         self.root = root + '/cars196'
         self.mode = mode
         self.transform = transform
@@ -31,72 +38,36 @@ class Cars(BaseDataset):
         annos_fn = 'cars_annos.mat'
         cars = scipy.io.loadmat(os.path.join(self.root, annos_fn))
         self.class_names = list([cars['class_names'][0][item[-2][0][0] - 1][0] for item in cars['annotations'][0]])
+        ys = [int(a[5][0] - 1) for a in cars['annotations'][0]]
 
-        self.class_names_fine = [name for name in [' '.join(name.split(' ')[0:-1]) for name in self.class_names]]
         self.class_names_coarse = [name.split(' ')[0] if name.split(' ')[0] != 'Land'
                                    else ''.join(name.split(' ')[0:2]) for name in self.class_names]
 
-        self.ys, le = self.create_labels(le, self.class_names_fine)
-        self.label_encoder = le
+        if self.mode == 'train' or self.mode == 'validation':
+            self.classes = range(0, 98)
+            observations = [i for i, y in zip(self.class_names, ys) if y in self.classes]
+
+            random.seed(seed)
+            chosen_idxs = random.choices(range(len(observations)), k=int(round(0.8*len(observations))))
+
+            if self.mode == 'validation':
+                chosen_idxs = [i for i in range(len(observations)) if i not in chosen_idxs]
+
+        elif self.mode == 'eval':
+            self.classes = range(98, 196)
+            observations = [i for i, y in zip(self.class_names, ys) if y in self.classes]
+            chosen_idxs = list(range(len(observations)))
+
+        im_paths = [a[0][0] for a in cars['annotations'][0]]
+        for im_path, y in zip(im_paths, ys):
+            if y in self.classes: # choose only specified classes
+                self.im_paths.append(os.path.join(self.root, im_path))
+                self.ys.append(y)
 
         self.class_names_coarse_dict = dict(zip(self.ys, self.class_names_coarse))
-
-        le_name_mapping = dict(zip(le.classes_, le.transform(le.classes_)))
-        self.nb_classes_total = len(le_name_mapping.keys())
-
-        if self.mode == 'train' or self.mode == 'val':
-            self.classes = range(0, int(np.round(self.nb_classes_total / 2)))
-        else:
-            self.classes = range(int(np.round(self.nb_classes_total / 2)), self.nb_classes_total - 1)
-
-        chosen_images = [idx for idx, i in enumerate(self.ys) if i in self.classes]
-        random.seed(seed)
-        if self.mode == 'train':
-            chosen_images = random.choices(chosen_images, k=int(np.round(0.8 * len(chosen_images))))
-            chosen_images = np.sort(chosen_images)
-        if self.mode == 'val':
-            not_chosen_images = random.choices(chosen_images, k=int(np.round(0.8 * len(chosen_images))))
-            chosen_images = [i for i in chosen_images if i not in not_chosen_images]
-            chosen_images = np.sort(chosen_images)
-
-        self.dataset_size = len(chosen_images)
+        self.class_names_fine_dict = dict(zip(self.ys, self.class_names_fine))
 
         for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys']:
-            setattr(self, param, self.slice_to_make_set(chosen_images, getattr(self, param)))
+            setattr(self, param, slice_to_make_set(chosen_idxs, getattr(self, param)))
+        self.label_encoder = None
 
-        self.nb_classes = len(np.unique(self.ys, axis=0))
-
-    def create_labels(self, le, labels):
-        if le is None:
-            le = preprocessing.LabelEncoder()
-            le.fit(labels)
-        return le.transform(labels), le
-
-
-    def slice_to_make_set(self, chosen_images, param):
-        return list(np.array(param)[chosen_images])
-
-    def __len__(self):
-        'Denotes the number of batches per epoch'
-        return int(np.floor(self.dataset_size / self.batch_size))
-
-    def __getitem__(self, index):
-        'Generate one batch of data'
-        # Generate indexes of the batch
-        batch_slice = range(len(self.im_paths))[index * self.batch_size: (index + 1) * self.batch_size]
-
-        imgs_for_batch = self.slice_to_make_set(batch_slice, self.im_paths)
-        y = self.slice_to_make_set(batch_slice, self.ys)
-
-        x = np.empty((len(imgs_for_batch), *self.im_dimensions))
-
-        for idx, i in enumerate(imgs_for_batch):
-            im = PIL.Image.open(i)
-            # convert gray to rgb
-            if len(list(im.split())) == 1:
-                im = im.convert('RGB')
-
-            if self.transform is not None:
-                x[idx, :] = self.transform(im)
-        # y = to_categorical(np.array(y).astype(np.float32).reshape(-1, 1), num_classes=self.nb_classes)
-        return x, np.array(y)

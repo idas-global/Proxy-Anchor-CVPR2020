@@ -1,18 +1,23 @@
 import argparse, os
 import random, dataset, utils, losses
+import sys
+from collections import Counter
 
-import matplotlib.pyplot as plt
+import pandas as pd
+
+from dataset.Inshop import Inshop_Dataset
 
 from net.resnet import *
 from net.googlenet import *
 from net.bn_inception import *
 from torch.utils.data.sampler import BatchSampler
-import pandas as pd
+from utils import get_accuracies, get_X_T_Y, f1_score_calc, create_and_save_viz_frame, confusion_matrices, \
+    plot_relationships, save_metrics
+import warnings
 from tqdm import *
 import wandb
 
-
-def parse_args():
+def parse_arguments():
     parser = argparse.ArgumentParser(description=
                                      'Official implementation of `Proxy Anchor Loss for Deep Metric Learning`'
                                      + 'Our code is modified from `https://github.com/dichotomies/proxy-nca`'
@@ -90,52 +95,25 @@ def parse_args():
     return parser.parse_args()
 
 
-def create_generators(seed):
-    # Dataset Loader and Sampler
-    if args.dataset == 'note_styles':
-        train_trans = dataset.utils.make_transform(
-            is_train=True,
-            is_inception=(args.model == 'bn_inception'),
-            crop=False
-        )
-
-    else:
-        train_trans = dataset.utils.make_transform(
-            is_train=True,
-            is_inception=(args.model == 'bn_inception')
-        )
-    test_trans = dataset.utils.make_transform(
-        is_train=False,
-        is_inception=(args.model == 'bn_inception'),
-        crop=False
+def get_transform(train, crop=True):
+    trans = dataset.utils.make_transform(
+        is_train=train,
+        crop=crop,
+        is_inception=(args.model == 'bn_inception')
     )
+    return trans
+
+
+def create_generators():
+    seed = random.choice(range(21000000))
     trn_dataset = dataset.load(
         name=args.dataset,
         root=data_root,
-        args=args,
         seed=seed,
-        le=None,
         mode='train',
-        transform=train_trans
-    )
-    val_dataset = dataset.load(
-        name=args.dataset,
-        root=data_root,
-        args=args,
-        seed=seed,
-        le=trn_dataset.label_encoder,
-        mode='val',
-        transform=train_trans
-    )
-    ev_dataset = dataset.load(
-        name=args.dataset,
-        root=data_root,
-        args=args,
-        seed=seed,
-        le=trn_dataset.label_encoder,
-        mode='eval',
-        transform=test_trans
-    )
+        le=None,
+        transform=get_transform(True))
+
     dl_tr = torch.utils.data.DataLoader(
         trn_dataset,
         batch_size=args.sz_batch,
@@ -144,6 +122,15 @@ def create_generators(seed):
         drop_last=True,
         pin_memory=True
     )
+
+    val_dataset = dataset.load(
+        name=args.dataset,
+        root=data_root,
+        seed=seed,
+        mode='validation',
+        le=dl_tr.dataset.label_encoder,
+        transform=get_transform(True))
+
     dl_val = torch.utils.data.DataLoader(
         val_dataset,
         batch_size=args.sz_batch,
@@ -152,44 +139,83 @@ def create_generators(seed):
         drop_last=True,
         pin_memory=True
     )
-    dl_ev = torch.utils.data.DataLoader(
-        ev_dataset,
-        batch_size=args.sz_batch,
-        shuffle=False,
-        num_workers=args.nb_workers,
-        pin_memory=True
-    )
 
-    # le_name_mapping_train = dict(zip(dl_tr.dataset.label_encoder.classes_,
-    #                            dl_tr.dataset.label_encoder.transform(dl_tr.dataset.label_encoder.classes_)))
-    #
-    # le_name_mapping_val = dict(zip(dl_val.dataset.label_encoder.classes_,
-    #                             dl_val.dataset.label_encoder.transform(dl_val.dataset.label_encoder.classes_)))
-    #
-    # assert le_name_mapping_train == le_name_mapping_val
-    # import matplotlib.pyplot as plt
-    # import cv2
-    # for i in random.choices(range(len(dl_tr.dataset.im_paths)), k=5):
-    #     train_y = dl_tr.dataset.ys[i]
-    #     plt.imshow(cv2.imread(dl_tr.dataset.im_paths[i]))
-    #     plt.title(dl_tr.dataset.class_names_fine[i])
-    #     plt.suptitle(dl_tr.dataset.class_names_coarse_dict[train_y])
-    #     plt.show()
-    #
-    #     assert train_y == le_name_mapping_train[dl_tr.dataset.class_names_fine[i]]
-    #
-    #     val_idx = list(dl_val.dataset.ys).index(train_y)
-    #     assert train_y == le_name_mapping_val[dl_val.dataset.class_names_fine[val_idx]]
-    #
-    #     plt.imshow(cv2.imread(dl_val.dataset.im_paths[val_idx]))
-    #     plt.title(dl_val.dataset.class_names_fine[val_idx])
-    #     plt.suptitle(dl_val.dataset.class_names_coarse_dict[train_y])
-    #     plt.show()
-    #
-    #     assert train_y not in list(dl_ev.dataset.ys)
+    dl_ev = None
+    if args.dataset not in ['note_styles']:
+        ev_dataset = dataset.load(
+            name=args.dataset,
+            root=data_root,
+            seed=None,
+            mode='eval',
+            le=dl_tr.dataset.label_encoder,
+            transform=get_transform(False, crop=False)
+        )
+        dl_ev = torch.utils.data.DataLoader(
+            ev_dataset,
+            batch_size=args.sz_batch,
+            shuffle=False,
+            num_workers=args.nb_workers,
+            pin_memory=True
+        )
+    dl_tr_labels = sorted(dict(Counter(dl_tr.dataset.class_names_fine)).items(), key=lambda x: x[0])
+    dl_val_labels = sorted(dict(Counter(dl_val.dataset.class_names_fine)).items(), key=lambda x: x[0])
+    if dl_ev:
+        dl_ev_labels = sorted(dict(Counter(dl_ev.dataset.class_names_fine)).items(), key=lambda x: x[0])
+        print('##### TEST LABELS #####')
+        for v in dl_ev_labels:
+            print(f'{v}')
+        print('#####             #####')
+    try:
+        assert len(dl_tr_labels) == len(dl_val_labels)
+    except AssertionError:
+        for i in dl_tr_labels:
+            print(i)
+        print('---------------')
+        for i in dl_val_labels:
+            print(i)
+        return
+
+    for t, v in zip(dl_tr_labels, dl_val_labels):
+        print(f'{t}      {v}')
+
+    assert dl_tr.dataset.class_names_coarse_dict == dl_val.dataset.class_names_coarse_dict
+    assert dl_tr.dataset.class_names_fine_dict == dl_val.dataset.class_names_fine_dict
+
+    import matplotlib.pyplot as plt
+    import cv2
+    if sys.platform != 'linux':
+        dl_list = [dl_tr, dl_val]
+        if dl_ev:
+            dl_list = [dl_ev, dl_tr, dl_val]
+
+        for dataloader in dl_list:
+            for i in random.choices(range(len(dataloader.dataset.im_paths)), k=5):
+                x, y = dataloader.dataset.__getitem__(i)
+                plt.imshow(np.moveaxis(np.array(x), 0, -1))
+                plt.title(f'Sample from {dataloader.dataset.mode} : {dataloader.dataset.class_names_coarse_dict[y]}')
+                plt.suptitle(dataloader.dataset.class_names_fine_dict[y])
+                plt.show()
+
+        for i in random.choices(range(len(dl_tr.dataset.im_paths)), k=5):
+            train_y = dl_tr.dataset.ys[i]
+            plt.imshow(cv2.imread(dl_tr.dataset.im_paths[i]))
+            plt.title(dl_tr.dataset.class_names_fine_dict[train_y])
+            plt.suptitle(dl_tr.dataset.class_names_coarse_dict[train_y])
+            plt.show()
+
+            val_idx = list(dl_val.dataset.ys).index(train_y)
+
+            plt.imshow(cv2.imread(dl_val.dataset.im_paths[val_idx]))
+            plt.title(dl_val.dataset.class_names_fine_dict[train_y])
+            plt.suptitle(dl_val.dataset.class_names_coarse_dict[train_y])
+            plt.show()
+
+            #if dl_ev is not None:
+                #assert train_y not in list(dl_ev.dataset.ys)
+
     return dl_tr, dl_val, dl_ev
 
-  
+
 def create_model():
     # Backbone Model
     if args.model.find('googlenet') + 1:
@@ -207,20 +233,19 @@ def create_model():
     elif args.model.find('resnet101') + 1:
         model = Resnet101(embedding_size=args.sz_embedding, pretrained=True, is_norm=args.l2_norm,
                           bn_freeze=args.bn_freeze)
-    # # model = model
+    # model = model
     if args.gpu_id == -1:
-        args.gpu_id = -2
-        #model = nn.DataParallel(model)
+        model = nn.DataParallel(model)
     return model
 
 
-def create_loss_and_opt(dl_tr, model):
+def create_loss(nb_classes):
     # DML Losses
     if args.loss == 'Proxy_Anchor':
-        criterion = losses.Proxy_Anchor(nb_classes=dl_tr.dataset.nb_classes, sz_embed=args.sz_embedding, mrg=args.mrg,
+        criterion = losses.Proxy_Anchor(nb_classes=nb_classes, sz_embed=args.sz_embedding, mrg=args.mrg,
                                         alpha=args.alpha)
     elif args.loss == 'Proxy_NCA':
-        criterion = losses.Proxy_NCA(nb_classes=dl_tr.dataset.nb_classes, sz_embed=args.sz_embedding)
+        criterion = losses.Proxy_NCA(nb_classes=nb_classes, sz_embed=args.sz_embedding)
     elif args.loss == 'MS':
         criterion = losses.MultiSimilarityLoss()
     elif args.loss == 'Contrastive':
@@ -229,6 +254,10 @@ def create_loss_and_opt(dl_tr, model):
         criterion = losses.TripletLoss()
     elif args.loss == 'NPair':
         criterion = losses.NPairLoss()
+    return criterion
+
+
+def create_optimizer_and_prepare_layers():
     # Train Parameters
     param_groups = [
         {'params': list(
@@ -254,133 +283,170 @@ def create_loss_and_opt(dl_tr, model):
     elif args.optimizer == 'adamw':
         opt = torch.optim.AdamW(param_groups, lr=float(args.lr), weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.StepLR(opt, step_size=args.lr_decay_step, gamma=args.lr_decay_gamma)
-    return criterion, opt, scheduler
+    return opt, scheduler
 
 
+def freeze_layers():
+    modules = model.model.modules() if args.gpu_id != -1 else model.module.model.modules()
+    for m in modules:
+        if isinstance(m, nn.BatchNorm2d):
+            m.eval()
 
 
-def train(model, dl_tr, dl_val, dl_ev, criterion, opt, scheduler):
-    recall_to_opt = 1
-    best_recall = {f"f1score@{recall_to_opt}": pd.Series(0)}
-    best_epoch = 0
+def perform_warmup(epoch):
+    if args.gpu_id != -1:
+        unfreeze_model_param = list(model.model.embedding.parameters()) + list(criterion.parameters())
+    else:
+        unfreeze_model_param = list(model.module.model.embedding.parameters()) + list(criterion.parameters())
+    if epoch == 0:
+        for param in list(set(model.parameters()).difference(set(unfreeze_model_param))):
+            param.requires_grad = False
+    if epoch == args.warm:
+        for param in list(set(model.parameters()).difference(set(unfreeze_model_param))):
+            param.requires_grad = True
+
+
+def torch_save(save_dir):
+    os.makedirs(save_dir, exist_ok=True)
+    torch.save({'model_state_dict': model.state_dict()},
+               '{}/{}_{}_best.pth'.format(save_dir, args.dataset, args.model))
+
+
+def text_save(recalls, best_epoch):
+    with open('{}/{}_{}_best_results.txt'.format(LOG_DIR, args.dataset, args.model), 'w') as f:
+        f.write('Best Epoch: {}\n'.format(best_epoch))
+        for key, val in recalls.items():
+            f.write(f'{key} : {val}')
+
+
+def train_model(args, model, dl_tr, dl_val, dl_ev):
     losses_list = []
+    key_to_opt = f'eval_f1score@7'
+    best_recall = pd.DataFrame()
+    best_recall[key_to_opt] = [0]
 
     for epoch in range(0, args.nb_epochs):
         model.train()
         bn_freeze = args.bn_freeze
         if bn_freeze:
-            modules = model.model.modules() if args.gpu_id != -1 else model.module.model.modules()
-            for m in modules:
-                if isinstance(m, nn.BatchNorm2d):
-                    m.eval()
+            freeze_layers()
 
         losses_per_epoch = []
 
         # Warmup: Train only new params, helps stabilize learning.
         if args.warm > 0:
-            if args.gpu_id != -1:
-                unfreeze_model_param = list(model.model.embedding.parameters()) + list(criterion.parameters())
-            else:
-                unfreeze_model_param = list(model.module.model.embedding.parameters()) + list(criterion.parameters())
+            perform_warmup(epoch)
 
-            if epoch == 0:
-                for param in list(set(model.parameters()).difference(set(unfreeze_model_param))):
-                    param.requires_grad = False
-            if epoch == args.warm:
-                for param in list(set(model.parameters()).difference(set(unfreeze_model_param))):
-                    param.requires_grad = True
+        pbar = tqdm(enumerate(dl_tr))
 
-        pbar = tqdm(range(dl_tr.dataset.__len__()))
-        for batch_idx in pbar:
-            x, y = dl_tr.dataset.__getitem__(batch_idx)
-            x = torch.from_numpy(x).squeeze().float()
-            y = torch.from_numpy(y).squeeze().float()
-
-            m = model(x)
-
-            loss = criterion(m, y)
+        for batch_idx, (x, y) in pbar:
+            m = model(x.squeeze())
+            loss = criterion(m, y.squeeze())
 
             opt.zero_grad()
             loss.backward()
+            torch.nn.utils.clip_grad_value_(criterion.parameters(), 10)
 
-            torch.nn.utils.clip_grad_value_(model.parameters(), 10)
-            if args.loss == 'Proxy_Anchor':
-                torch.nn.utils.clip_grad_value_(criterion.parameters(), 10)
 
             losses_per_epoch.append(loss.data.cpu().numpy())
             opt.step()
 
             pbar.set_description(
                 'Train Epoch: {} [{}/{} ({:.0f}%)] Loss: {:.6f}'.format(
-                    epoch, batch_idx + 1, pbar.total,
-                           100. * batch_idx / pbar.total,
+                    epoch, batch_idx + 1, len(dl_tr),
+                           100. * batch_idx / len(dl_tr),
+
                     loss.item()))
 
         losses_list.append(np.mean(losses_per_epoch))
         wandb.log({'loss': losses_list[-1]}, step=epoch)
         scheduler.step()
 
-        if epoch % 1 == 0 or epoch == args.nb_epochs - 1:
+        if epoch >= 0 and (epoch % 5 == 0 or epoch == args.nb_epochs - 1):
             with torch.no_grad():
+                val_recalls = evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
 
-                print('################################')
-                print("**Evaluating Validation set...**")
-                print('################################')
+                for key, val in val_recalls.items():
+                    wandb.log({key + '_validation': val.values[0]}, step=epoch)
+                    print(f'{key} : {np.round(val.values[0], 3)}')
 
-                recalls = utils.evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
+                if dl_ev:
+                    test_recalls = evaluate_cos(model, dl_ev, epoch, args)
 
-                for key, val in recalls.items():
-                    wandb.log({'val ' + key: val.values[0]}, step=epoch)
-
-                print('################################')
-                print("**Evaluating Test set...**")
-                print('################################')
-
-                recalls_test = utils.evaluate_cos(model, dl_ev, epoch, args, validation=None)
-
-                for key, val in recalls_test.items():
-                    wandb.log({'test ' + key: val.values[0]}, step=epoch)
+                    for key, val in test_recalls.items():
+                        wandb.log({key + '_test': val.values[0]}, step=epoch)
+                        print(f'{key} : {np.round(val.values[0], 3)}')
 
             # Best model save
-            if best_recall[f"f1score@{recall_to_opt}"].values[0] < recalls[f"f1score@{recall_to_opt}"].values[0]:
-                best_recall[f"f1score@{recall_to_opt}"] = recalls[f"f1score@{recall_to_opt}"]
+            if best_recall[key_to_opt].values[0] < test_recalls[key_to_opt].values[0]:
+                best_recall = test_recalls
                 best_epoch = epoch
-                if not os.path.exists('{}'.format(LOG_DIR)):
-                    os.makedirs('{}'.format(LOG_DIR))
 
-                torch.save({'model_state_dict': model.state_dict()},
-                           '{}/{}_{}_best.pth'.format(LOG_DIR, args.dataset, args.model))
-
-                with open('{}/{}_{}_best_results.txt'.format(LOG_DIR, args.dataset, args.model), 'w') as f:
-                    f.write('Best Epoch: {}\n'.format(best_epoch))
-                    for key, val in recalls.items():
-                        f.write(f'{key} : {val.values[0]}')
+                save_dir = '{}/{}_{}'.format(LOG_DIR, wandb.run.name, np.round(best_recall[key_to_opt].values[0], 3))
+                torch_save(save_dir)
+                text_save(test_recalls, best_epoch)
 
 
-def main():
-    #
-    # if args.gpu_id != -1:
-    #     torch.cuda.set_device(args.gpu_id)
-    wandb.login(key='f0a1711b34f7b07e32150c85c67697eb82c5120f')
-    wandb.init(project=args.dataset + '_ProxyAnchor', notes=LOG_DIR)
-    wandb.config.update(args)
+def evaluate_cos(model, dataloader, epoch, args, validation=None):
+    # calculate embeddings with model and get targets
+    test_dest = f'../training/{args.dataset}/{wandb.run.name}/{epoch}/test/'
+    val_dest = f'../training/{args.dataset}/{wandb.run.name}/{epoch}/validation/'
+    train_dest = f'../training/{args.dataset}/{wandb.run.name}/{epoch}/train_and_validation/'
 
-    os.chdir('../data/')
-    seed = random.choice(range(123456789))
-    dl_tr, dl_val, dl_ev = create_generators(seed)
+    os.makedirs(train_dest, exist_ok=True)
+    os.makedirs(val_dest, exist_ok=True)
+    os.makedirs(test_dest, exist_ok=True)
+
+    X, T, Y, neighbors = get_X_T_Y(dataloader, model, validation) # X: Embeddings, T: True Labels,
+                                                                  # Y: True Labels of neighbors
+
+    pictures_to_predict = random.choices(range(len(X)), k=int(round(len(X)*50/100)))
+    dl_loader = dataloader
+    if validation is not None:
+        pictures_to_predict = list(range(len(X) - len(validation.dataset.ys), len(X)))
+        dl_loader = validation
+
+    metrics = f1_score_calc(T, Y, dl_loader, pictures_to_predict)
+    coarse_filter_dict, fine_filter_dict, y_preds, y_true = get_accuracies(T, X, dl_loader,
+                                                                           neighbors, pictures_to_predict, metrics)
+
+    data_viz_frame = create_and_save_viz_frame(X, dataloader, coarse_filter_dict, fine_filter_dict,
+                                               pictures_to_predict,
+                                               train_dest, val_dest, test_dest,
+                                               y_preds, y_true)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        params = ['prediction', 'truth']
+        degrees = ['fine', 'coarse']
+        for deg in degrees:
+            for para in params:
+                try:
+                    plot_relationships(X, data_viz_frame, dataloader, deg, para, pictures_to_predict,
+                                       train_dest, val_dest, test_dest)
+
+                except Exception:
+                    import traceback
+                    print(traceback.format_exc())
+                    print('WARNING: Cant create Graph')
+    try:
+        confusion_matrices(data_viz_frame, dataloader, train_dest, val_dest, test_dest)
+    except Exception:
+        import traceback
+        print(traceback.format_exc())
+
+    save_metrics(dataloader, metrics, train_dest, val_dest, test_dest)
+
+    return metrics
+
+
+
+
+if __name__ == '__main__':
+    args = parse_arguments()
 
     model = create_model()
 
-    criterion, opt, scheduler = create_loss_and_opt(dl_tr, model)
-
-    print("Training parameters: {}".format(vars(args)))
-    print("Training for {} epochs.".format(args.nb_epochs))
-
-    train(model, dl_tr, dl_val, dl_ev, criterion, opt, scheduler)
-
-if __name__ == '__main__':
-    args = parse_args()
-    data_root = os.getcwd()
     # Directory for Log
 
     LOG_DIR = args.LOG_DIR + '/logs_{}/{}_{}_embedding{}_alpha{}_mrg{}_{}_lr{}_batch{}{}'.format(args.dataset,
@@ -392,4 +458,20 @@ if __name__ == '__main__':
                                                                                                  args.optimizer,
                                                                                                  args.lr, args.sz_batch,
                                                                                                  args.remark)
-    main()
+    # Wandb Initialization
+    wandb.login(key='f0a1711b34f7b07e32150c85c67697eb82c5120f')
+    wandb.init(project=args.dataset + '_ProxyAnchor', notes=LOG_DIR)
+    wandb.config.update(args)
+
+    os.chdir('../data/')
+    data_root = os.getcwd()
+
+    dl_tr, dl_val, dl_ev = create_generators()
+    nb_classes = dl_tr.dataset.nb_classes()
+
+    criterion = create_loss(nb_classes)
+    opt, scheduler = create_optimizer_and_prepare_layers()
+
+    print("Training for {} epochs.".format(args.nb_epochs))
+    train_model(args, model, dl_tr, dl_val, dl_ev)
+
