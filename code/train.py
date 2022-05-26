@@ -363,13 +363,13 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
                         print(f'{key} : {np.round(val.values[0], 3)}')
 
             # Best model save
-            if best_recall[key_to_opt].values[0] < val_recalls[key_to_opt].values[0]:
-                best_recall = val_recalls
+            if best_recall[key_to_opt].values[0] < test_recalls[key_to_opt].values[0]:
+                best_recall = test_recalls
                 best_epoch = epoch
 
                 save_dir = '{}/{}_{}'.format(LOG_DIR, wandb.run.name, np.round(best_recall[key_to_opt].values[0], 3))
                 torch_save(save_dir)
-                text_save(val_recalls, best_epoch)
+                text_save(test_recalls, best_epoch)
 
 
 def evaluate_cos(model, dataloader, epoch, args, validation=None):
