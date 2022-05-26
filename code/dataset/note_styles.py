@@ -11,6 +11,8 @@ import scipy.io
 class Notes(BaseDataset):
     def __init__(self, root, mode, seed, le, transform = None):
         self.name = 'note_styles'
+        self.mode = mode
+        self.transform = transform
 
         if sys.platform == 'linux':
             if mode == 'train':
@@ -23,9 +25,8 @@ class Notes(BaseDataset):
             if mode == 'validation':
                 self.root = 'D:/Rupert_Book_Augmented/'
 
-        self.mode = mode
-        self.transform = transform
         BaseDataset.__init__(self, self.root, self.mode, self.transform)
+
         im_paths = []
         for (root, dirs, files) in os.walk(self.root):
             for file in files:
