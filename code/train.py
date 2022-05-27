@@ -254,11 +254,11 @@ def perform_warmup(epoch):
             param.requires_grad = True
 
 
-def torch_save(save_dir, X, T, epoch, dl_tr, dl_val, dl_ev):
+def torch_save(save_dir):
     os.makedirs(save_dir, exist_ok=True)
     torch.save({'model_state_dict': model.state_dict()},
                '{}/{}_{}_best.pth'.format(save_dir, args.dataset, args.model))
-    save_prediction_material(save_dir, X, T, dl_tr, dl_val, dl_ev)
+
 
 def text_save(recalls, best_epoch):
     with open('{}/{}_{}_best_results.txt'.format(LOG_DIR, args.dataset, args.model), 'w') as f:
@@ -267,9 +267,9 @@ def text_save(recalls, best_epoch):
             f.write(f'{key} : {val}')
 
 
-def save_prediction_material(save_dir, X, T, dl_tr, dl_val, dl_ev):
-    np.save(f'{save_dir}/X.npy', np.array(X))
-    np.save(f'{save_dir}/T.npy', np.array(T))
+def save_prediction_material(save_dir, X, T, dl_tr, dl_val, dl_ev, prepend='val_'):
+    np.save(f'{save_dir}/{prepend}X.npy', np.array(X))
+    np.save(f'{save_dir}/{prepend}T.npy', np.array(T))
 
     dl_list = [dl_tr, dl_val]
     if dl_ev:
@@ -312,21 +312,25 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
 
         if epoch >= 0 and (epoch % 5 == 0 or epoch == args.nb_epochs - 1):
             with torch.no_grad():
+                save_dir = '{}/{}_{}'.format(LOG_DIR, wandb.run.name, np.round(best_recall[key_to_opt].values[0], 3))
                 val_recalls, X, T = evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
 
+                save_prediction_material(save_dir, X, T, dl_tr, dl_val, dl_ev)
                 post_to_wandb(epoch, val_recalls)
 
                 if dl_ev:
-                    test_recalls, _, _ = evaluate_cos(model, dl_ev, epoch, args)
+                    test_recalls, X, T = evaluate_cos(model, dl_ev, epoch, args)
+                    save_prediction_material(save_dir, X, T, dl_tr, dl_val, dl_ev, prepend='eval_')
+
                     post_to_wandb(epoch, test_recalls, postpend='_test')
                 else:
                     test_recalls = val_recalls
+
             # Best model save
             if best_recall[key_to_opt].values[0] < test_recalls[key_to_opt].values[0]:
                 best_recall, best_epoch = test_recalls, epoch
 
-                save_dir = '{}/{}_{}'.format(LOG_DIR, wandb.run.name, np.round(best_recall[key_to_opt].values[0], 3))
-                torch_save(save_dir, X, T, epoch, dl_tr, dl_val, dl_ev)
+                torch_save(save_dir)
                 text_save(test_recalls, best_epoch)
 
 

@@ -33,8 +33,7 @@ def main():
         dest_seal = get_filepath(aug_location_1604_seals, f'{pnt_key}_{circ_key}')
         dest_paper = get_filepath(aug_location_1604_paper, f'{pnt_key}_{circ_key}')
 
-
-        valid_notes = get_valid_notes(notes_frame)
+        valid_notes = get_valid_notes(location_1604_notes, notes_frame, specs_wanted, sides_wanted)
 
         if len(valid_notes) > 0:
             iters = aug_fac - len(valid_notes)
@@ -47,7 +46,7 @@ def main():
                 os.makedirs(dest_paper, exist_ok=True)
 
                 root_loc = f'{location_1604_notes}Pack_{pack}/'
-                note_image, back_note_image, seal, df = get_front_back_seal(note_num, pack, root_loc, side, spec)
+                note_image, back_note_image, seal, df = get_front_back_seal(maskrcnn, note_num, pack, root_loc, side, spec)
 
                 if extra_notes_per_note < 0:
                     iters = 1
@@ -80,18 +79,18 @@ def main():
                         aug_seal = cv2.resize(aug_seal, (int(aug_seal.shape[1] / 2), int(aug_seal.shape[0] / 2)))
                         cv2.imwrite(dest_seal + f'/{aug_key}_{spec}_{side}.bmp', aug_seal)
 
-                    # if not df[df['className'] == 'FedSeal']['roi'].empty:
-                    #     scaleY = note_image.shape[0] / 512
-                    #     scaleX = note_image.shape[1] / 1024
-                    #
-                    #     paper = get_paper_sample(df, aug_image, scaleX, scaleY)
-                    #
-                    #     if paper is not None:
-                    #         print('No paper Sample')
-                    #         aug_key = note_num + '_' + str(uuid.uuid4())[0:3] + '_' + str(3)
-                    #         cv2.imwrite(dest_paper + f'/{aug_key}_{spec}_{side}.bmp', paper)
+                    if not df[df['className'] == 'FedSeal']['roi'].empty and DO_PAPER:
+                        scaleY = note_image.shape[0] / 512
+                        scaleX = note_image.shape[1] / 1024
 
-def get_front_back_seal(note_num, pack, root_loc, side, spec):
+                        paper = get_paper_sample(df, aug_image, scaleX, scaleY)
+
+                        if paper is not None:
+                            print('No paper Sample')
+                            aug_key = note_num + '_' + str(uuid.uuid4())[0:3] + '_' + str(3)
+                            cv2.imwrite(dest_paper + f'/{aug_key}_{spec}_{side}.bmp', paper)
+
+def get_front_back_seal(maskrcnn, note_num, pack, root_loc, side, spec):
     if pack == 'G':
         root_loc = location_genuine_notes
 
@@ -156,7 +155,7 @@ def get_paper_sample(df, note_image, scaleX, scaleY):
     return paper
 
 
-def get_valid_notes(notes_frame):
+def get_valid_notes(location_1604_notes, notes_frame, specs_wanted, sides_wanted):
     valid_notes = []
     for idx, note in notes_frame.iterrows():
         if isinstance(note, pd.Series):  # Consistent Datatype
@@ -182,7 +181,7 @@ def get_valid_notes(notes_frame):
     return valid_notes
 
 
-def form_genuine_frame():
+def form_genuine_frame(location_genuine_notes):
     genuine_frame = []
     for i in [location_genuine_notes + i for i in os.listdir(location_genuine_notes)
               if os.path.isdir(location_genuine_notes + i)]:
@@ -206,7 +205,7 @@ def form_genuine_frame():
     return genuine_frame
 
 
-def form_1604_frame():
+def form_1604_frame(location_1604_notes):
     list_of_csvs = []
     for pack_1604 in [location_1604_notes + "1604 Data/" + i for i in os.listdir(location_1604_notes + r'1604 Data/') if
                       i.startswith('PACK_')]:
@@ -250,6 +249,9 @@ def get_valid_dirs():
 
 
 if __name__ == '__main__':
+
+    DO_PAPER = False
+
     if sys.platform == 'linux':
         location_1604_notes = '/mnt/ssd1/Genesys_2_Capture/counterfeit/'
         location_genuine_notes = '/mnt/ssd1/Genesys_2_Capture/genuine/100_4/'
