@@ -1,3 +1,4 @@
+import pickle
 import sys
 import cv2
 import wandb
@@ -93,10 +94,10 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def get_transform(args, train, dataset='default'):
+def get_transform(args, train, ds='default'):
     trans = dataset.utils.make_transform(
         is_train=train,
-        dataset=dataset,
+        dataset=ds,
         is_inception=(args.model == 'bn_inception')
     )
     return trans
@@ -115,7 +116,7 @@ def create_generators(args, data_root):
         seed=seed,
         mode='train',
         le=None,
-        transform=get_transform(args, True, dataset=ds))
+        transform=get_transform(args, True, ds=ds))
 
     dl_tr = torch.utils.data.DataLoader(
         trn_dataset,
@@ -132,7 +133,7 @@ def create_generators(args, data_root):
         seed=seed,
         mode='validation',
         le=dl_tr.dataset.label_encoder,
-        transform=get_transform(args, True, dataset=ds))
+        transform=get_transform(args, True, ds=ds))
 
     dl_val = torch.utils.data.DataLoader(
         val_dataset,
@@ -151,7 +152,7 @@ def create_generators(args, data_root):
             seed=None,
             mode='eval',
             le=dl_tr.dataset.label_encoder,
-            transform=get_transform(args, False, dataset=ds)
+            transform=get_transform(args, False, ds=ds)
         )
         dl_ev = torch.utils.data.DataLoader(
             ev_dataset,
@@ -253,11 +254,11 @@ def perform_warmup(epoch):
             param.requires_grad = True
 
 
-def torch_save(save_dir):
+def torch_save(save_dir, X, T, epoch, dl_tr, dl_val, dl_ev):
     os.makedirs(save_dir, exist_ok=True)
     torch.save({'model_state_dict': model.state_dict()},
                '{}/{}_{}_best.pth'.format(save_dir, args.dataset, args.model))
-
+    save_prediction_material(save_dir, X, T, dl_tr, dl_val, dl_ev)
 
 def text_save(recalls, best_epoch):
     with open('{}/{}_{}_best_results.txt'.format(LOG_DIR, args.dataset, args.model), 'w') as f:
@@ -266,9 +267,20 @@ def text_save(recalls, best_epoch):
             f.write(f'{key} : {val}')
 
 
-def save_prediction_material(X, T, epoch):
-    np.save(f'../training/{args.dataset}/{wandb.run.name}/{epoch}/X.npy', np.array(X))
-    np.save(f'../training/{args.dataset}/{wandb.run.name}/{epoch}/T.npy', np.array(T))
+def save_prediction_material(save_dir, X, T, dl_tr, dl_val, dl_ev):
+    np.save(f'{save_dir}/X.npy', np.array(X))
+    np.save(f'{save_dir}/T.npy', np.array(T))
+
+    dl_list = [dl_tr, dl_val]
+    if dl_ev:
+        dl_list = [dl_tr, dl_val, dl_ev]
+
+    for dataloader in dl_list:
+        with open(f'{save_dir}/{dataloader.dataset.mode}_coarse_dict.pkl', 'wb') as f:
+            pickle.dump(dataloader.dataset.class_names_coarse_dict, f)
+
+        with open(f'{save_dir}/{dataloader.dataset.mode}_fine_dict.pkl', 'wb') as f:
+            pickle.dump(dataloader.dataset.class_names_coarse_dict, f)
 
 
 def train_model(args, model, dl_tr, dl_val, dl_ev):
@@ -302,20 +314,19 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
             with torch.no_grad():
                 val_recalls, X, T = evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
 
-                save_prediction_material(X, T, epoch)
-
                 post_to_wandb(epoch, val_recalls)
 
                 if dl_ev:
                     test_recalls, _, _ = evaluate_cos(model, dl_ev, epoch, args)
                     post_to_wandb(epoch, test_recalls, postpend='_test')
-
+                else:
+                    test_recalls = val_recalls
             # Best model save
             if best_recall[key_to_opt].values[0] < test_recalls[key_to_opt].values[0]:
                 best_recall, best_epoch = test_recalls, epoch
 
                 save_dir = '{}/{}_{}'.format(LOG_DIR, wandb.run.name, np.round(best_recall[key_to_opt].values[0], 3))
-                torch_save(save_dir)
+                torch_save(save_dir, X, T, epoch, dl_tr, dl_val, dl_ev)
                 text_save(test_recalls, best_epoch)
 
 
@@ -408,10 +419,10 @@ def test_generator_labels(dl_tr, dl_val, dl_ev):
     if sys.platform != 'linux':
         dl_list = [dl_tr, dl_val]
         if dl_ev:
-            dl_list = [dl_ev, dl_tr, dl_val]
+            dl_list = [dl_tr, dl_val, dl_ev]
 
         for dataloader in dl_list:
-            for i in random.choices(range(len(dataloader.dataset.im_paths)), k=5):
+            for i in random.choices(range(len(dataloader.dataset.im_paths)), k=20):
                 x, y = dataloader.dataset.__getitem__(i)
                 plt.imshow(np.moveaxis(np.array(x), 0, -1))
                 plt.title(f'Sample from {dataloader.dataset.mode} : {dataloader.dataset.class_names_coarse_dict[y]}')

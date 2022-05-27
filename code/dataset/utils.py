@@ -93,7 +93,7 @@ def make_transform(is_train = True, is_inception = False, dataset = 'default'):
         inception_transform = transforms.Compose(
            [
             RGBToBGR(),
-            transforms.RandomResizedCrop(inception_sz_crop, scale=(0, 1)) if is_train else Identity(),
+            transforms.RandomResizedCrop(inception_sz_crop, scale=(1/7, 0.5)) if is_train else Identity(),
             transforms.RandomHorizontalFlip() if is_train else Identity(),
             transforms.Resize((inception_sz_resize, inception_sz_resize*2)) if not is_train else Identity(),
             transforms.ToTensor(),
