@@ -93,16 +93,21 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def get_transform(args, train, crop=True):
+def get_transform(args, train, dataset='default'):
     trans = dataset.utils.make_transform(
         is_train=train,
-        crop=crop,
+        dataset=dataset,
         is_inception=(args.model == 'bn_inception')
     )
     return trans
 
 
 def create_generators(args, data_root):
+    if args.dataset in ['note_styles', 'note_families_front', 'note_families_back', 'note_families_seal']:
+        ds = 'notes'
+    else:
+        ds = 'default'
+
     seed = random.choice(range(21000000))
     trn_dataset = dataset.load(
         name=args.dataset,
@@ -110,7 +115,7 @@ def create_generators(args, data_root):
         seed=seed,
         mode='train',
         le=None,
-        transform=get_transform(args, True))
+        transform=get_transform(args, True, dataset=ds))
 
     dl_tr = torch.utils.data.DataLoader(
         trn_dataset,
@@ -127,7 +132,7 @@ def create_generators(args, data_root):
         seed=seed,
         mode='validation',
         le=dl_tr.dataset.label_encoder,
-        transform=get_transform(args, True))
+        transform=get_transform(args, True, dataset=ds))
 
     dl_val = torch.utils.data.DataLoader(
         val_dataset,
@@ -146,7 +151,7 @@ def create_generators(args, data_root):
             seed=None,
             mode='eval',
             le=dl_tr.dataset.label_encoder,
-            transform=get_transform(args, False, crop=False)
+            transform=get_transform(args, False, dataset=ds)
         )
         dl_ev = torch.utils.data.DataLoader(
             ev_dataset,

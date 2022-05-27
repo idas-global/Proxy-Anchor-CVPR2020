@@ -50,11 +50,11 @@ class Families(BaseDataset):
             le.fit(self.class_names_fine)
         self.label_encoder = le
 
-        chosen_idxs = self.choose_train_test_slice(seed)
-
         self.ys = le.transform(self.class_names_fine)
         self.class_names_coarse_dict = dict(zip(self.ys, self.class_names_coarse))
         self.class_names_fine_dict = dict(zip(self.ys, self.class_names_fine))
+
+        chosen_idxs = self.choose_train_test_slice(seed)
 
         for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys']:
             setattr(self, param, slice_to_make_set(chosen_idxs, getattr(self, param)))

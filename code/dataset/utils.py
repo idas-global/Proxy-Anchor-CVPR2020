@@ -64,38 +64,41 @@ class ScaleIntensities():
         return tensor
 
 
-def make_transform(is_train = True, is_inception = False, crop = True):
+def make_transform(is_train = True, is_inception = False, dataset = 'default'):
     # Resolution Resize List : 256, 292, 361, 512
     # Resolution Crop List: 224, 256, 324, 448
-    
-    resnet_sz_resize = 256
-    resnet_sz_crop = 224 
-    resnet_mean = [0.485, 0.456, 0.406]
-    resnet_std = [0.229, 0.224, 0.225]
-    resnet_transform = transforms.Compose([
-        transforms.RandomResizedCrop(resnet_sz_crop) if is_train and crop else Identity(),
-        transforms.RandomHorizontalFlip() if is_train else Identity(),
-        transforms.RandomVerticalFlip() if is_train and not crop else Identity(),
-        transforms.Resize(resnet_sz_resize) if not is_train else Identity(),
-        transforms.CenterCrop(resnet_sz_crop) if not is_train and crop else Identity(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=resnet_mean, std=resnet_std)
-    ])
 
-    inception_sz_resize = 256
-    inception_sz_crop = 224
-    inception_mean = [104, 117, 128]
-    inception_std = [1, 1, 1]
-    inception_transform = transforms.Compose(
-       [
-        RGBToBGR(),
-        transforms.RandomResizedCrop(inception_sz_crop) if is_train else Identity(),
-        transforms.RandomHorizontalFlip() if is_train else Identity(),
-        transforms.Resize((inception_sz_resize, inception_sz_resize*2)) if not is_train or not crop else Identity(),
-        transforms.CenterCrop(inception_sz_crop) if not is_train and crop else Identity(),
-        transforms.ToTensor(),
-        ScaleIntensities([0, 1], [0, 255]),
-        transforms.Normalize(mean=inception_mean, std=inception_std)
-       ])
+    if dataset == 'default':
+        inception_sz_resize = 256
+        inception_sz_crop = 224
+        inception_mean = [104, 117, 128]
+        inception_std = [1, 1, 1]
+        inception_transform = transforms.Compose(
+            [
+                RGBToBGR(),
+                transforms.RandomResizedCrop(inception_sz_crop) if is_train else Identity(),
+                transforms.RandomHorizontalFlip() if is_train else Identity(),
+                transforms.Resize(inception_sz_resize) if not is_train else Identity(),
+                transforms.CenterCrop(inception_sz_crop) if not is_train else Identity(),
+                transforms.ToTensor(),
+                ScaleIntensities([0, 1], [0, 255]),
+                transforms.Normalize(mean=inception_mean, std=inception_std)
+            ])
+
+    if dataset == 'notes':
+        inception_sz_resize = 256
+        inception_sz_crop = 224
+        inception_mean = [104, 117, 128]
+        inception_std = [1, 1, 1]
+        inception_transform = transforms.Compose(
+           [
+            RGBToBGR(),
+            transforms.RandomResizedCrop(inception_sz_crop, scale=(0, 1)) if is_train else Identity(),
+            transforms.RandomHorizontalFlip() if is_train else Identity(),
+            transforms.Resize((inception_sz_resize, inception_sz_resize*2)) if not is_train else Identity(),
+            transforms.ToTensor(),
+            ScaleIntensities([0, 1], [0, 255]),
+            transforms.Normalize(mean=inception_mean, std=inception_std)
+           ])
     
-    return inception_transform if is_inception else resnet_transform
+    return inception_transform
