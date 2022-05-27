@@ -255,7 +255,6 @@ def perform_warmup(epoch):
 
 
 def torch_save(save_dir):
-    os.makedirs(save_dir, exist_ok=True)
     torch.save({'model_state_dict': model.state_dict()},
                '{}/{}_{}_best.pth'.format(save_dir, args.dataset, args.model))
 
@@ -313,6 +312,8 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
         if epoch >= 0 and (epoch % 5 == 0 or epoch == args.nb_epochs - 1):
             with torch.no_grad():
                 save_dir = '{}/{}_{}'.format(LOG_DIR, wandb.run.name, np.round(best_recall[key_to_opt].values[0], 3))
+                os.makedirs(save_dir, exist_ok=True)
+
                 val_recalls, X, T = evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
 
                 save_prediction_material(save_dir, X, T, dl_tr, dl_val, dl_ev)
