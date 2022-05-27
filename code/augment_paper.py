@@ -80,16 +80,16 @@ def main():
                         aug_seal = cv2.resize(aug_seal, (int(aug_seal.shape[1] / 2), int(aug_seal.shape[0] / 2)))
                         cv2.imwrite(dest_seal + f'/{aug_key}_{spec}_{side}.bmp', aug_seal)
 
-                    if not df[df['className'] == 'FedSeal']['roi'].empty:
-                        scaleY = note_image.shape[0] / 512
-                        scaleX = note_image.shape[1] / 1024
-
-                        paper = get_paper_sample(df, aug_image, scaleX, scaleY)
-
-                        if paper is not None:
-                            print('No paper Sample')
-                            aug_key = note_num + '_' + str(uuid.uuid4())[0:3] + '_' + str(3)
-                            cv2.imwrite(dest_paper + f'/{aug_key}_{spec}_{side}.bmp', paper)
+                    # if not df[df['className'] == 'FedSeal']['roi'].empty:
+                    #     scaleY = note_image.shape[0] / 512
+                    #     scaleX = note_image.shape[1] / 1024
+                    #
+                    #     paper = get_paper_sample(df, aug_image, scaleX, scaleY)
+                    #
+                    #     if paper is not None:
+                    #         print('No paper Sample')
+                    #         aug_key = note_num + '_' + str(uuid.uuid4())[0:3] + '_' + str(3)
+                    #         cv2.imwrite(dest_paper + f'/{aug_key}_{spec}_{side}.bmp', paper)
 
 def get_front_back_seal(note_num, pack, root_loc, side, spec):
     if pack == 'G':
@@ -283,7 +283,7 @@ if __name__ == '__main__':
 
     sides_wanted = ['Front'] # (0 / 1)
     specs_wanted = ['RGB']
-    aug_fac = 8
+    aug_fac = 20
     # TODO make it work for non rgb/nir
     maskrcnn = MaskRCNN()
     main()
