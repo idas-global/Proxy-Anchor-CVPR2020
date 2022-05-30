@@ -279,7 +279,7 @@ def save_prediction_material(save_dir, X, T, dl_tr, dl_val, dl_ev, prepend='val_
             pickle.dump(dataloader.dataset.class_names_coarse_dict, f)
 
         with open(f'{save_dir}/{dataloader.dataset.mode}_fine_dict.pkl', 'wb') as f:
-            pickle.dump(dataloader.dataset.class_names_coarse_dict, f)
+            pickle.dump(dataloader.dataset.class_names_fine_dict, f)
 
 
 def train_model(args, model, dl_tr, dl_val, dl_ev):
@@ -359,6 +359,9 @@ def run_batch(batch_idx, dl_tr, epoch, losses_per_epoch, model, pbar, x, y):
 
 
 def evaluate_cos(model, dataloader, epoch, args, validation=None):
+    model_is_training = model.training
+    model.eval()
+
     # calculate embeddings with model and get targets
     test_dest = f'../training/{args.dataset}/{wandb.run.name}/{epoch}/test/'
     val_dest = f'../training/{args.dataset}/{wandb.run.name}/{epoch}/validation/'
@@ -399,6 +402,8 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
     confusion_matrices(data_viz_frame, dataloader, train_dest, val_dest, test_dest)
 
     save_metrics(dataloader, metrics, train_dest, val_dest, test_dest)
+    model.train()
+    model.train(model_is_training)  # revert to previous training state
     return metrics, X, T
 
 

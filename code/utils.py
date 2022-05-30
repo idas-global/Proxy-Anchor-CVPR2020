@@ -62,9 +62,6 @@ def combine_dims(a, i=0, n=1):
 
 
 def predict_batchwise(model, dataloader, return_images=False):
-    model_is_training = model.training
-    model.eval()
-
     batch_sz = dataloader.batch_sampler.batch_size
     num_batches = int(np.ceil(len(dataloader.dataset.ys) / batch_sz))
 
@@ -116,9 +113,6 @@ def predict_batchwise(model, dataloader, return_images=False):
                     predictions[idx, :] = J
                 else:
                     labels[idx, :] = J
-
-    model.train()
-    model.train(model_is_training)  # revert to previous training state
 
     if not missing_batch:
         missing_batch = -1 * num_batches * batch_sz
