@@ -178,11 +178,11 @@ def get_valid_notes(location_genuine_notes, location_1604_notes, notes_frame, sp
                     root_loc = location_genuine_notes
 
                 if not os.path.exists(f'{root_loc}{note_num}/{note_num}_{spec}_{side}.bmp'):
-                    print(f'{pack} {note_num} missing')
+                    print(f'{root_loc}{note_num}/{note_num}_{spec}_{side}.bmp')
                     missing_per_frame += 1
                     continue
                 valid_notes.append((side, spec, pack, note_num,
-                                    f'{location_1604_notes}Pack_{pack}/{note_num}/{note_num}_{spec}_{side}.bmp'))
+                                    f'{root_loc}{note_num}/{note_num}_{spec}_{side}.bmp'))
     return valid_notes
 
 

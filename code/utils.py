@@ -71,7 +71,7 @@ def predict_batchwise(model, dataloader, return_images=False):
     if return_images:
         # TODO add a attribute to dataloader that gives the shape
         # image_array = np.zeros((len(dataloader.dataset.im_paths), 3, 224, 224))
-        image_array = np.zeros((num_batches, batch_sz, 3, 224, 224))
+        image_array = np.zeros((num_batches, batch_sz, 3, 448, 448))
 
     missing_batch = 0
 

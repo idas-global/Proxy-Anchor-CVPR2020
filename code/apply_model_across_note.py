@@ -15,7 +15,7 @@ from maskrcnn import MaskRCNN
 from utils import l2_norm
 from dataset.utils import RGBToBGR, ScaleIntensities, Identity
 from noteclasses import ImageBMP
-from train import parse_arguments, create_model, create_generators
+from train import parse_arguments, create_model, create_generators, get_transform
 import matplotlib.pyplot as plt
 from torchvision import transforms
 import torch.nn.functional as F
@@ -76,8 +76,8 @@ def get_transformed_image(tile, train=True):
     im = PIL.Image.fromarray(tile)
     # convert gray to rgb
     if len(list(im.split())) == 1: im = im.convert('RGB')
-    im = transform(im, train)
-    return im
+    trans = get_transform(args, False, ds='notes')
+    return trans(im)
 
 
 def add_pred_to_set(y_pred, X, T):
@@ -106,9 +106,13 @@ if __name__ == '__main__':
     PLOT_IMAGES = True
     maskrcnn = MaskRCNN()
 
-    notes_loc = 'D:/1604_notes/'
-    genuine_notes_loc = 'D:/genuines/Pack_100_4/'
-    model_directory = 'D:/models/front/earnest-jazz-93_91.049/'
+    if sys.platform != 'linux':
+        notes_loc = 'D:/1604_notes/'
+        genuine_notes_loc = 'D:/genuines/Pack_100_4/'
+        model_directory = 'D:/models/front/earnest-jazz-93_91.049/'
+    else:
+        notes_loc = '/mnt/ssd1/Genesys_2_Capture/counterfeit/'
+        genuine_notes_loc = '/mnt/ssd1/Genesys_2_Capture/genuine/100_4/'
 
     dataset = 'front'
 
@@ -145,8 +149,6 @@ if __name__ == '__main__':
         if len(valid_notes) > 0:
             for iter, (side, spec, pack, note_num, note_dir) in tqdm(enumerate(valid_notes),
                                                                      desc=f'{len(valid_notes)} Originals'):
-                if iter != 0:
-                    continue
                 root_loc = f'{notes_loc}Pack_{pack}/'
                 note_image, back_note_image, seal, df = get_front_back_seal(genuine_notes_loc, maskrcnn, note_num, pack, root_loc, side, spec)
                 aug_obj = augment()
@@ -206,8 +208,10 @@ if __name__ == '__main__':
                     plt.title(f'Whole Note: Predicted: {whole_note_label}')
                     plt.suptitle(f'Whole Note: Truth: {pnt_key}')
                     #plt.tight_layout()
-                    plt.subplots_adjust(wspace=0.05, hspace=0.05)
-                    plt.show()
+                    plt.subplots_adjust(wspace=0.05, hspace=0.25)
+                    os.makedirs(f'../training/{args.dataset}/{model_directory.split("/")[-2]}/plots/', exist_ok=True)
+                    plt.savefig(f'../training/{args.dataset}/{model_directory.split("/")[-2]}/plots/{os.path.splitext(os.path.split(note_dir)[-1])}.png')
+                    plt.close()
     print(len(whole_note_predictions))
     print(len(tile_predictions))
     print(sum(whole_note_predictions)/len(whole_note_predictions))
