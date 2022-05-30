@@ -106,17 +106,30 @@ if __name__ == '__main__':
     PLOT_IMAGES = True
     maskrcnn = MaskRCNN()
 
+    args = parse_arguments()
+
     if sys.platform != 'linux':
         notes_loc = 'D:/1604_notes/'
         genuine_notes_loc = 'D:/genuines/Pack_100_4/'
-        model_directory = 'D:/models/front/earnest-jazz-93_91.049/'
+        model_directory = '../logs/logs_note_families_front/bn_inception_Proxy_Anchor_embedding512_alpha32_mrg0.1_adamw_lr0.0001_batch32/noble-haze-96_94.049/'
     else:
         notes_loc = '/mnt/ssd1/Genesys_2_Capture/counterfeit/'
         genuine_notes_loc = '/mnt/ssd1/Genesys_2_Capture/genuine/100_4/'
+        LOG_DIR = args.LOG_DIR + '/logs_{}/{}_{}_embedding{}_alpha{}_mrg{}_{}_lr{}_batch{}{}/'.format(args.dataset,
+                                                                                                      args.model,
+                                                                                                      args.loss,
+                                                                                                      args.sz_embedding,
+                                                                                                      args.alpha,
+                                                                                                      args.mrg,
+                                                                                                      args.optimizer,
+                                                                                                      args.lr,
+                                                                                                      args.sz_batch,
+                                                                                                      args.remark)
+        model_directory = sorted([LOG_DIR + i for i in os.listdir(LOG_DIR) if os.path.isdir(i)], key= lambda i: int(i.split('_')[-1]))[0]
+        print(f'model directory is {model_directory}')
 
     dataset = 'front'
 
-    args = parse_arguments()
     model = create_model(args)
     checkpoint = torch.load(model_directory + [i for i in os.listdir(model_directory) if i.endswith('.pth')][0])
     model.load_state_dict(checkpoint['model_state_dict'])
@@ -129,6 +142,12 @@ if __name__ == '__main__':
     with open(f'{model_directory}eval_fine_dict.pkl', 'rb') as f:
         fine_filter_dict_saved = pickle.load(f)
 
+    with open(f'{model_directory}validation_coarse_dict.pkl', 'rb') as f:
+        coarse_filter_dict_saved_val = pickle.load(f)
+
+    with open(f'{model_directory}validation_fine_dict.pkl', 'rb') as f:
+        fine_filter_dict_saved_val = pickle.load(f)
+
     global_csv = form_1604_frame(notes_loc)
     genuine_frame = form_genuine_frame(genuine_notes_loc)
     global_csv = pd.concat((global_csv, genuine_frame))
@@ -137,6 +156,9 @@ if __name__ == '__main__':
 
     whole_note_predictions = []
     tile_predictions = []
+
+    X_dont_change, T_dont_change = get_X_T('eval_')
+    X_dont_change_val, T_dont_change_val = get_X_T('val_')
 
     img_inputs = []
     for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
@@ -158,11 +180,10 @@ if __name__ == '__main__':
                 whole_note = get_transformed_image(note_image, train=False)
                 y_pred = model(whole_note[None, :])
 
-                X, T = get_X_T('eval_')
-                X, T, neighbors = add_pred_to_set(y_pred, X, T)
-                pic = len(X) - 1
+                Xhat, That, neighbors = add_pred_to_set(y_pred, X_dont_change, T_dont_change)
+                pic = len(Xhat) - 1
                 neighbors_to_pic = neighbors[pic]
-                y_pred_label = predict_label(X, T, neighbors_to_pic, pic)
+                y_pred_label = predict_label(Xhat, That, neighbors_to_pic, pic)
 
                 whole_note_label = coarse_filter_dict_saved[y_pred_label]
                 whole_note_predictions.append(whole_note_label == pnt_key)
@@ -177,14 +198,13 @@ if __name__ == '__main__':
                     im = get_transformed_image(tile)
 
                     y_pred = model(im[None, :])
-                    X, T = get_X_T('val_')
-                    X, T, neighbors = add_pred_to_set(y_pred, X, T)
+                    Xhat, That, neighbors = add_pred_to_set(y_pred, X_dont_change_val, T_dont_change_val)
 
-                    pic = len(X) - 1
+                    pic = len(Xhat) - 1
                     neighbors_to_pic = neighbors[pic]
 
-                    y_pred_label = predict_label(X, T, neighbors_to_pic, pic)
-                    tile_predictions.append(coarse_filter_dict_saved[y_pred_label] == pnt_key)
+                    y_pred_label = predict_label(Xhat, That, neighbors_to_pic, pic)
+                    tile_predictions.append(coarse_filter_dict_saved_val[y_pred_label] == pnt_key)
 
                     if PLOT_IMAGES:
                         axs[row_no, col_no].imshow(tile)
