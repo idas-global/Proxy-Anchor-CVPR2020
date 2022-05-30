@@ -1,5 +1,7 @@
 import os
+import pickle
 import sys
+import time
 
 import PIL
 import cv2
@@ -7,10 +9,10 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from augment_paper import get_valid_notes, get_front_back_seal, form_genuine_frame, form_1604_frame
+from augment_paper import get_valid_notes, get_front_back_seal, form_genuine_frame, form_1604_frame, augment
 from maskrcnn import MaskRCNN
 from utils import l2_norm
-from dataset.utils import RGBToBGR, ScaleIntensities
+from dataset.utils import RGBToBGR, ScaleIntensities, Identity
 from noteclasses import ImageBMP
 from train import parse_arguments, create_model, create_generators
 import matplotlib.pyplot as plt
@@ -19,7 +21,7 @@ import torch.nn.functional as F
 import pandas as pd
 
 
-def transform(im):
+def transform(im, train=True):
     inception_sz_resize = 256
     inception_sz_crop = 224
     inception_mean = [104, 117, 128]
@@ -27,7 +29,8 @@ def transform(im):
     inception_transform = transforms.Compose(
         [
             RGBToBGR(),
-            transforms.Resize((inception_sz_resize, inception_sz_resize * 2)),
+            transforms.Resize((inception_sz_resize, inception_sz_resize * 2)) if not train else Identity(),
+            transforms.Resize((inception_sz_crop, inception_sz_crop)) if train else Identity(),
             transforms.ToTensor(),
             ScaleIntensities([0, 1], [0, 255]),
             transforms.Normalize(mean=inception_mean, std=inception_std)
@@ -68,24 +71,21 @@ def create_tiles(im):
     return note_dir, tiles, 2, 3
 
 
-def get_transformed_image():
-    tile_dest = f'./note_tiles/{note_dir.split("/")[-1]}'[0:-4] + f'_tile_{idx}.bmp'
-    os.makedirs(os.path.split(tile_dest)[0], exist_ok=True)
-    cv2.imwrite(tile_dest, tile)
-    im = PIL.Image.open(tile_dest)
+def get_transformed_image(tile, train=True):
+    im = PIL.Image.fromarray(tile)
     # convert gray to rgb
     if len(list(im.split())) == 1: im = im.convert('RGB')
-    im = transform(im)
+    im = transform(im, train)
     return im
 
 
-def add_pred_to_set():
-    X = np.load(os.path.split(model_directory)[0] + '/X.npy')
+def add_pred_to_set(y_pred, set='val_'):
+    X = np.load(f'{model_directory}/{set}X.npy')
     X = np.vstack((X, y_pred.detach().numpy()))
     X = l2_norm(X)
     X = torch.from_numpy(X)
 
-    T = np.load(os.path.split(model_directory)[0] + '/T.npy')
+    T = np.load(f'{model_directory}/{set}T.npy')
     T = np.hstack((T, -1))
     T = torch.from_numpy(T)
 
@@ -97,17 +97,18 @@ def add_pred_to_set():
     return X, T, neighbors
 
 if __name__ == '__main__':
+
+    PLOT_IMAGES = False
     maskrcnn = MaskRCNN()
 
     notes_loc = 'D:/1604_notes/'
     genuine_notes_loc = 'D:/genuines/Pack_100_4/'
     dataset = 'front'
-    model_directory = 'D:/models/front/feasible-water-68_82.599/'
+    model_directory = 'D:/models/front/golden-meadow-72_94.858/'
 
     args = parse_arguments()
-
     model = create_model(args)
-    checkpoint = torch.load(model_directory + os.listdir(model_directory)[0])
+    checkpoint = torch.load(model_directory + [i for i in os.listdir(model_directory) if i.endswith('.pth')][0])
     model.load_state_dict(checkpoint['model_state_dict'])
     model_is_training = model.training
     model.eval()
@@ -115,13 +116,11 @@ if __name__ == '__main__':
     os.chdir('../data/')
     data_root = os.getcwd()
 
-    ds = 'train_and_validation'
-    validation_data = pd.read_csv(os.path.split(os.path.split(model_directory)[0])[0] + f'/{ds}/{ds}_data_combined.csv', index_col=0)
-    fine_filter_dict = dict(zip(validation_data['prediction'], validation_data['prediction_label_fine']))
-    fine_filter_dict = dict(sorted(fine_filter_dict.items()))
+    with open(f'{model_directory}eval_coarse_dict.pkl', 'rb') as f:
+        coarse_filter_dict = pickle.load(f)
 
-    coarse_filter_dict = dict(zip(validation_data['prediction'], validation_data['prediction_label_coarse']))
-    coarse_filter_dict = dict(sorted(coarse_filter_dict.items()))
+    with open(f'{model_directory}eval_fine_dict.pkl', 'rb') as f:
+        fine_filter_dict = pickle.load(f)
 
     global_csv = form_1604_frame(notes_loc)
     genuine_frame = form_genuine_frame(genuine_notes_loc)
@@ -129,55 +128,88 @@ if __name__ == '__main__':
 
     notes_per_family = global_csv.groupby(['circular 1'])
 
+    whole_note_predictions = []
+    tile_predictions = []
+
+    img_inputs = []
     for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
         pnt_key = notes_frame["parent note"].values[0]
         if pnt_key == 'NO DATA':
             continue
 
-        valid_notes = get_valid_notes(notes_loc, notes_frame, ['RGB'], ['Front'])
+        valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], ['Front'])
 
         if len(valid_notes) > 0:
             for iter, (side, spec, pack, note_num, note_dir) in tqdm(enumerate(valid_notes),
                                                                      desc=f'{len(valid_notes)} Originals'):
-                root_loc = f'{notes_loc}Pack_{pack}/'
-                note_image, back_note_image, seal, df = get_front_back_seal(maskrcnn, note_num, pack, root_loc, side, spec)
+                if PLOT_IMAGES:
+                    fig, axs = plt.subplots(nrows=y_fac + 1, ncols=x_fac)
 
+                root_loc = f'{notes_loc}Pack_{pack}/'
+                note_image, back_note_image, seal, df = get_front_back_seal(genuine_notes_loc, maskrcnn, note_num, pack, root_loc, side, spec)
+                aug_obj = augment()
+                note_image = aug_obj(image=note_image)['image']
                 _, tiles, y_fac, x_fac = create_tiles(note_image)
 
-                fig, axs = plt.subplots(nrows=y_fac, ncols=x_fac)
+                whole_note = get_transformed_image(note_image, train=False)
+                img_inputs.append(whole_note)
+
+                if len(img_inputs) == 32:
+                    batch = torch.from_numpy(np.array([np.array(tens) for tens in img_inputs]))
+                    embeddings = model(batch).detach().numpy()
+                    y_pred = y_pred.detach().numpy()
+                    print()
+
+
+                y_pred = model(whole_note[None, :])
+                X, T, neighbors = add_pred_to_set(y_pred, set='eval_')
+                pic = len(X) - 1
+                neighbors_to_pic = neighbors[pic]
+                whole_note_label = predict_label()
+                whole_note_predictions.append(coarse_filter_dict[whole_note_label] == pnt_key)
 
                 for idx, tile in enumerate(tiles):
                     row_no = idx % y_fac
                     col_no = idx // y_fac
 
-                    im = get_transformed_image()
+                    im = get_transformed_image(tile)
 
                     y_pred = model(im[None, :])
-                    X, T, neighbors = add_pred_to_set()
+                    X, T, neighbors = add_pred_to_set(y_pred)
 
                     pic = len(X) - 1
                     neighbors_to_pic = neighbors[pic]
 
                     y_pred_label = predict_label()
-                    axs[row_no, col_no].imshow(tile)
-                    axs[row_no, col_no].axis('off')
-                    if row_no != 0:
-                        axs[row_no, col_no].set_title('PLACEHOLDER', )
-                    else:
-                        axs[row_no, col_no].title.set_text('PLACEHOLDER')
+                    tile_predictions.append(coarse_filter_dict[y_pred_label] == pnt_key)
 
-                    try:
+                    if PLOT_IMAGES:
+                        axs[row_no, col_no].imshow(tile)
+                        axs[row_no, col_no].axis('off')
                         if row_no != 0:
-                            axs[row_no, col_no].set_title(coarse_filter_dict[y_pred_label], va='bottom')
+                            axs[row_no, col_no].set_title('PLACEHOLDER', )
                         else:
-                            axs[row_no, col_no].title.set_text(coarse_filter_dict[y_pred_label])
-                    except KeyError:
-                        pass
-                plt.title(circ_key)
-                plt.suptitle(pnt_key)
-                plt.tight_layout()
-                plt.subplots_adjust(wspace=0.05, hspace=0.05)
-                plt.show()
+                            axs[row_no, col_no].title.set_text('PLACEHOLDER')
 
+                        try:
+                            if row_no != 0:
+                                axs[row_no, col_no].set_title(coarse_filter_dict[y_pred_label], va='bottom')
+                            else:
+                                axs[row_no, col_no].title.set_text(coarse_filter_dict[y_pred_label])
+                        except KeyError:
+                            pass
+
+                if PLOT_IMAGES:
+                    axes = plt.subplot(3, 1, 3)
+                    axes.imshow(note_image)
+                    plt.title(f'Whole Note: Predicted: {coarse_filter_dict[whole_note_label]}')
+                    plt.suptitle(f'Whole Note: Truth: {pnt_key}')
+                    #plt.tight_layout()
+                    plt.subplots_adjust(wspace=0.05, hspace=0.05)
+                    plt.show()
+    print(len(whole_note_predictions))
+    print(len(tile_predictions))
+    print(sum(whole_note_predictions)/len(whole_note_predictions))
+    print(sum(tile_predictions) / len(tile_predictions))
 
 

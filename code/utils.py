@@ -66,7 +66,7 @@ def predict_batchwise(model, dataloader, return_images=False):
     model.eval()
 
     batch_sz = dataloader.batch_sampler.batch_size
-    num_batches = len(dataloader.batch_sampler)
+    num_batches = int(np.ceil(len(dataloader.dataset.ys) / batch_sz))
 
     predictions = np.zeros((num_batches, batch_sz, 512))
     labels = np.zeros((num_batches, batch_sz))
@@ -80,7 +80,19 @@ def predict_batchwise(model, dataloader, return_images=False):
 
     with torch.no_grad():
         # extract batches (A becomes list of samples)
-        for idx, batch in tqdm(enumerate(dataloader), total=num_batches, desc='Getting Predictions'):
+        for idx in range(num_batches):
+            image = []
+            target = []
+            for i in range(batch_sz):
+                try:
+                    x, y = dataloader.dataset.__getitem__(i + idx*batch_sz)
+                except IndexError:
+                    break
+                image.append(x)
+                target.append(y)
+            image = torch.stack(image)
+            target = torch.Tensor(target).int()
+            batch = [image, target]
             for i, J in enumerate(batch):
                 # i = 0: sz_batch * images
                 # i = 1: sz_batch * labels
@@ -124,15 +136,6 @@ def predict_batchwise(model, dataloader, return_images=False):
     if return_images:
         return [predictions, labels, image_array]
     return [predictions, labels]
-
-
-def proxy_init_calc(model, dataloader):
-    nb_classes = dataloader.dataset.nb_classes()
-    X, T, *_ = predict_batchwise(model, dataloader)
-
-    proxy_mean = torch.stack([X[T == class_idx].mean(0) for class_idx in range(nb_classes)])
-
-    return proxy_mean
 
 
 def parse_im_name(specific_species, exclude_trailing_consonants=False, fine=False):

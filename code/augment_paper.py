@@ -3,6 +3,7 @@ import os
 import random
 import shutil
 import sys
+import time
 import uuid
 from distutils.dir_util import copy_tree
 import matplotlib.pyplot as plt
@@ -17,9 +18,9 @@ from noteclasses import ImageBMP
 import random
 
 def main():
-    global_csv = form_1604_frame()
+    global_csv = form_1604_frame(location_1604_notes)
 
-    genuine_frame = form_genuine_frame()
+    genuine_frame = form_genuine_frame(location_genuine_notes)
 
     global_csv = pd.concat((global_csv, genuine_frame))
 
@@ -33,7 +34,7 @@ def main():
         dest_seal = get_filepath(aug_location_1604_seals, f'{pnt_key}_{circ_key}')
         dest_paper = get_filepath(aug_location_1604_paper, f'{pnt_key}_{circ_key}')
 
-        valid_notes = get_valid_notes(location_1604_notes, notes_frame, specs_wanted, sides_wanted)
+        valid_notes = get_valid_notes(location_genuine_notes, location_1604_notes, notes_frame, specs_wanted, sides_wanted)
 
         if len(valid_notes) > 0:
             iters = aug_fac - len(valid_notes)
@@ -46,7 +47,7 @@ def main():
                 os.makedirs(dest_paper, exist_ok=True)
 
                 root_loc = f'{location_1604_notes}Pack_{pack}/'
-                note_image, back_note_image, seal, df = get_front_back_seal(maskrcnn, note_num, pack, root_loc, side, spec)
+                note_image, back_note_image, seal, df = get_front_back_seal(location_genuine_notes, maskrcnn, note_num, pack, root_loc, side, spec)
 
                 if extra_notes_per_note < 0:
                     iters = 1
@@ -90,7 +91,7 @@ def main():
                             aug_key = note_num + '_' + str(uuid.uuid4())[0:3] + '_' + str(3)
                             cv2.imwrite(dest_paper + f'/{aug_key}_{spec}_{side}.bmp', paper)
 
-def get_front_back_seal(maskrcnn, note_num, pack, root_loc, side, spec):
+def get_front_back_seal(location_genuine_notes, maskrcnn, note_num, pack, root_loc, side, spec):
     if pack == 'G':
         root_loc = location_genuine_notes
 
@@ -155,7 +156,7 @@ def get_paper_sample(df, note_image, scaleX, scaleY):
     return paper
 
 
-def get_valid_notes(location_1604_notes, notes_frame, specs_wanted, sides_wanted):
+def get_valid_notes(location_genuine_notes, location_1604_notes, notes_frame, specs_wanted, sides_wanted):
     valid_notes = []
     for idx, note in notes_frame.iterrows():
         if isinstance(note, pd.Series):  # Consistent Datatype
@@ -249,6 +250,11 @@ def get_valid_dirs():
 
 
 if __name__ == '__main__':
+    time.sleep(5)
+    print('SLEEPING FOR 5 SECONDS BECAUSE THIS DELETES DATASETS')
+    for i in np.arange(5, 0):
+        print(i)
+        time.sleep(i)
 
     DO_PAPER = False
 
@@ -285,7 +291,7 @@ if __name__ == '__main__':
 
     sides_wanted = ['Front'] # (0 / 1)
     specs_wanted = ['RGB']
-    aug_fac = 20
+    aug_fac = 8
     # TODO make it work for non rgb/nir
     maskrcnn = MaskRCNN()
     main()

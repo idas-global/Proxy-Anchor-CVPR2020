@@ -424,12 +424,15 @@ def test_generator_labels(dl_tr, dl_val, dl_ev):
     if sys.platform != 'linux':
         dl_list = [dl_tr, dl_val]
         if dl_ev:
-            dl_list = [dl_tr, dl_val, dl_ev]
+            dl_list = [dl_ev, dl_tr, dl_val]
 
         for dataloader in dl_list:
-            for i in random.choices(range(len(dataloader.dataset.im_paths)), k=20):
+            for i in random.choices(range(len(dataloader.dataset.im_paths)), k=5):
                 x, y = dataloader.dataset.__getitem__(i)
-                plt.imshow(np.moveaxis(np.array(x), 0, -1))
+                fig, axs = plt.subplots(1, 2)
+                HWC = np.moveaxis(np.array(x), 0, -1)
+                axs[0].imshow(HWC)
+                axs[1].imshow(((HWC - HWC.min()) * (1/(HWC.max() - HWC.min()) * 255)).astype('uint8'))
                 plt.title(f'Sample from {dataloader.dataset.mode} : {dataloader.dataset.class_names_coarse_dict[y]}')
                 plt.suptitle(dataloader.dataset.class_names_fine_dict[y])
                 plt.show()
@@ -487,7 +490,7 @@ if __name__ == '__main__':
     data_root = os.getcwd()
 
     dl_tr, dl_val, dl_ev = create_generators(args, data_root)
-    test_generator_labels(dl_tr, dl_val, dl_ev)
+    #test_generator_labels(dl_tr, dl_val, dl_ev)
 
     nb_classes = dl_tr.dataset.nb_classes()
 
