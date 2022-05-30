@@ -19,15 +19,20 @@ import random
 
 def main():
     global_csv = form_1604_frame(location_1604_notes)
+    print(f'Found {len(global_csv)} Counterfeits!')
 
     genuine_frame = form_genuine_frame(location_genuine_notes)
+    print(f'Found {len(genuine_frame)} Genuines!')
 
     global_csv = pd.concat((global_csv, genuine_frame))
 
     notes_per_family = global_csv.groupby(['circular 1'])
     for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
         pnt_key = notes_frame["parent note"].values[0]
-        if pnt_key == 'NO DATA': pnt_key = circ_key
+        if pnt_key == 'NO DATA':
+            pnt_key = circ_key
+            if pnt_key == 'NO DATA':
+                continue
 
         dest_front = get_filepath(aug_location_1604_fronts, f'{pnt_key}_{circ_key}')
         dest_back = get_filepath(aug_location_1604_backs, f'{pnt_key}_{circ_key}')
@@ -87,9 +92,8 @@ def main():
                         paper = get_paper_sample(df, aug_image, scaleX, scaleY)
 
                         if paper is not None:
-                            print('No paper Sample')
-                            aug_key = note_num + '_' + str(uuid.uuid4())[0:3] + '_' + str(3)
                             cv2.imwrite(dest_paper + f'/{aug_key}_{spec}_{side}.bmp', paper)
+
 
 def get_front_back_seal(location_genuine_notes, maskrcnn, note_num, pack, root_loc, side, spec):
     if pack == 'G':
@@ -250,43 +254,34 @@ def get_valid_dirs():
 
 
 if __name__ == '__main__':
-    time.sleep(5)
-    print('SLEEPING FOR 5 SECONDS BECAUSE THIS DELETES DATASETS')
-    for i in np.arange(5, 0):
-        print(i)
-        time.sleep(i)
-
     DO_PAPER = False
+    DELETE_DATA = False
 
     if sys.platform == 'linux':
         location_1604_notes = '/mnt/ssd1/Genesys_2_Capture/counterfeit/'
         location_genuine_notes = '/mnt/ssd1/Genesys_2_Capture/genuine/100_4/'
-
         aug_location_1604_fronts = '/mnt/ssd1/Genesys_2_Capture/1604_fronts_augmented/'
-        empty_aug_dir(aug_location_1604_fronts)
-
         aug_location_1604_backs = '/mnt/ssd1/Genesys_2_Capture/1604_backs_augmented/'
-        empty_aug_dir(aug_location_1604_backs)
-
         aug_location_1604_seals = '/mnt/ssd1/Genesys_2_Capture/1604_seals_augmented/'
-        empty_aug_dir(aug_location_1604_seals)
-
         aug_location_1604_paper = '/mnt/ssd1/paper_samples/'
-        empty_aug_dir(aug_location_1604_paper)
     else:
         location_1604_notes = 'D:/1604_notes/'
         location_genuine_notes = 'D:/genuines/Pack_100_4/'
-
         aug_location_1604_fronts = 'D:/1604_fronts_augmented/'
-        empty_aug_dir(aug_location_1604_fronts)
-
         aug_location_1604_backs = 'D:/1604_backs_augmented/'
-        empty_aug_dir(aug_location_1604_backs)
-
         aug_location_1604_seals = 'D:/1604_seals_augmented/'
-        empty_aug_dir(aug_location_1604_seals)
-
         aug_location_1604_paper = 'D:/1604_paper_augmented/'
+
+    if DELETE_DATA:
+        time.sleep(5)
+        print('SLEEPING FOR 5 SECONDS BECAUSE THIS DELETES DATASETS')
+        for i in np.arange(5, 0):
+            print(i)
+            time.sleep(i)
+
+        empty_aug_dir(aug_location_1604_fronts)
+        empty_aug_dir(aug_location_1604_backs)
+        empty_aug_dir(aug_location_1604_seals)
         empty_aug_dir(aug_location_1604_paper)
 
     sides_wanted = ['Front'] # (0 / 1)

@@ -103,14 +103,14 @@ def get_X_T(set):
 
 
 if __name__ == '__main__':
-
-    PLOT_IMAGES = False
+    PLOT_IMAGES = True
     maskrcnn = MaskRCNN()
 
     notes_loc = 'D:/1604_notes/'
     genuine_notes_loc = 'D:/genuines/Pack_100_4/'
+    model_directory = 'D:/models/front/earnest-jazz-93_91.049/'
+
     dataset = 'front'
-    model_directory = 'D:/models/front/golden-meadow-72_94.858/'
 
     args = parse_arguments()
     model = create_model(args)
@@ -118,15 +118,6 @@ if __name__ == '__main__':
     model.load_state_dict(checkpoint['model_state_dict'])
     model_is_training = model.training
     model.eval()
-
-
-    os.chdir('../data/')
-    data_root = os.getcwd()
-
-    dl_tr, dl_val, dl_ev = create_generators(args, data_root)
-
-    coarse_filter_dict = dl_ev.dataset.class_names_coarse_dict
-    fine_filter_dict = dl_ev.dataset.class_names_fine_dict
 
     with open(f'{model_directory}eval_coarse_dict.pkl', 'rb') as f:
         coarse_filter_dict_saved = pickle.load(f)
@@ -154,82 +145,28 @@ if __name__ == '__main__':
         if len(valid_notes) > 0:
             for iter, (side, spec, pack, note_num, note_dir) in tqdm(enumerate(valid_notes),
                                                                      desc=f'{len(valid_notes)} Originals'):
-                if PLOT_IMAGES:
-                    fig, axs = plt.subplots(nrows=y_fac + 1, ncols=x_fac)
+                if iter != 0:
+                    continue
+                root_loc = f'{notes_loc}Pack_{pack}/'
+                note_image, back_note_image, seal, df = get_front_back_seal(genuine_notes_loc, maskrcnn, note_num, pack, root_loc, side, spec)
+                aug_obj = augment()
+                note_image = aug_obj(image=note_image)['image']
+                _, tiles, y_fac, x_fac = create_tiles(note_image)
 
-                # root_loc = f'{notes_loc}Pack_{pack}/'
-                # note_image, back_note_image, seal, df = get_front_back_seal(genuine_notes_loc, maskrcnn, note_num, pack, root_loc, side, spec)
-                # aug_obj = augment()
-                # note_image = aug_obj(image=note_image)['image']
-                # _, tiles, y_fac, x_fac = create_tiles(note_image)
-                #
-                # whole_note = get_transformed_image(note_image, train=False)
-                # img_inputs.append(whole_note)
-                #
-                # if len(img_inputs) == 32:
-                #     batch = torch.from_numpy(np.array([np.array(tens) for tens in img_inputs]))
-                #     embeddings = model(batch).detach().numpy()
-                #     y_pred = y_pred.detach().numpy()
-                #     print()
-                #
-                # y_pred = model(whole_note[None, :])
+                whole_note = get_transformed_image(note_image, train=False)
+                y_pred = model(whole_note[None, :])
 
-                targets = []
-                images = []
-                for i in tqdm(range(len(dl_ev.dataset.ys)//2), desc='Testing Eval Set'):
-                    image, y = dl_ev.dataset.__getitem__(i)
-                    y = [key for key, val in fine_filter_dict_saved.items() if val == fine_filter_dict[y]][0]
-                    embedding = model(image[None, :])
-                    images.append(embedding)
-                    targets.append(y)
-
-                embeddings = torch.cat(images)
-
-                set='eval_'
-                X = np.load(f'{model_directory}/{set}X.npy')
-                train = len(X)
-                X = np.vstack((X, embeddings.detach().numpy()))
-                X = l2_norm(X)
-                X = torch.from_numpy(X)
-
-                T = np.load(f'{model_directory}/{set}T.npy')
-                T = np.hstack((T, targets))
-                T = torch.from_numpy(T)
-
-                K = min(64, len(X) - 1)
-
-                cos_sim = F.linear(X, X)
-                neighbors = cos_sim.topk(1 + K)[1][:, 1:]
-                neighbors = np.array(neighbors)
-
-                shuffled_idx = [train + i for i in range(len(embeddings))]
-                random.shuffle(shuffled_idx)
-                ans = []
-                for pic in shuffled_idx:
-                    neighbors_to_pic = np.array(neighbors[pic, :][~np.in1d(neighbors[pic, :], shuffled_idx)])
-                    whole_note_label = predict_label(X, T, neighbors_to_pic, pic)
-                    ans.append(coarse_filter_dict_saved[T[pic].item()] == coarse_filter_dict_saved[whole_note_label])
-                print(sum(ans) / len(ans))
-
-                ans = []
-                for i in tqdm(range(len(dl_ev.dataset.ys)//2, len(dl_ev.dataset.ys)), desc='Testing Eval Set'):
-                    image, y = dl_ev.dataset.__getitem__(i)
-                    y = [key for key, val in fine_filter_dict_saved.items() if val == fine_filter_dict[y]][0]
-                    embedding = model(image[None, :])
-                    Xhat, That, neighbors = add_pred_to_set(embedding, X, T)
-                    pic = len(Xhat) - 1
-                    neighbors_to_pic = neighbors[pic]
-                    whole_note_label = predict_label(Xhat, That, neighbors_to_pic, pic)
-                    if whole_note_label == -1:
-                        continue
-                    ans.append(coarse_filter_dict[y] == coarse_filter_dict[whole_note_label])
-                print(sum(ans)/len(ans))
-
-                X, T, neighbors = add_pred_to_set(y_pred, set='eval_')
+                X, T = get_X_T('eval_')
+                X, T, neighbors = add_pred_to_set(y_pred, X, T)
                 pic = len(X) - 1
                 neighbors_to_pic = neighbors[pic]
-                whole_note_label = predict_label()
-                whole_note_predictions.append(coarse_filter_dict[whole_note_label] == pnt_key)
+                y_pred_label = predict_label(X, T, neighbors_to_pic, pic)
+
+                whole_note_label = coarse_filter_dict_saved[y_pred_label]
+                whole_note_predictions.append(whole_note_label == pnt_key)
+
+                if PLOT_IMAGES:
+                    fig, axs = plt.subplots(nrows=y_fac + 1, ncols=x_fac)
 
                 for idx, tile in enumerate(tiles):
                     row_no = idx % y_fac
@@ -238,13 +175,14 @@ if __name__ == '__main__':
                     im = get_transformed_image(tile)
 
                     y_pred = model(im[None, :])
-                    X, T, neighbors = add_pred_to_set(y_pred)
+                    X, T = get_X_T('val_')
+                    X, T, neighbors = add_pred_to_set(y_pred, X, T)
 
                     pic = len(X) - 1
                     neighbors_to_pic = neighbors[pic]
 
-                    y_pred_label = predict_label()
-                    tile_predictions.append(coarse_filter_dict[y_pred_label] == pnt_key)
+                    y_pred_label = predict_label(X, T, neighbors_to_pic, pic)
+                    tile_predictions.append(coarse_filter_dict_saved[y_pred_label] == pnt_key)
 
                     if PLOT_IMAGES:
                         axs[row_no, col_no].imshow(tile)
@@ -256,16 +194,16 @@ if __name__ == '__main__':
 
                         try:
                             if row_no != 0:
-                                axs[row_no, col_no].set_title(coarse_filter_dict[y_pred_label], va='bottom')
+                                axs[row_no, col_no].set_title(coarse_filter_dict_saved[y_pred_label], va='bottom')
                             else:
-                                axs[row_no, col_no].title.set_text(coarse_filter_dict[y_pred_label])
+                                axs[row_no, col_no].title.set_text(coarse_filter_dict_saved[y_pred_label])
                         except KeyError:
                             pass
 
                 if PLOT_IMAGES:
                     axes = plt.subplot(3, 1, 3)
                     axes.imshow(note_image)
-                    plt.title(f'Whole Note: Predicted: {coarse_filter_dict[whole_note_label]}')
+                    plt.title(f'Whole Note: Predicted: {whole_note_label}')
                     plt.suptitle(f'Whole Note: Truth: {pnt_key}')
                     #plt.tight_layout()
                     plt.subplots_adjust(wspace=0.05, hspace=0.05)
@@ -276,3 +214,85 @@ if __name__ == '__main__':
     print(sum(tile_predictions) / len(tile_predictions))
 
 
+'''
+targets = []
+images = []
+for i in tqdm(range(len(dl_ev.dataset.ys) // 2), desc='Testing Eval Set'):
+    image, y = dl_ev.dataset.__getitem__(i)
+    y = [key for key, val in fine_filter_dict_saved.items() if val == fine_filter_dict[y]]
+    if y:
+        y = y[0]
+    else:
+        continue
+    embedding = model(image[None, :])
+    images.append(embedding)
+    targets.append(y)
+
+embeddings = torch.cat(images)
+
+set = 'eval_'
+X = np.load(f'{model_directory}/{set}X.npy')
+train = len(X)
+X = np.vstack((X, embeddings.detach().numpy()))
+X = l2_norm(X)
+X = torch.from_numpy(X)
+
+T = np.load(f'{model_directory}/{set}T.npy')
+T = np.hstack((T, targets))
+T = torch.from_numpy(T)
+
+K = min(64, len(X) - 1)
+
+cos_sim = F.linear(X, X)
+neighbors = cos_sim.topk(1 + K)[1][:, 1:]
+neighbors = np.array(neighbors)
+
+shuffled_idx = [train + i for i in range(len(embeddings))]
+random.shuffle(shuffled_idx)
+ans = []
+for pic in shuffled_idx:
+    neighbors_to_pic = np.array(neighbors[pic, :][~np.in1d(neighbors[pic, :], shuffled_idx)])
+    whole_note_label = predict_label(X, T, neighbors_to_pic, pic)
+    ans.append(coarse_filter_dict_saved[T[pic].item()] == coarse_filter_dict_saved[whole_note_label])
+print(sum(ans) / len(ans))
+
+ans = []
+for i in tqdm(range(len(dl_ev.dataset.ys) // 2, len(dl_ev.dataset.ys)), desc='Testing Eval Set'):
+    image, y = dl_ev.dataset.__getitem__(i)
+    y = [key for key, val in fine_filter_dict_saved.items() if val == fine_filter_dict[y]]
+    if y:
+        y = y[0]
+    else:
+        continue
+
+    embedding = model(image[None, :])
+    Xhat, That, neighbors = add_pred_to_set(embedding, X, T)
+    pic = len(Xhat) - 1
+    neighbors_to_pic = neighbors[pic]
+    whole_note_label = predict_label(Xhat, That, neighbors_to_pic, pic)
+    ans.append(coarse_filter_dict_saved[y] == coarse_filter_dict_saved[whole_note_label])
+print(sum(ans) / len(ans))
+
+ans = []
+X, T = get_X_T('eval_')
+for i in tqdm(range(len(dl_ev.dataset.ys) // 2, len(dl_ev.dataset.ys)), desc='Testing Eval Set'):
+    image, y = dl_ev.dataset.__getitem__(i)
+    y = [key for key, val in fine_filter_dict_saved.items() if val == fine_filter_dict[y]]
+    if y:
+        y = y[0]
+    else:
+        continue
+    embedding = model(image[None, :])
+    Xhat, That, neighbors = add_pred_to_set(embedding, X, T)
+    pic = len(Xhat) - 1
+    neighbors_to_pic = neighbors[pic]
+    whole_note_label = predict_label(Xhat, That, neighbors_to_pic, pic)
+    ans.append(coarse_filter_dict_saved[y] == coarse_filter_dict_saved[whole_note_label])
+print(sum(ans) / len(ans))
+
+X, T, neighbors = add_pred_to_set(y_pred, set='eval_')
+pic = len(X) - 1
+neighbors_to_pic = neighbors[pic]
+whole_note_label = predict_label()
+whole_note_predictions.append(coarse_filter_dict[whole_note_label] == pnt_key)
+'''

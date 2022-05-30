@@ -77,7 +77,7 @@ def predict_batchwise(model, dataloader, return_images=False):
 
     with torch.no_grad():
         # extract batches (A becomes list of samples)
-        for idx in range(num_batches):
+        for idx in tqdm(range(num_batches), desc='Getting Predictions'):
             image = []
             target = []
             for i in range(batch_sz):
