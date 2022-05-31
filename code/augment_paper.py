@@ -29,6 +29,9 @@ def main():
     notes_per_family = global_csv.groupby(['circular 1'])
     for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
         pnt_key = notes_frame["parent note"].values[0]
+        if pnt_key != 'GENUINE':
+            continue
+
         if pnt_key == 'NO DATA':
             pnt_key = circ_key
             if pnt_key == 'NO DATA':
@@ -177,12 +180,22 @@ def get_valid_notes(location_genuine_notes, location_1604_notes, notes_frame, sp
                 if pack == 'G':
                     root_loc = location_genuine_notes
 
-                if not os.path.exists(f'{root_loc}{note_num}/{note_num}_{spec}_{side}.bmp'):
-                    print(f'{root_loc}{note_num}/{note_num}_{spec}_{side}.bmp')
-                    missing_per_frame += 1
-                    continue
-                valid_notes.append((side, spec, pack, note_num,
-                                    f'{root_loc}{note_num}/{note_num}_{spec}_{side}.bmp'))
+                note_dir = f'{root_loc}{note_num}/{note_num}_{spec}_{side}.bmp'
+
+                if not os.path.exists(note_dir):
+                    side_2 = '1'
+                    if side == 'Front':
+                        side_2 = '0'
+
+                    note_dir = f'{root_loc}{note_num}/{note_num}_{spec}_{side_2}.bmp'
+                    if not os.path.exists(note_dir):
+                        print('### Missing ###')
+                        print(f'{root_loc}{note_num}/{note_num}_{spec}_{side_2}.bmp')
+                        print(f'{root_loc}{note_num}/{note_num}_{spec}_{side}.bmp')
+                        missing_per_frame += 1
+                        continue
+
+                valid_notes.append((side, spec, pack, note_num, note_dir))
     return valid_notes
 
 
