@@ -17,16 +17,18 @@ from maskrcnn import MaskRCNN
 from noteclasses import ImageBMP
 import random
 
-def main():
-    global_csv = form_1604_frame(location_1604_notes)
-    print(f'Found {len(global_csv)} Counterfeits!')
 
-    genuine_frame = form_genuine_frame(location_genuine_notes)
-    print(f'Found {len(genuine_frame)} Genuines!')
-
+def get_notes_per_family(notes_loc, genuine_notes_loc):
+    global_csv = form_1604_frame(notes_loc)
+    genuine_frame = form_genuine_frame(genuine_notes_loc)
     global_csv = pd.concat((global_csv, genuine_frame))
-
     notes_per_family = global_csv.groupby(['circular 1'])
+    return notes_per_family
+
+
+def main():
+    notes_per_family = get_notes_per_family(location_1604_notes, location_genuine_notes)
+
     for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
         pnt_key = notes_frame["parent note"].values[0]
 
@@ -35,10 +37,7 @@ def main():
             if pnt_key == 'NO DATA':
                 continue
 
-        dest_front = get_filepath(aug_location_1604_fronts, f'{pnt_key}_{circ_key}')
-        dest_back = get_filepath(aug_location_1604_backs, f'{pnt_key}_{circ_key}')
-        dest_seal = get_filepath(aug_location_1604_seals, f'{pnt_key}_{circ_key}')
-        dest_paper = get_filepath(aug_location_1604_paper, f'{pnt_key}_{circ_key}')
+        dest_back, dest_front, dest_paper, dest_seal = create_dirs(circ_key, pnt_key)
 
         valid_notes = get_valid_notes(location_genuine_notes, location_1604_notes, notes_frame, specs_wanted, sides_wanted)
 
@@ -47,11 +46,6 @@ def main():
             extra_notes_per_note = iters/len(valid_notes)
 
             for iter, (side, spec, pack, note_num, note_dir) in tqdm(enumerate(valid_notes), desc=f'{len(valid_notes)} Originals'):
-                os.makedirs(dest_front, exist_ok=True)
-                os.makedirs(dest_back, exist_ok=True)
-                os.makedirs(dest_seal, exist_ok=True)
-                os.makedirs(dest_paper, exist_ok=True)
-
                 note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn)
 
                 if extra_notes_per_note < 0:
@@ -64,28 +58,25 @@ def main():
 
                 for aug_num in range(iters):
                     aug_obj = augment()
-
                     aug_key = note_num + '_' + str(uuid.uuid4())[0:3] + '_' + str(aug_num)
 
-                    aug_image = aug_obj(image=note_image)['image']
+                    if DO_BACK:
+                        back_aug_image = aug_obj(image=back_note_image)['image']
+                        back_aug_image = cv2.resize(back_aug_image, (int(back_aug_image.shape[1] / 10),
+                                                                     int(back_aug_image.shape[0] / 10)))
+                        cv2.imwrite(dest_back  + f'/{aug_key}_{spec}_{side}.bmp', back_aug_image)
 
-                    back_aug_image = aug_obj(image=back_note_image)['image']
+                    if DO_FRONT:
+                        aug_image = aug_obj(image=note_image)['image']
+                        aug_image_rz = cv2.resize(aug_image, (int(aug_image.shape[1] / 10), int(aug_image.shape[0] / 10)))
+                        cv2.imwrite(dest_front + f'/{aug_key}_{spec}_{side}.bmp', aug_image_rz)
 
-                    # plt.imshow(aug_image)
-                    # plt.show()
-                    aug_image_rz = cv2.resize(aug_image, (int(aug_image.shape[1] / 10), int(aug_image.shape[0] / 10)))
-                    back_aug_image = cv2.resize(back_aug_image, (int(back_aug_image.shape[1] / 10),
-                                                                 int(back_aug_image.shape[0] / 10)))
-
-                    cv2.imwrite(dest_front + f'/{aug_key}_{spec}_{side}.bmp', aug_image_rz)
-                    cv2.imwrite(dest_back  + f'/{aug_key}_{spec}_{side}.bmp', back_aug_image)
-
-                    if not df[df['className'] == 'TrsSeal']['roi'].empty:
+                    if DO_SEAL and not df[df['className'] == 'TrsSeal']['roi'].empty:
                         aug_seal = aug_obj(image=seal)['image']
                         aug_seal = cv2.resize(aug_seal, (int(aug_seal.shape[1] / 2), int(aug_seal.shape[0] / 2)))
                         cv2.imwrite(dest_seal + f'/{aug_key}_{spec}_{side}.bmp', aug_seal)
 
-                    if not df[df['className'] == 'FedSeal']['roi'].empty and DO_PAPER:
+                    if DO_PAPER and not df[df['className'] == 'FedSeal']['roi'].empty:
                         scaleY = note_image.shape[0] / 512
                         scaleX = note_image.shape[1] / 1024
 
@@ -93,6 +84,18 @@ def main():
 
                         if paper is not None:
                             cv2.imwrite(dest_paper + f'/{aug_key}_{spec}_{side}.bmp', paper)
+
+
+def create_dirs(circ_key, pnt_key):
+    dest_front = get_filepath(aug_location_1604_fronts, f'{pnt_key}_{circ_key}')
+    dest_back = get_filepath(aug_location_1604_backs, f'{pnt_key}_{circ_key}')
+    dest_seal = get_filepath(aug_location_1604_seals, f'{pnt_key}_{circ_key}')
+    dest_paper = get_filepath(aug_location_1604_paper, f'{pnt_key}_{circ_key}')
+    os.makedirs(dest_front, exist_ok=True)
+    os.makedirs(dest_back, exist_ok=True)
+    os.makedirs(dest_seal, exist_ok=True)
+    os.makedirs(dest_paper, exist_ok=True)
+    return dest_back, dest_front, dest_paper, dest_seal
 
 
 def get_front_back_seal(note_dir, maskrcnn):
@@ -108,19 +111,21 @@ def get_front_back_seal(note_dir, maskrcnn):
                                straighten=True, rotation=None)
     back_note_image = note_object.array
 
-    df = maskrcnn.detect(note_image, determineOrientation=False)
-
-    scaleY = note_image.shape[0] / 512
-    scaleX = note_image.shape[1] / 1024
-
-    df = df[~df['classID'].duplicated(keep='first')]
-
+    df = pd.DataFrame()
     seal = None
-    if not df[df['className'] == 'TrsSeal']['roi'].empty:
-        seal_roi = df[df['className'] == 'TrsSeal']['roi'].values[0]
+    if DO_PAPER or DO_SEAL:
+        df = maskrcnn.detect(note_image, determineOrientation=False)
 
-        seal = note_image[int(round(seal_roi[0] * scaleY)):int(round(seal_roi[2] * scaleY)),
-                          int(round(seal_roi[1] * scaleX)): int(round(seal_roi[3] * scaleX))]
+        scaleY = note_image.shape[0] / 512
+        scaleX = note_image.shape[1] / 1024
+
+        df = df[~df['classID'].duplicated(keep='first')]
+
+        if not df[df['className'] == 'TrsSeal']['roi'].empty:
+            seal_roi = df[df['className'] == 'TrsSeal']['roi'].values[0]
+
+            seal = note_image[int(round(seal_roi[0] * scaleY)):int(round(seal_roi[2] * scaleY)),
+                              int(round(seal_roi[1] * scaleX)): int(round(seal_roi[3] * scaleX))]
     return note_image, back_note_image, seal, df
 
 
@@ -266,8 +271,11 @@ def get_valid_dirs():
 
 
 if __name__ == '__main__':
-    DO_PAPER = False
-    DELETE_DATA = False
+    DO_PAPER = True
+    DO_SEAL = True
+    DO_FRONT = True
+    DO_BACK = True
+    DELETE_DATA = True
 
     if sys.platform == 'linux':
         location_1604_notes = '/mnt/ssd1/Genesys_2_Capture/counterfeit/'
@@ -291,14 +299,18 @@ if __name__ == '__main__':
             print(i)
             time.sleep(i)
 
-        empty_aug_dir(aug_location_1604_fronts)
-        empty_aug_dir(aug_location_1604_backs)
-        empty_aug_dir(aug_location_1604_seals)
-        empty_aug_dir(aug_location_1604_paper)
+        if DO_FRONT:
+            empty_aug_dir(aug_location_1604_fronts)
+        if DO_BACK:
+            empty_aug_dir(aug_location_1604_backs)
+        if DO_SEAL:
+            empty_aug_dir(aug_location_1604_seals)
+        if DO_PAPER:
+            empty_aug_dir(aug_location_1604_paper)
 
     sides_wanted = ['Front'] # (0 / 1)
     specs_wanted = ['RGB']
-    aug_fac = 8
+    aug_fac = 4
     # TODO make it work for non rgb/nir
     maskrcnn = MaskRCNN()
     main()

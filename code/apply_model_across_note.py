@@ -6,11 +6,14 @@ import time
 
 import PIL
 import cv2
+import mplcursors
 import numpy as np
 import torch
+from matplotlib.colors import ListedColormap
 from tqdm import tqdm
 
-from augment_paper import get_valid_notes, get_front_back_seal, form_genuine_frame, form_1604_frame, augment
+from augment_paper import get_valid_notes, get_front_back_seal, form_genuine_frame, form_1604_frame, augment, \
+    get_notes_per_family
 from maskrcnn import MaskRCNN
 from utils import l2_norm
 from dataset.utils import RGBToBGR, ScaleIntensities, Identity
@@ -102,11 +105,12 @@ def get_X_T(set, model_directory):
     return X, T
 
 
-def load_model(args):
+def load_model(args, model_directory=None):
     if sys.platform != 'linux':
         notes_loc = 'D:/1604_notes/'
         genuine_notes_loc = 'D:/genuines/Pack_100_4/'
-        model_directory = '../logs/logs_note_families_front/bn_inception_Proxy_Anchor_embedding512_alpha32_mrg0.1_adamw_lr0.0001_batch32/noble-haze-96_94.049/'
+        if model_directory is None:
+            model_directory = '../logs/logs_note_families_front/bn_inception_Proxy_Anchor_embedding512_alpha32_mrg0.1_adamw_lr0.0001_batch32/noble-haze-96_94.049/'
     else:
         notes_loc = '/mnt/ssd1/Genesys_2_Capture/counterfeit/'
         genuine_notes_loc = '/mnt/ssd1/Genesys_2_Capture/genuine/100_4/'
@@ -157,28 +161,38 @@ def predict_from_image(note_image, model, X, T, train, coarse_dict):
     return whole_note_label
 
 
+def load_model_stack():
+    front_model, coarse_test_fnt, fine_test_fnt, \
+        coarse_val_fnt, fine_val_fnt, _, _, front_model_dir = load_model(args)
+
+    args.dataset = 'note_families_back'
+    back_model, coarse_test_bck, fine_test_bck, \
+        coarse_val_bck, fine_val_bck, _, _, back_model_dir = load_model(args)
+
+    args.dataset = 'note_families_seal'
+    seal_model, coarse_test_seal, fine_test_seal, \
+        coarse_val_seal, fine_val_seal, notes_loc, genuine_notes_loc, seal_model_dir = load_model(args)
+
+    return [front_model, front_model_dir, seal_model, seal_model_dir, back_model, back_model_dir],\
+           [fine_val_fnt, coarse_val_fnt, fine_val_seal, coarse_val_seal, fine_val_bck, coarse_val_bck], \
+           [fine_test_fnt, coarse_test_fnt, fine_test_seal, coarse_test_seal, fine_test_bck, coarse_test_bck], \
+           notes_loc, \
+           genuine_notes_loc
+
+
 if __name__ == '__main__':
     PLOT_IMAGES = True
     maskrcnn = MaskRCNN()
 
     args = parse_arguments()
 
-    front_model, coarse_test_fnt, fine_test_fnt, \
-    coarse_val_fnt, fine_val_fnt, _, _, front_model_dir = load_model(args)
-    
-    args.dataset = 'note_families_back'
-    back_model, coarse_test_bck, fine_test_bck, \
-    coarse_val_bck, fine_val_bck, _, _, back_model_dir = load_model(args)
+    [front_model, front_model_dir, seal_model, seal_model_dir, back_model, back_model_dir], \
+    [fine_val_fnt, coarse_val_fnt, fine_val_seal, coarse_val_seal, fine_val_bck, coarse_val_bck], \
+    [fine_test_fnt, coarse_test_fnt, fine_test_seal, coarse_test_seal, fine_test_bck, coarse_test_bck], \
+        notes_loc, \
+        genuine_notes_loc = load_model_stack()
 
-    args.dataset = 'note_families_seal'
-    seal_model, coarse_test_seal, fine_test_seal, \
-    coarse_val_seal, fine_val_seal, notes_loc, genuine_notes_loc, seal_model_dir = load_model(args)
-
-    global_csv = form_1604_frame(notes_loc)
-    genuine_frame = form_genuine_frame(genuine_notes_loc)
-    global_csv = pd.concat((global_csv, genuine_frame))
-
-    notes_per_family = global_csv.groupby(['circular 1'])
+    notes_per_family = get_notes_per_family(notes_loc, genuine_notes_loc)
 
     whole_front_predictions = []
     whole_back_predictions = []
@@ -193,6 +207,58 @@ if __name__ == '__main__':
     X_val_bck, T_val_bck = get_X_T('val_', back_model_dir)
     X_val_seal, T_val_seal = get_X_T('val_', seal_model_dir)
 
+    # args.dataset = 'note_families_front'
+    # front_model, coarse_test_fnt, fine_test_fnt, \
+    # coarse_val_fnt, fine_val_fnt, _, _, front_model_dir = load_model(args, 'D:/models/front/earnest-jazz-93_91.049/')
+    # X_test_fnt, T_test_fnt = get_X_T('eval_', front_model_dir)
+    #
+    # from sklearn.manifold import TSNE
+    # import seaborn as sns
+    #
+    # tsne = TSNE(n_components=2, verbose=1, perplexity=69,  early_exaggeration=12)
+    # z = tsne.fit_transform(X_test_fnt)
+    # df = pd.DataFrame()
+    # df["y"] = [fine_test_fnt[i] for i in T_test_fnt]
+    # df["comp-1"] = z[:, 0]
+    # df["comp-2"] = z[:, 1]
+    # df.sort_values(by=['y'])
+    #
+    # cmap = ListedColormap(sns.color_palette("husl", len(np.unique(df["y"]))).as_hex())
+    # colours = {pnt: cmap.colors[idx] for idx, pnt in enumerate(np.unique(df["y"]))}
+    #
+    # fig = plt.figure(figsize=(12, 12))
+    # ax = plt.axes()
+    # for pnt in np.unique(df["y"]):
+    #     pnt_bool = [pnt == ii for ii in df["y"]]
+    #     ax.scatter(df.loc[pnt_bool, "comp-1"],
+    #                df.loc[pnt_bool, "comp-2"],
+    #                s=30, c=colours[pnt], marker='o', alpha=1, label=pnt)
+    # ax.legend(bbox_to_anchor=(1.02, 1))
+    # mplcursors.cursor(ax).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))
+    # # save
+    # fig.suptitle("TSNE")
+    # plt.show()
+    #
+    #
+    #
+    #
+    #
+    #
+    # fig = plt.figure()
+    # ax = sns.scatterplot(x="comp-1", y="comp-2", hue=df.y.tolist(),
+    #                 data=df).set(title="Family Projection")
+    # # label points on the plot
+    # ys_done = []
+    # for x, y, z in zip(df["comp-1"], df["comp-2"], df['y']):
+    #     if z in ys_done:
+    #         continue
+    #     ys_done.append(z)
+    #     # the position of the data label relative to the data point can be adjusted by adding/subtracting a value from the x &/ y coordinates
+    #     plt.text(x=x,  # x-coordinate position of data label
+    #              y=y,
+    #              s=z,  # data label, formatted to ignore decimals
+    #              color = 'purple')  # set colour of line
+    # fig.show()
 
     img_inputs = []
     for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
@@ -234,7 +300,15 @@ if __name__ == '__main__':
 
 
                 if PLOT_IMAGES:
-                    fig, axs = plt.subplots(nrows=y_fac, ncols=x_fac)
+                    fig, axs = plt.subplot_mosaic(
+                        """
+                        024
+                        135
+                        666
+                        777
+                        888
+                        """
+                    )
 
                 for idx, tile in enumerate(tiles):
                     row_no = idx % y_fac
@@ -252,44 +326,31 @@ if __name__ == '__main__':
                     tile_predictions.append(coarse_val_fnt[y_pred_label] == pnt_key)
 
                     if PLOT_IMAGES:
-                        axs[row_no, col_no].imshow(tile)
-                        axs[row_no, col_no].axis('off')
-                        if row_no != 0:
-                            axs[row_no, col_no].set_title('PLACEHOLDER', )
-                        else:
-                            axs[row_no, col_no].title.set_text('PLACEHOLDER')
+                        axs[str(idx)].imshow(tile)
+                        axs[str(idx)].axis('off')
+                        axs[str(idx)].title.set_text(coarse_val_fnt[y_pred_label])
 
-                        try:
-                            if row_no != 0:
-                                axs[row_no, col_no].set_title(coarse_test_fnt[y_pred_label], va='bottom')
-                            else:
-                                axs[row_no, col_no].title.set_text(coarse_test_fnt[y_pred_label])
-                        except KeyError:
-                            pass
 
                 if PLOT_IMAGES:
-                    axes = fig.add_subplot(3, 1, 1)
-                    axes.imshow(note_image)
-                    axes.axis('off')
-                    axes.title.set_text(f'Whole Front: Predicted: {whole_front_label}')
+                    axs[str(6)].imshow(note_image)
+                    axs[str(6)].axis('off')
+                    axs[str(6)].title.set_text(f'Whole Front: Predicted: {whole_front_label}')
 
-                    # axes2 = fig.add_subplot(3, 1, 1)
-                    # axes2.imshow(back_note_image)
-                    # axes2.axis('off')
-                    # axes2.title.set_text(f'Whole Back: Predicted: {whole_back_label}')
+                    axs[str(7)].imshow(back_note_image)
+                    axs[str(7)].axis('off')
+                    axs[str(7)].title.set_text(f'Whole Back: Predicted: {whole_back_label}')
 
-                    # axes3 = fig.add_subplot(2, 1, 1)
-                    # axes3.imshow(seal)
-                    # axes3.axis('off')
-                    # axes3.title.set_text(f'Seal: Predicted: {whole_seal_label}')
+                    axs[str(8)].imshow(seal)
+                    axs[str(8)].axis('off')
+                    axs[str(8)].title.set_text(f'Whole Seal: Predicted: {whole_seal_label}')
 
                     plt.suptitle(f'Whole Note: Truth: {pnt_key}')
-                    #plt.tight_layout()
-                    plt.subplots_adjust(wspace=0.05, hspace=0.25)
+                    plt.tight_layout()
+                    plt.subplots_adjust(wspace=0.01, hspace=0.25)
+                    #plt.show()
                     os.makedirs(f'../training/{args.dataset}/{front_model_dir.split("/")[-2]}/plots/', exist_ok=True)
-                    plt.show()
-                    # plt.savefig(f'../training/{args.dataset}/{front_model_dir.split("/")[-2]}/plots/{os.path.splitext(os.path.split(note_dir)[-1])[0]}.png')
-                    # plt.close()
+                    plt.savefig(f'../training/{args.dataset}/{front_model_dir.split("/")[-2]}/plots/{os.path.splitext(os.path.split(note_dir)[-1])[0]}.png')
+                    plt.close()
 
     print(f'Front: {np.round(sum(whole_front_predictions)/len(whole_front_predictions), 3)} out of {len(whole_front_predictions)} samples')
     print(f'Back: {np.round(sum(whole_back_predictions)/len(whole_back_predictions), 3)} out of {len(whole_back_predictions)} samples')
