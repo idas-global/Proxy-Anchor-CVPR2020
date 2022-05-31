@@ -126,9 +126,8 @@ if __name__ == '__main__':
                                                                                                       args.sz_batch,
                                                                                                       args.remark)
         if os.path.exists(LOG_DIR):
-            print(os.listdir(LOG_DIR))
-            print([LOG_DIR + i for i in os.listdir(LOG_DIR) if os.path.isdir(i)])
-            model_directory = sorted([LOG_DIR + i for i in os.listdir(LOG_DIR) if os.path.isdir(i)], key= lambda i: int(i.split('_')[-1]))[0]
+            model_directory = sorted([LOG_DIR + i for i in os.listdir(LOG_DIR) if os.path.isdir(LOG_DIR + i)],
+                                     key=lambda i: int(i.split('_')[-1]))[0]
             print(f'model directory is {model_directory}')
         else:
             print(f'{LOG_DIR} does not exist')
