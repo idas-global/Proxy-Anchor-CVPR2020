@@ -130,8 +130,8 @@ if __name__ == '__main__':
             print(f'model directory is {model_directory}')
         else:
             print(f'{LOG_DIR} does not exist')
-            return
-            
+            sys.exit()
+
     dataset = 'front'
 
     model = create_model(args)
