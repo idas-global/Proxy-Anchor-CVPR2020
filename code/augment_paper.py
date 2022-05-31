@@ -272,9 +272,9 @@ def get_valid_dirs():
 
 if __name__ == '__main__':
     DO_PAPER = True
-    DO_SEAL = True
-    DO_FRONT = True
-    DO_BACK = True
+    DO_SEAL = False
+    DO_FRONT = False
+    DO_BACK = False
     DELETE_DATA = True
 
     if sys.platform == 'linux':
