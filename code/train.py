@@ -1,6 +1,9 @@
 import pickle
 import sys
 import cv2
+import mplcursors
+from matplotlib.colors import ListedColormap
+
 import wandb
 import warnings
 from tqdm import *
@@ -269,6 +272,10 @@ def text_save(recalls, best_epoch):
 def save_prediction_material(save_dir, X, T, dl_tr, dl_val, dl_ev, prepend='val_'):
     np.save(f'{save_dir}/{prepend}X.npy', np.array(X))
     np.save(f'{save_dir}/{prepend}T.npy', np.array(T))
+    if prepend == 'val_':
+        np.save(f'{save_dir}/{prepend}image_paths.npy', np.array(dl_tr.dataset.im_paths + dl_val.dataset.im_paths))
+    else:
+        np.save(f'{save_dir}/{prepend}image_paths.npy', np.array(dl_ev.dataset.im_paths))
 
     dl_list = [dl_tr, dl_val]
     if dl_ev:
@@ -358,6 +365,58 @@ def run_batch(batch_idx, dl_tr, epoch, losses_per_epoch, model, pbar, x, y):
             loss.item()))
 
 
+def plot_tSNE(X, T, data_viz_frame, dataloader, pictures_to_predict, para, deg, train_dest, val_dest, test_dest):
+    from sklearn.manifold import TSNE
+    tsne = TSNE(n_components=2, verbose=1, perplexity=50, early_exaggeration=12)
+    z = tsne.fit_transform(X[pictures_to_predict])
+    df = pd.DataFrame()
+    df["y"] = [dataloader.dataset.class_names_fine_dict[i] for i in np.array(T[pictures_to_predict])]
+    df["comp-1"] = z[:, 0]
+    df["comp-2"] = z[:, 1]
+    df.sort_values(by=['y'])
+
+    import seaborn as sns
+    cmap = ListedColormap(sns.color_palette("husl", len(np.unique(data_viz_frame[f"{para}_label_{deg}"]))).as_hex())
+    colours = {pnt: cmap.colors[idx] for idx, pnt in enumerate(np.unique(data_viz_frame[f"{para}_label_{deg}"]))}
+
+    fig = plt.figure(figsize=(12, 12))
+    ax = plt.axes()
+
+    x = df["comp-1"]
+    y = df["comp-2"]
+    col = [colours[i] for i in list(data_viz_frame[f"{para}_label_{deg}"].values)]
+    labels = [i for i in list(data_viz_frame[f"{para}_label_{deg}"].values)]
+
+    axes_obj = ax.scatter(x,
+                          y,
+                          s=30,
+                          c=col,
+                          marker='o',
+                          alpha=1
+                        )
+    axes_obj.annots = labels
+    axes_obj.im_paths = dataloader.dataset.im_paths
+    plt.legend(labels=labels)
+    ax.legend(bbox_to_anchor=(1.02, 1))
+    mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(sel.artist.annots[sel.target.index]))
+    mplcursors.cursor(fig).connect("add", lambda sel: sel.annotation.set_text(sel.artist.im_paths[sel.target.index]))
+    # save
+    fig.suptitle("TSNE")
+    import pickle
+    if dataloader.dataset.mode == 'train':
+        pickle.dump(fig, open(f'{train_dest}{para}_{deg}_tSNE.pkl', 'wb'))
+    if dataloader.dataset.mode == 'validation':
+        pickle.dump(fig, open(f'{val_dest}{para}_{deg}_tSNE.pkl', 'wb'))
+    if dataloader.dataset.mode == 'eval':
+        pickle.dump(fig, open(f'{test_dest}{para}_{deg}_tSNE.pkl', 'wb'))
+    plt.close()
+
+    # fig2 = pickle.load(open('FigureObject.fig.pickle', 'rb'))
+    # mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(sel.artist.annots[sel.target.index]))
+    # mplcursors.cursor(fig).connect("add", lambda sel: sel.annotation.set_text(sel.artist.im_paths[sel.target.index]))
+    # fig2.show()
+
+
 def evaluate_cos(model, dataloader, epoch, args, validation=None):
     model_is_training = model.training
     model.eval()
@@ -384,7 +443,7 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
     coarse_filter_dict, fine_filter_dict, y_preds, y_true = get_accuracies(T, X, dl_loader,
                                                                            neighbors, pictures_to_predict, metrics)
 
-    data_viz_frame = create_and_save_viz_frame(X, dataloader, coarse_filter_dict, fine_filter_dict,
+    data_viz_frame = create_and_save_viz_frame(X, dl_loader, coarse_filter_dict, fine_filter_dict,
                                                pictures_to_predict,
                                                train_dest, val_dest, test_dest,
                                                y_preds, y_true)
@@ -395,11 +454,20 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
         degrees = ['fine', 'coarse']
         for deg in degrees:
             for para in params:
-                plot_relationships(X, data_viz_frame, dataloader,
+                try:
+                    plot_relationships(X, data_viz_frame, dl_loader,
                                    deg, para, pictures_to_predict,
                                    train_dest, val_dest, test_dest)
-
-    confusion_matrices(data_viz_frame, dataloader, train_dest, val_dest, test_dest)
+                except Exception:
+                    pass
+                try:
+                    plot_tSNE(X, T, data_viz_frame, dl_loader, pictures_to_predict, para, deg, train_dest, val_dest, test_dest)
+                except Exception:
+                    pass
+    try:
+        confusion_matrices(data_viz_frame, dataloader, train_dest, val_dest, test_dest)
+    except Exception:
+        pass
 
     save_metrics(dataloader, metrics, train_dest, val_dest, test_dest)
     model.train()
@@ -495,7 +563,7 @@ if __name__ == '__main__':
     data_root = os.getcwd()
 
     dl_tr, dl_val, dl_ev = create_generators(args, data_root)
-    test_generator_labels(dl_tr, dl_val, dl_ev)
+    #test_generator_labels(dl_tr, dl_val, dl_ev)
 
     nb_classes = dl_tr.dataset.nb_classes()
 
