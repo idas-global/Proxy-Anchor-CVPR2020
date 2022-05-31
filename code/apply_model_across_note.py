@@ -172,7 +172,7 @@ if __name__ == '__main__':
             for iter, (side, spec, pack, note_num, note_dir) in tqdm(enumerate(valid_notes),
                                                                      desc=f'{len(valid_notes)} Originals'):
                 root_loc = f'{notes_loc}Pack_{pack}/'
-                note_image, back_note_image, seal, df = get_front_back_seal(genuine_notes_loc, maskrcnn, note_num, pack, root_loc, side, spec)
+                note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn)
                 aug_obj = augment()
                 note_image = aug_obj(image=note_image)['image']
                 _, tiles, y_fac, x_fac = create_tiles(note_image)

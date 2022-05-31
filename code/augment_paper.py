@@ -54,8 +54,7 @@ def main():
                 os.makedirs(dest_seal, exist_ok=True)
                 os.makedirs(dest_paper, exist_ok=True)
 
-                root_loc = f'{location_1604_notes}Pack_{pack}/'
-                note_image, back_note_image, seal, df = get_front_back_seal(location_genuine_notes, maskrcnn, note_num, pack, root_loc, side, spec)
+                note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn)
 
                 if extra_notes_per_note < 0:
                     iters = 1
@@ -98,15 +97,17 @@ def main():
                             cv2.imwrite(dest_paper + f'/{aug_key}_{spec}_{side}.bmp', paper)
 
 
-def get_front_back_seal(location_genuine_notes, maskrcnn, note_num, pack, root_loc, side, spec):
-    if pack == 'G':
-        root_loc = location_genuine_notes
-
-    note_object = ImageBMP(f'{root_loc}{note_num}/{note_num}_{spec}_{side}.bmp',
+def get_front_back_seal(note_dir, maskrcnn):
+    note_object = ImageBMP(note_dir,
                            straighten=True, rotation=None)
     note_image = note_object.array
-    note_object = ImageBMP(f'{root_loc}{note_num}/{note_num}_{spec}_Back.bmp',
-                           straighten=True, rotation=None)
+
+    if 'Front' in note_dir:
+        note_object = ImageBMP(note_dir.replace('Front', 'Back'),
+                               straighten=True, rotation=None)
+    else:
+        note_object = ImageBMP(note_dir.replace('_0.bmp', '_1.bmp'),
+                               straighten=True, rotation=None)
     back_note_image = note_object.array
 
     df = maskrcnn.detect(note_image, determineOrientation=False)
