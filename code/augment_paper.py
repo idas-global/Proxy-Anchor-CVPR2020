@@ -46,7 +46,7 @@ def main():
             extra_notes_per_note = iters/len(valid_notes)
 
             for iter, (side, spec, pack, note_num, note_dir) in tqdm(enumerate(valid_notes), desc=f'{len(valid_notes)} Originals'):
-                note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn)
+                note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn, DO_PAPER, DO_SEAL)
 
                 if extra_notes_per_note < 0:
                     iters = 1
@@ -98,7 +98,7 @@ def create_dirs(circ_key, pnt_key):
     return dest_back, dest_front, dest_paper, dest_seal
 
 
-def get_front_back_seal(note_dir, maskrcnn):
+def get_front_back_seal(note_dir, maskrcnn, DO_PAPER=True, DO_SEAL=True):
     note_object = ImageBMP(note_dir,
                            straighten=True, rotation=None)
     note_image = note_object.array
