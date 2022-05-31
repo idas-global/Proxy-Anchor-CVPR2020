@@ -125,9 +125,13 @@ if __name__ == '__main__':
                                                                                                       args.lr,
                                                                                                       args.sz_batch,
                                                                                                       args.remark)
-        model_directory = sorted([LOG_DIR + i for i in os.listdir(LOG_DIR) if os.path.isdir(i)], key= lambda i: int(i.split('_')[-1]))[0]
-        print(f'model directory is {model_directory}')
-
+        if os.path.exists(LOG_DIR):
+            model_directory = sorted([LOG_DIR + i for i in os.listdir(LOG_DIR) if os.path.isdir(i)], key= lambda i: int(i.split('_')[-1]))[0]
+            print(f'model directory is {model_directory}')
+        else:
+            print(f'{LOG_DIR} does not exist')
+            return
+            
     dataset = 'front'
 
     model = create_model(args)
