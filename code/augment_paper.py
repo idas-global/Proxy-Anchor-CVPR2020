@@ -29,8 +29,6 @@ def main():
     notes_per_family = global_csv.groupby(['circular 1'])
     for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
         pnt_key = notes_frame["parent note"].values[0]
-        if pnt_key != 'GENUINE':
-            continue
 
         if pnt_key == 'NO DATA':
             pnt_key = circ_key

@@ -96,18 +96,13 @@ def add_pred_to_set(y_pred, X, T):
     return X, T, neighbors
 
 
-def get_X_T(set):
+def get_X_T(set, model_directory):
     X = np.load(f'{model_directory}/{set}X.npy')
     T = np.load(f'{model_directory}/{set}T.npy')
     return X, T
 
 
-if __name__ == '__main__':
-    PLOT_IMAGES = True
-    maskrcnn = MaskRCNN()
-
-    args = parse_arguments()
-
+def load_model(args):
     if sys.platform != 'linux':
         notes_loc = 'D:/1604_notes/'
         genuine_notes_loc = 'D:/genuines/Pack_100_4/'
@@ -133,26 +128,51 @@ if __name__ == '__main__':
         else:
             print(f'{LOG_DIR} does not exist')
             sys.exit()
-
-    dataset = 'front'
-
     model = create_model(args)
     checkpoint = torch.load(model_directory + [i for i in os.listdir(model_directory) if i.endswith('.pth')][0])
     model.load_state_dict(checkpoint['model_state_dict'])
     model_is_training = model.training
     model.eval()
-
     with open(f'{model_directory}eval_coarse_dict.pkl', 'rb') as f:
         coarse_filter_dict_saved = pickle.load(f)
-
     with open(f'{model_directory}eval_fine_dict.pkl', 'rb') as f:
         fine_filter_dict_saved = pickle.load(f)
-
     with open(f'{model_directory}validation_coarse_dict.pkl', 'rb') as f:
         coarse_filter_dict_saved_val = pickle.load(f)
-
     with open(f'{model_directory}validation_fine_dict.pkl', 'rb') as f:
         fine_filter_dict_saved_val = pickle.load(f)
+
+    return model, coarse_filter_dict_saved, fine_filter_dict_saved, coarse_filter_dict_saved_val, fine_filter_dict_saved_val, notes_loc, genuine_notes_loc, model_directory
+
+
+def predict_from_image(note_image, model, X, T, train, coarse_dict):
+    transformed = get_transformed_image(note_image, train=train)
+    y_pred = model(transformed[None, :])
+
+    Xhat, That, neighbors = add_pred_to_set(y_pred, X, T)
+    pic, neighbors_to_pic = len(Xhat) - 1, neighbors[len(Xhat) - 1]
+
+    y_pred_label = predict_label(Xhat, That, neighbors_to_pic, pic)
+    whole_note_label = coarse_dict[y_pred_label]
+    return whole_note_label
+
+
+if __name__ == '__main__':
+    PLOT_IMAGES = True
+    maskrcnn = MaskRCNN()
+
+    args = parse_arguments()
+
+    front_model, coarse_test_fnt, fine_test_fnt, \
+    coarse_val_fnt, fine_val_fnt, _, _, front_model_dir = load_model(args)
+    
+    args.dataset = 'note_families_back'
+    back_model, coarse_test_bck, fine_test_bck, \
+    coarse_val_bck, fine_val_bck, _, _, back_model_dir = load_model(args)
+
+    args.dataset = 'note_families_seal'
+    seal_model, coarse_test_seal, fine_test_seal, \
+    coarse_val_seal, fine_val_seal, notes_loc, genuine_notes_loc, seal_model_dir = load_model(args)
 
     global_csv = form_1604_frame(notes_loc)
     genuine_frame = form_genuine_frame(genuine_notes_loc)
@@ -160,11 +180,19 @@ if __name__ == '__main__':
 
     notes_per_family = global_csv.groupby(['circular 1'])
 
-    whole_note_predictions = []
+    whole_front_predictions = []
+    whole_back_predictions = []
+    whole_seal_predictions = []
     tile_predictions = []
 
-    X_dont_change, T_dont_change = get_X_T('eval_')
-    X_dont_change_val, T_dont_change_val = get_X_T('val_')
+    X_test_fnt, T_test_fnt = get_X_T('eval_', front_model_dir)
+    X_test_bck, T_test_bck = get_X_T('eval_', back_model_dir)
+    X_test_seal, T_test_seal = get_X_T('eval_', seal_model_dir)
+
+    X_val_fnt, T_val_fnt = get_X_T('val_', front_model_dir)
+    X_val_bck, T_val_bck = get_X_T('val_', back_model_dir)
+    X_val_seal, T_val_seal = get_X_T('val_', seal_model_dir)
+
 
     img_inputs = []
     for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
@@ -181,21 +209,32 @@ if __name__ == '__main__':
                 note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn)
                 aug_obj = augment()
                 note_image = aug_obj(image=note_image)['image']
+
+                aug_obj = augment()
+                back_note_image = aug_obj(image=back_note_image)['image']
+
+                aug_obj = augment()
+                seal = aug_obj(image=seal)['image']
+
                 _, tiles, y_fac, x_fac = create_tiles(note_image)
 
-                whole_note = get_transformed_image(note_image, train=False)
-                y_pred = model(whole_note[None, :])
+                whole_front_label = predict_from_image(note_image, front_model, X_test_fnt, T_test_fnt, False,
+                                                       coarse_test_fnt)
+                whole_front_predictions.append(whole_front_label == pnt_key)
 
-                Xhat, That, neighbors = add_pred_to_set(y_pred, X_dont_change, T_dont_change)
-                pic = len(Xhat) - 1
-                neighbors_to_pic = neighbors[pic]
-                y_pred_label = predict_label(Xhat, That, neighbors_to_pic, pic)
 
-                whole_note_label = coarse_filter_dict_saved[y_pred_label]
-                whole_note_predictions.append(whole_note_label == pnt_key)
+                whole_back_label = predict_from_image(back_note_image, back_model, X_test_bck, T_test_bck, False,
+                                                      coarse_test_bck)
+                whole_back_predictions.append(whole_back_label == pnt_key)
+
+
+                whole_seal_label = predict_from_image(seal, seal_model, X_test_seal, T_test_seal, False,
+                                                      coarse_test_seal)
+                whole_seal_predictions.append(whole_seal_label == pnt_key)
+
 
                 if PLOT_IMAGES:
-                    fig, axs = plt.subplots(nrows=y_fac + 1, ncols=x_fac)
+                    fig, axs = plt.subplots(nrows=y_fac, ncols=x_fac)
 
                 for idx, tile in enumerate(tiles):
                     row_no = idx % y_fac
@@ -203,14 +242,14 @@ if __name__ == '__main__':
 
                     im = get_transformed_image(tile)
 
-                    y_pred = model(im[None, :])
-                    Xhat, That, neighbors = add_pred_to_set(y_pred, X_dont_change_val, T_dont_change_val)
+                    y_pred = front_model(im[None, :])
+                    Xhat, That, neighbors = add_pred_to_set(y_pred, X_val_fnt, T_val_fnt)
 
                     pic = len(Xhat) - 1
                     neighbors_to_pic = neighbors[pic]
 
                     y_pred_label = predict_label(Xhat, That, neighbors_to_pic, pic)
-                    tile_predictions.append(coarse_filter_dict_saved_val[y_pred_label] == pnt_key)
+                    tile_predictions.append(coarse_val_fnt[y_pred_label] == pnt_key)
 
                     if PLOT_IMAGES:
                         axs[row_no, col_no].imshow(tile)
@@ -222,26 +261,40 @@ if __name__ == '__main__':
 
                         try:
                             if row_no != 0:
-                                axs[row_no, col_no].set_title(coarse_filter_dict_saved[y_pred_label], va='bottom')
+                                axs[row_no, col_no].set_title(coarse_test_fnt[y_pred_label], va='bottom')
                             else:
-                                axs[row_no, col_no].title.set_text(coarse_filter_dict_saved[y_pred_label])
+                                axs[row_no, col_no].title.set_text(coarse_test_fnt[y_pred_label])
                         except KeyError:
                             pass
 
                 if PLOT_IMAGES:
-                    axes = plt.subplot(3, 1, 3)
+                    axes = fig.add_subplot(3, 1, 1)
                     axes.imshow(note_image)
-                    plt.title(f'Whole Note: Predicted: {whole_note_label}')
+                    axes.axis('off')
+                    axes.title.set_text(f'Whole Front: Predicted: {whole_front_label}')
+
+                    # axes2 = fig.add_subplot(3, 1, 1)
+                    # axes2.imshow(back_note_image)
+                    # axes2.axis('off')
+                    # axes2.title.set_text(f'Whole Back: Predicted: {whole_back_label}')
+
+                    # axes3 = fig.add_subplot(2, 1, 1)
+                    # axes3.imshow(seal)
+                    # axes3.axis('off')
+                    # axes3.title.set_text(f'Seal: Predicted: {whole_seal_label}')
+
                     plt.suptitle(f'Whole Note: Truth: {pnt_key}')
                     #plt.tight_layout()
                     plt.subplots_adjust(wspace=0.05, hspace=0.25)
-                    os.makedirs(f'../training/{args.dataset}/{model_directory.split("/")[-2]}/plots/', exist_ok=True)
-                    plt.savefig(f'../training/{args.dataset}/{model_directory.split("/")[-2]}/plots/{os.path.splitext(os.path.split(note_dir)[-1])}.png')
-                    plt.close()
-    print(len(whole_note_predictions))
-    print(len(tile_predictions))
-    print(sum(whole_note_predictions)/len(whole_note_predictions))
-    print(sum(tile_predictions) / len(tile_predictions))
+                    os.makedirs(f'../training/{args.dataset}/{front_model_dir.split("/")[-2]}/plots/', exist_ok=True)
+                    plt.show()
+                    # plt.savefig(f'../training/{args.dataset}/{front_model_dir.split("/")[-2]}/plots/{os.path.splitext(os.path.split(note_dir)[-1])[0]}.png')
+                    # plt.close()
+
+    print(f'Front: {np.round(sum(whole_front_predictions)/len(whole_front_predictions), 3)} out of {len(whole_front_predictions)} samples')
+    print(f'Back: {np.round(sum(whole_back_predictions)/len(whole_back_predictions), 3)} out of {len(whole_back_predictions)} samples')
+    print(f'Seal: {np.round(sum(whole_seal_predictions)/len(whole_seal_predictions), 3)} out of {len(whole_seal_predictions)} samples')
+    print(f'tile: {np.round(sum(tile_predictions)/len(tile_predictions), 3)} out of {len(tile_predictions)} samples')
 
 
 '''
