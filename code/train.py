@@ -343,6 +343,8 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
                 else:
                     test_recalls = val_recalls
                     key_to_opt = 'validation_f1score@7'
+                    if key_to_opt not in best_recall.keys():
+                        best_recall[key_to_opt] = [0]
 
             # Best model save
             if best_recall[key_to_opt].values[0] < test_recalls[key_to_opt].values[0]:
