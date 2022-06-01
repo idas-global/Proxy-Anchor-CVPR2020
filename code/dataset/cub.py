@@ -2,6 +2,7 @@ from .base import *
 
 class CUBirds(BaseDataset):
     def __init__(self, root, mode, seed, le, transform=None):
+        self.label_encoder = None
         self.root = root + '/CUB_200_2011'
         self.mode = mode
         self.name = 'CUB'
