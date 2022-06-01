@@ -3,6 +3,8 @@ import sys
 import cv2
 import mplcursors
 from matplotlib.colors import ListedColormap
+from sklearn.manifold import TSNE
+import pickle
 
 import wandb
 import warnings
@@ -316,7 +318,7 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
         wandb.log({'loss': losses_list[-1]}, step=epoch)
         scheduler.step()
 
-        if epoch >= 0 and (epoch % 5 == 0 or epoch == args.nb_epochs - 1):
+        if epoch >= 0 and (epoch % 2 == 0 or epoch == args.nb_epochs - 1):
             with torch.no_grad():
                 save_dir = '{}/{}_{}'.format(LOG_DIR, wandb.run.name, np.round(best_recall[key_to_opt].values[0], 3))
                 os.makedirs(save_dir, exist_ok=True)
@@ -365,51 +367,53 @@ def run_batch(batch_idx, dl_tr, epoch, losses_per_epoch, model, pbar, x, y):
             loss.item()))
 
 
-def plot_tSNE(X, T, data_viz_frame, dataloader, pictures_to_predict, para, deg, train_dest, val_dest, test_dest):
-    from sklearn.manifold import TSNE
-    tsne = TSNE(n_components=2, verbose=1, perplexity=50, early_exaggeration=12)
+def plot_tSNE(X, data_viz_frame, dataloader, pictures_to_predict, train_dest, val_dest, test_dest):
+    tsne = TSNE(n_components=2, verbose=0, perplexity=30)
     z = tsne.fit_transform(X[pictures_to_predict])
     df = pd.DataFrame()
-    df["y"] = [dataloader.dataset.class_names_fine_dict[i] for i in np.array(T[pictures_to_predict])]
     df["comp-1"] = z[:, 0]
     df["comp-2"] = z[:, 1]
-    df.sort_values(by=['y'])
 
-    import seaborn as sns
-    cmap = ListedColormap(sns.color_palette("husl", len(np.unique(data_viz_frame[f"{para}_label_{deg}"]))).as_hex())
-    colours = {pnt: cmap.colors[idx] for idx, pnt in enumerate(np.unique(data_viz_frame[f"{para}_label_{deg}"]))}
+    params = ['prediction', 'truth']
+    degrees = ['fine', 'coarse']
+    for deg in degrees:
+        for para in params:
+            import seaborn as sns
+            cmap = ListedColormap(sns.color_palette("husl", len(np.unique(data_viz_frame[f"{para}_label_{deg}"]))).as_hex())
+            colours = {pnt: cmap.colors[idx] for idx, pnt in enumerate(np.unique(data_viz_frame[f"{para}_label_{deg}"]))}
 
-    fig = plt.figure(figsize=(12, 12))
-    ax = plt.axes()
+            fig = plt.figure(figsize=(12, 12))
+            ax = plt.axes()
 
-    x = df["comp-1"]
-    y = df["comp-2"]
-    col = [colours[i] for i in list(data_viz_frame[f"{para}_label_{deg}"].values)]
-    labels = [i for i in list(data_viz_frame[f"{para}_label_{deg}"].values)]
+            x = df["comp-1"]
+            y = df["comp-2"]
+            col = [colours[i] for i in list(data_viz_frame[f"{para}_label_{deg}"].values)]
+            labels = [i for i in list(data_viz_frame[f"{para}_label_{deg}"].values)]
 
-    axes_obj = ax.scatter(x,
-                          y,
-                          s=30,
-                          c=col,
-                          marker='o',
-                          alpha=1
-                        )
-    axes_obj.annots = labels
-    axes_obj.im_paths = dataloader.dataset.im_paths
-    plt.legend(labels=labels)
-    ax.legend(bbox_to_anchor=(1.02, 1))
-    mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(sel.artist.annots[sel.target.index]))
-    mplcursors.cursor(fig).connect("add", lambda sel: sel.annotation.set_text(sel.artist.im_paths[sel.target.index]))
-    # save
-    fig.suptitle("TSNE")
-    import pickle
-    if dataloader.dataset.mode == 'train':
-        pickle.dump(fig, open(f'{train_dest}{para}_{deg}_tSNE.pkl', 'wb'))
-    if dataloader.dataset.mode == 'validation':
-        pickle.dump(fig, open(f'{val_dest}{para}_{deg}_tSNE.pkl', 'wb'))
-    if dataloader.dataset.mode == 'eval':
-        pickle.dump(fig, open(f'{test_dest}{para}_{deg}_tSNE.pkl', 'wb'))
-    plt.close()
+            axes_obj = ax.scatter(x,
+                                  y,
+                                  z,
+                                  s=30,
+                                  c=col,
+                                  marker='o',
+                                  alpha=1
+                                )
+            axes_obj.annots = labels
+            axes_obj.im_paths = ['_'.join(os.path.split(i)[-1].split('_')[0:4]) for i in dataloader.dataset.im_paths]
+
+            plt.legend(labels=labels)
+            ax.legend(bbox_to_anchor=(1.02, 1))
+            mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(sel.artist.annots[sel.target.index]))
+            mplcursors.cursor(fig).connect("add", lambda sel: sel.annotation.set_text(sel.artist.im_paths[sel.target.index]))
+            # save
+            fig.suptitle("TSNE")
+            if dataloader.dataset.mode == 'train':
+                pickle.dump(fig, open(f'{train_dest}{para}_{deg}_tSNE.pkl', 'wb'))
+            if dataloader.dataset.mode == 'validation':
+                pickle.dump(fig, open(f'{val_dest}{para}_{deg}_tSNE.pkl', 'wb'))
+            if dataloader.dataset.mode == 'eval':
+                pickle.dump(fig, open(f'{test_dest}{para}_{deg}_tSNE.pkl', 'wb'))
+            plt.close()
 
     # fig2 = pickle.load(open('FigureObject.fig.pickle', 'rb'))
     # mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(sel.artist.annots[sel.target.index]))
@@ -448,26 +452,27 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
                                                train_dest, val_dest, test_dest,
                                                y_preds, y_true)
 
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
-        params = ['prediction', 'truth']
-        degrees = ['fine', 'coarse']
-        for deg in degrees:
-            for para in params:
-                try:
-                    plot_relationships(X, data_viz_frame, dl_loader,
-                                   deg, para, pictures_to_predict,
-                                   train_dest, val_dest, test_dest)
-                except Exception:
-                    pass
-                try:
-                    plot_tSNE(X, T, data_viz_frame, dl_loader, pictures_to_predict, para, deg, train_dest, val_dest, test_dest)
-                except Exception:
-                    pass
+    # with warnings.catch_warnings():
+    #     warnings.simplefilter('ignore')
+    #     params = ['prediction', 'truth']
+    #     degrees = ['fine', 'coarse']
+    #     for deg in degrees:
+    #         for para in params:
+    #             try:
+    #                 plot_relationships(X, data_viz_frame, dl_loader,
+    #                                deg, para, pictures_to_predict,
+    #                                train_dest, val_dest, test_dest)
+    #             except Exception:
+    #                 pass
     try:
-        confusion_matrices(data_viz_frame, dataloader, train_dest, val_dest, test_dest)
+        plot_tSNE(X, data_viz_frame, dl_loader, pictures_to_predict, train_dest, val_dest, test_dest)
     except Exception:
         pass
+
+    # try:
+    #     confusion_matrices(data_viz_frame, dataloader, train_dest, val_dest, test_dest)
+    # except Exception:
+    #     pass
 
     save_metrics(dataloader, metrics, train_dest, val_dest, test_dest)
     model.train()
