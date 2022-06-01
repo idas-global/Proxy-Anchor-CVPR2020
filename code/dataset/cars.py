@@ -15,6 +15,7 @@ class Cars(BaseDataset):
         self.mode = mode
         self.transform = transform
         self.label_encoder = None
+        self.perplex = 25
 
         BaseDataset.__init__(self, self.root, self.mode, self.transform)
         annos_fn = 'cars_annos.mat'
@@ -37,8 +38,9 @@ class Cars(BaseDataset):
 
         self.class_names_coarse_dict = dict(zip(self.ys, self.class_names_coarse))
         self.class_names_fine_dict = dict(zip(self.ys, self.class_names_fine))
+        self.tsne_labels = ['_'.join(os.path.split(i)[-1].split('_')[0:4]) for i in self.im_paths]
 
-        for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys']:
+        for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys', 'tsne_labels']:
             setattr(self, param, slice_to_make_set(chosen_idxs, getattr(self, param)))
 
     def choose_train_test_slice(self, seed, ys):

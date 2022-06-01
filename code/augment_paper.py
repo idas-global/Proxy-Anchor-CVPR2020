@@ -66,6 +66,9 @@ def main():
                 aug_obj = augment()
                 aug_key = f'pack_{pack}_note_{note_num}_aug_{aug_num}_{str(uuid.uuid4())[0:4]}'
 
+                if DO_FRONT or DO_PAPER:
+                    aug_image = aug_obj(image=note_image)['image']
+
                 if DO_BACK:
                     back_aug_image = aug_obj(image=back_note_image)['image']
                     back_aug_image = cv2.resize(back_aug_image, (int(back_aug_image.shape[1] / 10),
@@ -73,7 +76,6 @@ def main():
                     cv2.imwrite(dest_back + f'/{aug_key}_{spec}_{side}.bmp', back_aug_image)
 
                 if DO_FRONT:
-                    aug_image = aug_obj(image=note_image)['image']
                     aug_image_rz = cv2.resize(aug_image, (int(aug_image.shape[1] / 10), int(aug_image.shape[0] / 10)))
                     cv2.imwrite(dest_front + f'/{aug_key}_{spec}_{side}.bmp', aug_image_rz)
 
@@ -152,25 +154,30 @@ def get_paper_sample(df, note_image, scaleX, scaleY):
                              np.array([np.max(paper_sample[:, :, i]) for i in range(paper_sample.shape[-1])]))
         prc = np.sum(thresh) / (255 * thresh.shape[0] * thresh.shape[1])
         if prc > 0.25:
-            a = abs(prc_before - 0.25)
-            b = abs(prc - 0.25)
-            if a < b and thresh_before is not None:
-                paper = note_image.reshape(-1, 3)[thresh_before.ravel() == 255, :]
-            else:
-                paper = note_image.reshape(-1, 3)[thresh.ravel() == 255, :]
-            prevN = math.floor(math.sqrt(len(paper)))
-            paper = np.reshape(paper[0:prevN ** 2, :], (prevN, prevN, 3))
-            paper = cv2.cvtColor(paper, cv2.COLOR_BGR2HSV_FULL)
-            paper_flat = paper.reshape(-1, 3)
-            aaa = np.lexsort((paper_flat[:, 0], paper_flat[:, 1], paper_flat[:, 2]))
-            sample = paper_flat[aaa].reshape(paper.shape)
-            sample = cv2.cvtColor(sample, cv2.COLOR_HSV2BGR_FULL)
-            paper = sample
+            paper = create_sample(note_image, prc, prc_before, thresh, thresh_before)
             break
 
         thresh_before = thresh.copy()
         prc_before = prc
+
+    if 0.1 <= prc <= 0.25: # Might not be ideal but we can try
+        paper = create_sample(note_image, prc, prc_before, thresh, thresh_before)
     return paper
+
+
+def create_sample(note_image, prc, prc_before, thresh, thresh_before):
+    a = abs(prc_before - 0.25)
+    b = abs(prc - 0.25)
+    if a < b and thresh_before is not None:
+        paper = note_image.reshape(-1, 3)[thresh_before.ravel() == 255, :]
+    else:
+        paper = note_image.reshape(-1, 3)[thresh.ravel() == 255, :]
+    prevN = math.floor(math.sqrt(len(paper)))
+    paper = np.reshape(paper[0:prevN ** 2, :], (prevN, prevN, 3))
+    paper = cv2.cvtColor(paper, cv2.COLOR_BGR2HSV)
+    mean_paper = np.mean(paper, axis=2)
+    sample = np.sort(mean_paper, axis=None).reshape(mean_paper.shape)
+    return sample
 
 
 def get_valid_notes(location_genuine_notes, location_1604_notes, notes_frame, specs_wanted, sides_wanted):
@@ -277,10 +284,10 @@ def get_valid_dirs():
 
 
 if __name__ == '__main__':
-    DO_PAPER = False
-    DO_SEAL = True
-    DO_FRONT = True
-    DO_BACK = True
+    DO_PAPER = True
+    DO_SEAL = False
+    DO_FRONT = False
+    DO_BACK = False
     DELETE_DATA = True
 
     if sys.platform == 'linux':
@@ -304,6 +311,7 @@ if __name__ == '__main__':
         for i in np.arange(5, 0, -1):
             print(i)
             time.sleep(1)
+        time.sleep(5)
 
         if DO_FRONT:
             empty_aug_dir(aug_location_1604_fronts)

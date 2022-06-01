@@ -19,17 +19,23 @@ class Families(BaseDataset):
         if sys.platform == 'linux':
             if mode == 'train':
                 self.root = f'/mnt/ssd1/Genesys_2_Capture/1604_{plate}s_augmented/'
+                self.perplex = 50
             if mode == 'validation':
                 self.root = f'/mnt/ssd1/Genesys_2_Capture/1604_{plate}s_augmented/'
+                self.perplex = 50
             if mode == 'eval':
                 self.root = f'/mnt/ssd1/Genesys_2_Capture/1604_{plate}s_augmented/'
+                self.perplex = 20
         else:
             if mode == 'train':
                 self.root = f'D:/1604_{plate}s_augmented/'
+                self.perplex = 50
             if mode == 'validation':
                 self.root = f'D:/1604_{plate}s_augmented/'
+                self.perplex = 50
             if mode == 'eval':
                 self.root = f'D:/1604_{plate}s_augmented/'
+                self.perplex = 20
 
         BaseDataset.__init__(self, self.root, self.mode, self.transform)
 
@@ -54,9 +60,11 @@ class Families(BaseDataset):
         self.class_names_coarse_dict = dict(zip(self.ys, self.class_names_coarse))
         self.class_names_fine_dict = dict(zip(self.ys, self.class_names_fine))
 
+        self.tsne_labels = ['_'.join(os.path.split(i)[-1].split('_')[0:4]) for i in self.im_paths]
+
         chosen_idxs = self.choose_train_test_slice(seed)
 
-        for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys']:
+        for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys', 'tsne_labels']:
             setattr(self, param, slice_to_make_set(chosen_idxs, getattr(self, param)))
 
         self.classes = set(self.ys)

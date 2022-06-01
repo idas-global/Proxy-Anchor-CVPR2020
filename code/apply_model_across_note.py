@@ -3,7 +3,7 @@ import pickle
 import random
 import sys
 import time
-
+import seaborn as sns
 import PIL
 import cv2
 import mplcursors
@@ -154,12 +154,11 @@ def predict_from_image(note_image, model, X, T, train, coarse_dict):
     transformed = get_transformed_image(note_image, train=train)
     embedding = model(transformed[None, :])
 
-    # Xhat, That, neighbors = add_pred_to_set(embedding, X, T)
-    # pic, neighbors_to_pic = len(Xhat) - 1, neighbors[len(Xhat) - 1]
-    #
-    # y_pred_label = predict_label(Xhat, That, neighbors_to_pic, pic)
-    # whole_note_label = coarse_dict[y_pred_label]
-    whole_note_label = 'test'
+    Xhat, That, neighbors = add_pred_to_set(embedding, X, T)
+    pic, neighbors_to_pic = len(Xhat) - 1, neighbors[len(Xhat) - 1]
+
+    y_pred_label = predict_label(Xhat, That, neighbors_to_pic, pic)
+    whole_note_label = coarse_dict[y_pred_label]
     return whole_note_label, embedding
 
 
@@ -268,13 +267,13 @@ if __name__ == '__main__':
 
                     tile_label, embedding = predict_from_image(tile, front_model, X_val_fnt, T_val_fnt, False,
                                                                      coarse_val_fnt)
-                    tile_predictions.append(coarse_val_fnt[tile_label] == pnt_key)
+                    tile_predictions.append(tile_label == pnt_key)
                     tile_embeddings.append(embedding)
 
                     if PLOT_IMAGES:
                         axs[str(idx)].imshow(tile)
                         axs[str(idx)].axis('off')
-                        axs[str(idx)].title.set_text(coarse_val_fnt[tile_label])
+                        axs[str(idx)].title.set_text(tile_label)
 
                 pbar.set_description(f'{np.round(sum(whole_front_predictions) / len(whole_front_predictions), 3)}  '
                                      f'{np.round(sum(whole_back_predictions) / len(whole_back_predictions), 3)}  '
@@ -309,7 +308,6 @@ if __name__ == '__main__':
     print(f'Seal: {np.round(sum(whole_seal_predictions)/len(whole_seal_predictions), 3)} out of {len(whole_seal_predictions)} samples')
     print(f'tile: {np.round(sum(tile_predictions)/len(tile_predictions), 3)} out of {len(tile_predictions)} samples')
 
-
     for model_type, model in zip(['front', 'back', 'seal', 'tile'], [whole_front_embeddings, whole_back_embeddings, whole_seal_embeddings, tile_embeddings]):
         label_array = circ_labels
         if model_type == 'tile':
@@ -321,8 +319,6 @@ if __name__ == '__main__':
         df = pd.DataFrame()
         df["comp-1"] = z[:, 0]
         df["comp-2"] = z[:, 1]
-
-        import seaborn as sns
 
         cmap = ListedColormap(sns.color_palette("husl", len(np.unique(label_array))).as_hex())
         colours = {pnt: cmap.colors[idx] for idx, pnt in enumerate(np.unique(label_array))}
@@ -355,86 +351,4 @@ if __name__ == '__main__':
         fig.suptitle("TSNE")
         os.makedirs(f'D:/applied_models/{model_type}/', exist_ok=True)
         pickle.dump(fig, open(f'D:/applied_models/{model_type}/tSNE.pkl', 'wb'))
-
-'''
-targets = []
-images = []
-for i in tqdm(range(len(dl_ev.dataset.ys) // 2), desc='Testing Eval Set'):
-    image, y = dl_ev.dataset.__getitem__(i)
-    y = [key for key, val in fine_filter_dict_saved.items() if val == fine_filter_dict[y]]
-    if y:
-        y = y[0]
-    else:
-        continue
-    embedding = model(image[None, :])
-    images.append(embedding)
-    targets.append(y)
-
-embeddings = torch.cat(images)
-
-set = 'eval_'
-X = np.load(f'{model_directory}/{set}X.npy')
-train = len(X)
-X = np.vstack((X, embeddings.detach().numpy()))
-X = l2_norm(X)
-X = torch.from_numpy(X)
-
-T = np.load(f'{model_directory}/{set}T.npy')
-T = np.hstack((T, targets))
-T = torch.from_numpy(T)
-
-K = min(64, len(X) - 1)
-
-cos_sim = F.linear(X, X)
-neighbors = cos_sim.topk(1 + K)[1][:, 1:]
-neighbors = np.array(neighbors)
-
-shuffled_idx = [train + i for i in range(len(embeddings))]
-random.shuffle(shuffled_idx)
-ans = []
-for pic in shuffled_idx:
-    neighbors_to_pic = np.array(neighbors[pic, :][~np.in1d(neighbors[pic, :], shuffled_idx)])
-    whole_note_label = predict_label(X, T, neighbors_to_pic, pic)
-    ans.append(coarse_filter_dict_saved[T[pic].item()] == coarse_filter_dict_saved[whole_note_label])
-print(sum(ans) / len(ans))
-
-ans = []
-for i in tqdm(range(len(dl_ev.dataset.ys) // 2, len(dl_ev.dataset.ys)), desc='Testing Eval Set'):
-    image, y = dl_ev.dataset.__getitem__(i)
-    y = [key for key, val in fine_filter_dict_saved.items() if val == fine_filter_dict[y]]
-    if y:
-        y = y[0]
-    else:
-        continue
-
-    embedding = model(image[None, :])
-    Xhat, That, neighbors = add_pred_to_set(embedding, X, T)
-    pic = len(Xhat) - 1
-    neighbors_to_pic = neighbors[pic]
-    whole_note_label = predict_label(Xhat, That, neighbors_to_pic, pic)
-    ans.append(coarse_filter_dict_saved[y] == coarse_filter_dict_saved[whole_note_label])
-print(sum(ans) / len(ans))
-
-ans = []
-X, T = get_X_T('eval_')
-for i in tqdm(range(len(dl_ev.dataset.ys) // 2, len(dl_ev.dataset.ys)), desc='Testing Eval Set'):
-    image, y = dl_ev.dataset.__getitem__(i)
-    y = [key for key, val in fine_filter_dict_saved.items() if val == fine_filter_dict[y]]
-    if y:
-        y = y[0]
-    else:
-        continue
-    embedding = model(image[None, :])
-    Xhat, That, neighbors = add_pred_to_set(embedding, X, T)
-    pic = len(Xhat) - 1
-    neighbors_to_pic = neighbors[pic]
-    whole_note_label = predict_label(Xhat, That, neighbors_to_pic, pic)
-    ans.append(coarse_filter_dict_saved[y] == coarse_filter_dict_saved[whole_note_label])
-print(sum(ans) / len(ans))
-
-X, T, neighbors = add_pred_to_set(y_pred, set='eval_')
-pic = len(X) - 1
-neighbors_to_pic = neighbors[pic]
-whole_note_label = predict_label()
-whole_note_predictions.append(coarse_filter_dict[whole_note_label] == pnt_key)
-'''
+        plt.close()

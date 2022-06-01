@@ -1,5 +1,7 @@
 import pickle
 import sys
+import traceback
+
 import cv2
 import mplcursors
 from matplotlib.colors import ListedColormap
@@ -298,6 +300,8 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
     best_recall[key_to_opt] = [0]
 
     for epoch in range(0, args.nb_epochs):
+        if epoch > 0:
+            break
         model.train()
         bn_freeze = args.bn_freeze
         if bn_freeze:
@@ -312,6 +316,8 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
         pbar = tqdm(enumerate(dl_tr))
 
         for batch_idx, (x, y) in pbar:
+            if batch_idx > 4:
+                break
             run_batch(batch_idx, dl_tr, epoch, losses_per_epoch, model, pbar, x, y)
 
         losses_list.append(np.mean(losses_per_epoch))
@@ -368,7 +374,7 @@ def run_batch(batch_idx, dl_tr, epoch, losses_per_epoch, model, pbar, x, y):
 
 
 def plot_tSNE(X, data_viz_frame, dataloader, pictures_to_predict, train_dest, val_dest, test_dest):
-    tsne = TSNE(n_components=2, verbose=0, perplexity=30)
+    tsne = TSNE(n_components=2, verbose=0, perplexity=dataloader.dataset.perplex)
     z = tsne.fit_transform(X[pictures_to_predict])
     df = pd.DataFrame()
     df["comp-1"] = z[:, 0]
@@ -398,7 +404,7 @@ def plot_tSNE(X, data_viz_frame, dataloader, pictures_to_predict, train_dest, va
                                   alpha=1
                                 )
             axes_obj.annots = labels
-            axes_obj.im_paths = ['_'.join(os.path.split(i)[-1].split('_')[0:4]) for i in dataloader.dataset.im_paths]
+            axes_obj.im_paths = dataloader.dataset.tsne_labels
 
             plt.legend(labels=labels)
             ax.legend(bbox_to_anchor=(1.02, 1))
@@ -466,7 +472,7 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
     try:
         plot_tSNE(X, data_viz_frame, dl_loader, pictures_to_predict, train_dest, val_dest, test_dest)
     except Exception:
-        pass
+        print(traceback.format_exc())
 
     # try:
     #     confusion_matrices(data_viz_frame, dataloader, train_dest, val_dest, test_dest)
@@ -489,8 +495,8 @@ def test_generator_labels(dl_tr, dl_val, dl_ev):
             print(f'{v}')
         print('#######################')
 
-    if check_train_val_labels_same(dl_tr_labels, dl_val_labels):
-        return
+    if _train_val_labels_different(dl_tr_labels, dl_val_labels):
+        sys.exit()
 
     for t, v in zip(dl_tr_labels, dl_val_labels):
         print(f'{t}      {v}')
@@ -529,7 +535,7 @@ def test_generator_labels(dl_tr, dl_val, dl_ev):
             plt.show()
 
 
-def check_train_val_labels_same(dl_tr_labels, dl_val_labels):
+def _train_val_labels_different(dl_tr_labels, dl_val_labels):
     terminate = False
     try:
         assert len(dl_tr_labels) == len(dl_val_labels)
@@ -567,7 +573,7 @@ if __name__ == '__main__':
     data_root = os.getcwd()
 
     dl_tr, dl_val, dl_ev = create_generators(args, data_root)
-    #test_generator_labels(dl_tr, dl_val, dl_ev)
+    test_generator_labels(dl_tr, dl_val, dl_ev)
 
     nb_classes = dl_tr.dataset.nb_classes()
 

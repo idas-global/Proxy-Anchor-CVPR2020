@@ -6,6 +6,8 @@ class CUBirds(BaseDataset):
         self.mode = mode
         self.name = 'CUB'
         self.transform = transform
+        self.perplex = 14
+
         if self.mode == 'train':
             self.classes = range(0,100)
         elif self.mode == 'eval':

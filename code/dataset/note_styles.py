@@ -16,14 +16,18 @@ class Notes(BaseDataset):
 
         if sys.platform == 'linux':
             if mode == 'train':
-                self.root = '/mnt/ssd1/Rupert_Book_Augmented/'
+                self.root = '/mnt/ssd1/Genesys_2_Capture/rupert_book_augmented/'
+                self.perplex = 30
             if mode == 'validation':
-                self.root = '/mnt/ssd1/Rupert_Book_Augmented_Test/'
+                self.root = '/mnt/ssd1/Genesys_2_Capture/rupert_book_augmented_test/'
+                self.perplex = 10
         else:
             if mode == 'train':
-                self.root = 'D:/Rupert_Book_Augmented/'
+                self.root = 'D:/raw_data/rupert_book/rupert_book_augmented/'
+                self.perplex = 30
             if mode == 'validation':
-                self.root = 'D:/Rupert_Book_Augmented/'
+                self.root = 'D:/raw_data/rupert_book/rupert_book_augmented_test/'
+                self.perplex = 10
 
         BaseDataset.__init__(self, self.root, self.mode, self.transform)
 
@@ -43,9 +47,10 @@ class Notes(BaseDataset):
         self.label_encoder = le
 
         self.ys = le.transform(self.class_names_fine)
-        self.class_names_coarse_dict = dict(zip(self.ys, self.class_names_coarse))
-        self.class_names_fine_dict = dict(zip(self.ys, self.class_names_fine))
+        self.class_names_fine_dict = dict(zip(range(len(self.label_encoder.classes_)), self.label_encoder.classes_))
+        self.class_names_coarse_dict = dict(zip(range(len(self.label_encoder.classes_)), [name.split('_')[0] for name in self.label_encoder.classes_]))
 
         self.im_paths = im_paths
         self.classes = set(self.ys)
+        self.tsne_labels = ['_'.join(os.path.split(i)[-1].split('_')[0:4]) for i in self.im_paths]
 
