@@ -342,6 +342,7 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
                     post_to_wandb(epoch, test_recalls, postpend='_test')
                 else:
                     test_recalls = val_recalls
+                    key_to_opt = 'validation_f1score@7'
 
             # Best model save
             if best_recall[key_to_opt].values[0] < test_recalls[key_to_opt].values[0]:
