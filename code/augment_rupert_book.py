@@ -126,7 +126,7 @@ if __name__ == '__main__':
 
     sides_wanted = [0] # (0 / 1)
     specs_wanted = ['RGB']
-    aug_fac = 3
+    aug_fac = 40
     # TODO make it work for non rgb/nir
 
     for rupert_location, aug_rupert_location in zip(list_of_book_locations, aug_rupert_locations):

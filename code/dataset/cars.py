@@ -15,7 +15,7 @@ class Cars(BaseDataset):
         self.mode = mode
         self.transform = transform
         self.label_encoder = None
-        self.perplex = 25
+        self.perplex = 40
 
         BaseDataset.__init__(self, self.root, self.mode, self.transform)
         annos_fn = 'cars_annos.mat'

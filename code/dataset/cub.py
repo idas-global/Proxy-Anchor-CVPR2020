@@ -1,12 +1,12 @@
 from .base import *
 
 class CUBirds(BaseDataset):
-    def __init__(self, root, mode, transform = None):
+    def __init__(self, root, mode, seed, le, transform=None):
         self.root = root + '/CUB_200_2011'
         self.mode = mode
         self.name = 'CUB'
         self.transform = transform
-        self.perplex = 14
+        self.perplex = 40
 
         if self.mode == 'train':
             self.classes = range(0,100)
@@ -33,8 +33,7 @@ class CUBirds(BaseDataset):
                                    for specific_species in self.class_names]
         self.class_names_fine = [parse_im_name(specific_species, exclude_trailing_consonants=False, fine=True)
                                    for specific_species in self.class_names]
-        print()
-
+        
 def parse_im_name(specific_species, exclude_trailing_consonants=False, fine=False):
     if fine:
         filter = os.path.split(os.path.split(specific_species)[0])[1].split('.')[-1].lower()
