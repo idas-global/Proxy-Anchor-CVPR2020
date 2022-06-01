@@ -392,7 +392,6 @@ def plot_tSNE(X, data_viz_frame, dataloader, pictures_to_predict, train_dest, va
 
             axes_obj = ax.scatter(x,
                                   y,
-                                  z,
                                   s=30,
                                   c=col,
                                   marker='o',

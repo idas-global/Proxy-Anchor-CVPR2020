@@ -10,6 +10,7 @@ import mplcursors
 import numpy as np
 import torch
 from matplotlib.colors import ListedColormap
+from sklearn.manifold import TSNE
 from tqdm import tqdm
 
 from augment_paper import get_valid_notes, get_front_back_seal, form_genuine_frame, form_1604_frame, augment, \
@@ -151,14 +152,15 @@ def load_model(args, model_directory=None):
 
 def predict_from_image(note_image, model, X, T, train, coarse_dict):
     transformed = get_transformed_image(note_image, train=train)
-    y_pred = model(transformed[None, :])
+    embedding = model(transformed[None, :])
 
-    Xhat, That, neighbors = add_pred_to_set(y_pred, X, T)
-    pic, neighbors_to_pic = len(Xhat) - 1, neighbors[len(Xhat) - 1]
-
-    y_pred_label = predict_label(Xhat, That, neighbors_to_pic, pic)
-    whole_note_label = coarse_dict[y_pred_label]
-    return whole_note_label
+    # Xhat, That, neighbors = add_pred_to_set(embedding, X, T)
+    # pic, neighbors_to_pic = len(Xhat) - 1, neighbors[len(Xhat) - 1]
+    #
+    # y_pred_label = predict_label(Xhat, That, neighbors_to_pic, pic)
+    # whole_note_label = coarse_dict[y_pred_label]
+    whole_note_label = 'test'
+    return whole_note_label, embedding
 
 
 def load_model_stack():
@@ -199,6 +201,13 @@ if __name__ == '__main__':
     whole_seal_predictions = []
     tile_predictions = []
 
+    whole_front_embeddings = []
+    whole_back_embeddings = []
+    whole_seal_embeddings = []
+    tile_embeddings = []
+    note_labels = []
+    circ_labels = []
+
     X_test_fnt, T_test_fnt = get_X_T('eval_', front_model_dir)
     X_test_bck, T_test_bck = get_X_T('eval_', back_model_dir)
     X_test_seal, T_test_seal = get_X_T('eval_', seal_model_dir)
@@ -207,58 +216,6 @@ if __name__ == '__main__':
     X_val_bck, T_val_bck = get_X_T('val_', back_model_dir)
     X_val_seal, T_val_seal = get_X_T('val_', seal_model_dir)
 
-    # args.dataset = 'note_families_front'
-    # front_model, coarse_test_fnt, fine_test_fnt, \
-    # coarse_val_fnt, fine_val_fnt, _, _, front_model_dir = load_model(args, 'D:/models/front/earnest-jazz-93_91.049/')
-    # X_test_fnt, T_test_fnt = get_X_T('eval_', front_model_dir)
-    #
-    # from sklearn.manifold import TSNE
-    # import seaborn as sns
-    #
-    # tsne = TSNE(n_components=2, verbose=1, perplexity=69,  early_exaggeration=12)
-    # z = tsne.fit_transform(X_test_fnt)
-    # df = pd.DataFrame()
-    # df["y"] = [fine_test_fnt[i] for i in T_test_fnt]
-    # df["comp-1"] = z[:, 0]
-    # df["comp-2"] = z[:, 1]
-    # df.sort_values(by=['y'])
-    #
-    # cmap = ListedColormap(sns.color_palette("husl", len(np.unique(df["y"]))).as_hex())
-    # colours = {pnt: cmap.colors[idx] for idx, pnt in enumerate(np.unique(df["y"]))}
-    #
-    # fig = plt.figure(figsize=(12, 12))
-    # ax = plt.axes()
-    # for pnt in np.unique(df["y"]):
-    #     pnt_bool = [pnt == ii for ii in df["y"]]
-    #     ax.scatter(df.loc[pnt_bool, "comp-1"],
-    #                df.loc[pnt_bool, "comp-2"],
-    #                s=30, c=colours[pnt], marker='o', alpha=1, label=pnt)
-    # ax.legend(bbox_to_anchor=(1.02, 1))
-    # mplcursors.cursor(ax).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))
-    # # save
-    # fig.suptitle("TSNE")
-    # plt.show()
-    #
-    #
-    #
-    #
-    #
-    #
-    # fig = plt.figure()
-    # ax = sns.scatterplot(x="comp-1", y="comp-2", hue=df.y.tolist(),
-    #                 data=df).set(title="Family Projection")
-    # # label points on the plot
-    # ys_done = []
-    # for x, y, z in zip(df["comp-1"], df["comp-2"], df['y']):
-    #     if z in ys_done:
-    #         continue
-    #     ys_done.append(z)
-    #     # the position of the data label relative to the data point can be adjusted by adding/subtracting a value from the x &/ y coordinates
-    #     plt.text(x=x,  # x-coordinate position of data label
-    #              y=y,
-    #              s=z,  # data label, formatted to ignore decimals
-    #              color = 'purple')  # set colour of line
-    # fig.show()
 
     img_inputs = []
     for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
@@ -277,20 +234,23 @@ if __name__ == '__main__':
 
                 _, tiles, y_fac, x_fac = create_tiles(note_image)
 
-                whole_front_label = predict_from_image(note_image, front_model, X_test_fnt, T_test_fnt, False,
+                whole_front_label, embedding_front = predict_from_image(note_image, front_model, X_test_fnt, T_test_fnt, False,
                                                        coarse_test_fnt)
                 whole_front_predictions.append(whole_front_label == pnt_key)
+                whole_front_embeddings.append(embedding_front)
 
-
-                whole_back_label = predict_from_image(back_note_image, back_model, X_test_bck, T_test_bck, False,
+                whole_back_label, embedding_back = predict_from_image(back_note_image, back_model, X_test_bck, T_test_bck, False,
                                                       coarse_test_bck)
                 whole_back_predictions.append(whole_back_label == pnt_key)
+                whole_back_embeddings.append(embedding_back)
 
-
-                whole_seal_label = predict_from_image(seal, seal_model, X_test_seal, T_test_seal, False,
+                whole_seal_label, embedding_seal = predict_from_image(seal, seal_model, X_test_seal, T_test_seal, False,
                                                       coarse_test_seal)
                 whole_seal_predictions.append(whole_seal_label == pnt_key)
+                whole_seal_embeddings.append(embedding_seal)
 
+                note_labels.append(f'pack_{pack}_note_{note_num}')
+                circ_labels.append(f'PN: {pnt_key},  C: {circ_key}')
                 if PLOT_IMAGES:
                     fig, axs = plt.subplot_mosaic(
                         """
@@ -306,21 +266,15 @@ if __name__ == '__main__':
                     row_no = idx % y_fac
                     col_no = idx // y_fac
 
-                    im = get_transformed_image(tile)
-
-                    y_pred = front_model(im[None, :])
-                    Xhat, That, neighbors = add_pred_to_set(y_pred, X_val_fnt, T_val_fnt)
-
-                    pic = len(Xhat) - 1
-                    neighbors_to_pic = neighbors[pic]
-
-                    y_pred_label = predict_label(Xhat, That, neighbors_to_pic, pic)
-                    tile_predictions.append(coarse_val_fnt[y_pred_label] == pnt_key)
+                    tile_label, embedding = predict_from_image(tile, front_model, X_val_fnt, T_val_fnt, False,
+                                                                     coarse_val_fnt)
+                    tile_predictions.append(coarse_val_fnt[tile_label] == pnt_key)
+                    tile_embeddings.append(embedding)
 
                     if PLOT_IMAGES:
                         axs[str(idx)].imshow(tile)
                         axs[str(idx)].axis('off')
-                        axs[str(idx)].title.set_text(coarse_val_fnt[y_pred_label])
+                        axs[str(idx)].title.set_text(coarse_val_fnt[tile_label])
 
                 pbar.set_description(f'{np.round(sum(whole_front_predictions) / len(whole_front_predictions), 3)}  '
                                      f'{np.round(sum(whole_back_predictions) / len(whole_back_predictions), 3)}  '
@@ -355,6 +309,52 @@ if __name__ == '__main__':
     print(f'Seal: {np.round(sum(whole_seal_predictions)/len(whole_seal_predictions), 3)} out of {len(whole_seal_predictions)} samples')
     print(f'tile: {np.round(sum(tile_predictions)/len(tile_predictions), 3)} out of {len(tile_predictions)} samples')
 
+
+    for model_type, model in zip(['front', 'back', 'seal', 'tile'], [whole_front_embeddings, whole_back_embeddings, whole_seal_embeddings, tile_embeddings]):
+        label_array = circ_labels
+        if model_type == 'tile':
+            label_array = np.repeat(circ_labels, 6)
+
+        tsne = TSNE(n_components=2, verbose=0, perplexity=30)
+        xxx = torch.cat(model)
+        z = tsne.fit_transform(xxx.detach().numpy())
+        df = pd.DataFrame()
+        df["comp-1"] = z[:, 0]
+        df["comp-2"] = z[:, 1]
+
+        import seaborn as sns
+
+        cmap = ListedColormap(sns.color_palette("husl", len(np.unique(label_array))).as_hex())
+        colours = {pnt: cmap.colors[idx] for idx, pnt in enumerate(np.unique(label_array))}
+
+        fig = plt.figure(figsize=(12, 12))
+        ax = plt.axes()
+
+        x = df["comp-1"]
+        y = df["comp-2"]
+        col = [colours[i] for i in list(label_array)]
+        labels = [i for i in list(label_array)]
+
+        axes_obj = ax.scatter(x,
+                              y,
+                              s=30,
+                              c=col,
+                              marker='o',
+                              alpha=1
+                              )
+        axes_obj.annots = labels
+        axes_obj.im_paths = label_array
+
+        # plt.legend(labels=labels)
+
+        ax.legend(bbox_to_anchor=(1.02, 1))
+        # mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(
+        #     sel.artist.annots[sel.target.index]))
+        mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(sel.artist.im_paths[sel.target.index]))
+        # save
+        fig.suptitle("TSNE")
+        os.makedirs(f'D:/applied_models/{model_type}/', exist_ok=True)
+        pickle.dump(fig, open(f'D:/applied_models/{model_type}/tSNE.pkl', 'wb'))
 
 '''
 targets = []
