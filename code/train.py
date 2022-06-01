@@ -302,6 +302,7 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
     for epoch in range(0, args.nb_epochs):
         if epoch > 0:
             break
+
         model.train()
         bn_freeze = args.bn_freeze
         if bn_freeze:
@@ -316,7 +317,7 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
         pbar = tqdm(enumerate(dl_tr))
 
         for batch_idx, (x, y) in pbar:
-            if batch_idx > 4:
+            if batch_idx > 2:
                 break
             run_batch(batch_idx, dl_tr, epoch, losses_per_epoch, model, pbar, x, y)
 
