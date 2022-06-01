@@ -181,7 +181,7 @@ def load_model_stack():
 
 
 if __name__ == '__main__':
-    PLOT_IMAGES = True
+    PLOT_IMAGES = False
     maskrcnn = MaskRCNN()
 
     args = parse_arguments()
@@ -273,14 +273,6 @@ if __name__ == '__main__':
                                                                      desc=f'{len(valid_notes)} Originals'):
                 root_loc = f'{notes_loc}Pack_{pack}/'
                 note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn)
-                aug_obj = augment()
-                note_image = aug_obj(image=note_image)['image']
-
-                aug_obj = augment()
-                back_note_image = aug_obj(image=back_note_image)['image']
-
-                aug_obj = augment()
-                seal = aug_obj(image=seal)['image']
 
                 _, tiles, y_fac, x_fac = create_tiles(note_image)
 
