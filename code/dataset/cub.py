@@ -1,4 +1,8 @@
+import random
+
 from .base import *
+from .note_families import slice_to_make_set
+
 
 class CUBirds(BaseDataset):
     def __init__(self, root, mode, seed, le, transform=None):
@@ -10,9 +14,11 @@ class CUBirds(BaseDataset):
         self.perplex = 40
 
         if self.mode == 'train':
-            self.classes = range(0,100)
+            self.classes = range(0, 100)
+        elif self.mode == 'validation':
+            self.classes = range(0, 100)
         elif self.mode == 'eval':
-            self.classes = range(100,200)
+            self.classes = range(100, 200)
 
         BaseDataset.__init__(self, self.root, self.mode, self.transform)
         index = 0
@@ -39,6 +45,24 @@ class CUBirds(BaseDataset):
         self.class_names_fine_dict = dict(zip(self.ys, self.class_names_fine))
         self.tsne_labels = ['_'.join(os.path.split(i)[-1].split('_')[0:4]) for i in self.im_paths]
 
+        chosen_idxs = self.choose_train_test_slice(seed, self.ys)
+
+        for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys', 'tsne_labels']:
+            setattr(self, param, slice_to_make_set(chosen_idxs, getattr(self, param)))
+
+    def choose_train_test_slice(self, seed, ys):
+        if self.mode == 'train' or self.mode == 'validation':
+            observations = [i for i, y in zip(self.class_names, ys) if y in self.classes]
+            random.seed(seed)
+            chosen_idxs = random.choices(range(len(observations)), k=int(round(0.8 * len(observations))))
+
+            if self.mode == 'validation':
+                chosen_idxs = [i for i in range(len(observations)) if i not in chosen_idxs]
+
+        elif self.mode == 'eval':
+            observations = [i for i, y in zip(self.class_names, ys) if y in self.classes]
+            chosen_idxs = list(range(len(observations)))
+        return chosen_idxs
 
 def parse_im_name(specific_species, exclude_trailing_consonants=False, fine=False):
     if fine:
