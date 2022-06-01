@@ -269,7 +269,7 @@ if __name__ == '__main__':
         valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], ['Front'])
 
         if len(valid_notes) > 0:
-            pbar = tqdm(valid_notes, total=valid_notes)
+            pbar = tqdm(valid_notes, total=len(valid_notes))
 
             for iter, (side, spec, pack, note_num, note_dir) in enumerate(pbar):
                 root_loc = f'{notes_loc}Pack_{pack}/'
