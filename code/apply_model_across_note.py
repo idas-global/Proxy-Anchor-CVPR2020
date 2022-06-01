@@ -348,8 +348,10 @@ if __name__ == '__main__':
                     plt.tight_layout()
                     plt.subplots_adjust(wspace=0.01, hspace=0.25)
                     #plt.show()
+                    plot_dir = f'../training/{args.dataset}/{front_model_dir.split("/")[-2]}/plots/{os.path.splitext(os.path.split(note_dir)[-1])[0]}.png'
                     os.makedirs(f'../training/{args.dataset}/{front_model_dir.split("/")[-2]}/plots/', exist_ok=True)
-                    plt.savefig(f'../training/{args.dataset}/{front_model_dir.split("/")[-2]}/plots/{os.path.splitext(os.path.split(note_dir)[-1])[0]}.png')
+                    print(f'Figure saved to {plot_dir}')
+                    plt.savefig(plot_dir)
                     plt.close()
 
     print(f'Front: {np.round(sum(whole_front_predictions)/len(whole_front_predictions), 3)} out of {len(whole_front_predictions)} samples')
