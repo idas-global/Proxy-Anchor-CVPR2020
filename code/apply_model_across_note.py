@@ -269,8 +269,9 @@ if __name__ == '__main__':
         valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], ['Front'])
 
         if len(valid_notes) > 0:
-            for iter, (side, spec, pack, note_num, note_dir) in tqdm(enumerate(valid_notes),
-                                                                     desc=f'{len(valid_notes)} Originals'):
+            pbar = tqdm(valid_notes, total=valid_notes)
+
+            for iter, (side, spec, pack, note_num, note_dir) in enumerate(pbar):
                 root_loc = f'{notes_loc}Pack_{pack}/'
                 note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn)
 
@@ -289,7 +290,6 @@ if __name__ == '__main__':
                 whole_seal_label = predict_from_image(seal, seal_model, X_test_seal, T_test_seal, False,
                                                       coarse_test_seal)
                 whole_seal_predictions.append(whole_seal_label == pnt_key)
-
 
                 if PLOT_IMAGES:
                     fig, axs = plt.subplot_mosaic(
@@ -322,6 +322,10 @@ if __name__ == '__main__':
                         axs[str(idx)].axis('off')
                         axs[str(idx)].title.set_text(coarse_val_fnt[y_pred_label])
 
+                pbar.set_description(f'{np.round(sum(whole_front_predictions) / len(whole_front_predictions), 3)}  '
+                                     f'{np.round(sum(whole_back_predictions) / len(whole_back_predictions), 3)}  '
+                                     f'{np.round(sum(whole_seal_predictions) / len(whole_seal_predictions), 3)}  '
+                                     f'{np.round(sum(tile_predictions) / len(tile_predictions), 3)}')
 
                 if PLOT_IMAGES:
                     axs[str(6)].imshow(note_image)
