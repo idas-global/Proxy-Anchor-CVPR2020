@@ -33,7 +33,12 @@ class CUBirds(BaseDataset):
                                    for specific_species in self.class_names]
         self.class_names_fine = [parse_im_name(specific_species, exclude_trailing_consonants=False, fine=True)
                                    for specific_species in self.class_names]
-        
+
+        self.class_names_coarse_dict = dict(zip(self.ys, self.class_names_coarse))
+        self.class_names_fine_dict = dict(zip(self.ys, self.class_names_fine))
+        self.tsne_labels = ['_'.join(os.path.split(i)[-1].split('_')[0:4]) for i in self.im_paths]
+
+
 def parse_im_name(specific_species, exclude_trailing_consonants=False, fine=False):
     if fine:
         filter = os.path.split(os.path.split(specific_species)[0])[1].split('.')[-1].lower()
