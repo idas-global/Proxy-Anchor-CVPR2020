@@ -22,20 +22,20 @@ class Families(BaseDataset):
                 self.perplex = 50
             if mode == 'validation':
                 self.root = f'/mnt/ssd1/Genesys_2_Capture/1604_{plate}s_augmented/'
-                self.perplex = 50
+                self.perplex = 20
             if mode == 'eval':
                 self.root = f'/mnt/ssd1/Genesys_2_Capture/1604_{plate}s_augmented/'
-                self.perplex = 20
+                self.perplex = 50
         else:
             if mode == 'train':
                 self.root = f'D:/1604_{plate}s_augmented/'
                 self.perplex = 50
             if mode == 'validation':
                 self.root = f'D:/1604_{plate}s_augmented/'
-                self.perplex = 50
+                self.perplex = 20
             if mode == 'eval':
                 self.root = f'D:/1604_{plate}s_augmented/'
-                self.perplex = 20
+                self.perplex = 50
 
         BaseDataset.__init__(self, self.root, self.mode, self.transform)
 
