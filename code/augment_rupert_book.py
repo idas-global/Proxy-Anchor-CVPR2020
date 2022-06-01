@@ -24,6 +24,7 @@ def main():
     rupert_data.index = rupert_data.index.astype(str)
 
     rupert_notes = get_valid_dirs()
+    rupert_notes = sorted(rupert_notes, key=lambda x: int(x))
     if len(rupert_notes) != len(rupert_data):
         print(f'WARNING: {rupert_location} only has {len(rupert_notes)}, expecting {len(rupert_data)}')
         print(f'WARNING: Assuming Consecutive folders')
@@ -36,7 +37,8 @@ def main():
         dest = get_filepath(aug_rupert_location, denom_key, series_key)
         os.makedirs(dest, exist_ok=True)
 
-        for note, frames in notes_frame.iterrows():
+        for idx, frames in notes_frame.iterrows():
+            note = rupert_notes[int(idx)]
             if isinstance(frames, pd.Series): # Consistent Datatype
                 frames = pd.DataFrame(frames).T
 
