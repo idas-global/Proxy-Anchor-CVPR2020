@@ -4,6 +4,7 @@ from .SOP import SOP
 from .note_styles import Notes
 from .note_families import Families
 from .Paper import Paper
+from . import utils
 from .base import BaseDataset
 
 _type = {
