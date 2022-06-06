@@ -69,7 +69,7 @@ class Families(BaseDataset):
 
         print('------------')
         for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys', 'tsne_labels']:
-            print(getattr(self, param))
+            print(getattr(self, param)[0:10])
 
         self.classes = set(self.ys)
 
