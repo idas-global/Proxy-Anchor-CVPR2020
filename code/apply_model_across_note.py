@@ -198,29 +198,29 @@ if __name__ == '__main__':
     X_val_bck, T_val_bck = get_X_T('val_', back_model_dir)
     X_val_seal, T_val_seal = get_X_T('val_', seal_model_dir)
 
-    img_inputs = []
-    for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
-        pnt_key = notes_frame["parent note"].values[0]
-        if pnt_key == 'NO DATA':
-            continue
+    for note_type in ['front', 'back', 'seal']:
+        img_inputs = []
+        whole_front_predictions = []
+        whole_back_predictions = []
+        whole_seal_predictions = []
+        tile_predictions = []
 
-        valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], ['Front'])
+        whole_front_embeddings = []
+        whole_back_embeddings = []
+        whole_seal_embeddings = []
+        tile_embeddings = []
+        note_labels = []
+        circ_labels = []
 
-        # if pnt_key == 'GENUINE':
-        #     valid_notes = valid_notes[0:40]
+        for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
+            pnt_key = notes_frame["parent note"].values[0]
+            if pnt_key == 'NO DATA':
+                continue
 
-        for note_type in ['front', 'back', 'seal']:
-            whole_front_predictions = []
-            whole_back_predictions = []
-            whole_seal_predictions = []
-            tile_predictions = []
+            valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], ['Front'])
 
-            whole_front_embeddings = []
-            whole_back_embeddings = []
-            whole_seal_embeddings = []
-            tile_embeddings = []
-            note_labels = []
-            circ_labels = []
+            # if pnt_key == 'GENUINE':
+            #     valid_notes = valid_notes[0:40]
 
             if len(valid_notes) > 0:
                 pbar = tqdm(valid_notes, total=len(valid_notes))
@@ -317,7 +317,7 @@ if __name__ == '__main__':
         for model_type, model in zip(['front', 'back', 'seal', 'tile'], [whole_front_embeddings, whole_back_embeddings, whole_seal_embeddings, tile_embeddings]):
             if not model:
                 continue
-                
+
             label_array = circ_labels
             path_array = note_labels
             if model_type == 'tile':
