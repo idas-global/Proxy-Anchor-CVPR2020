@@ -314,6 +314,8 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
         pbar = tqdm(enumerate(dl_tr))
 
         for batch_idx, (x, y) in pbar:
+            if batch_idx > 0:
+                break
             run_batch(batch_idx, dl_tr, epoch, losses_per_epoch, model, pbar, x, y)
 
         losses_list.append(np.mean(losses_per_epoch))
@@ -325,10 +327,10 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
                 save_dir = '{}/{}/{}_{}'.format(LOG_DIR, wandb.run.name, wandb.run.name, np.round(best_recall[key_to_opt].values[0], 3))
                 os.makedirs(save_dir, exist_ok=True)
 
-                val_recalls, X, T = evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
-
-                save_prediction_material(save_dir, X, T, dl_tr, dl_val, dl_ev)
-                post_to_wandb(epoch, val_recalls)
+                # val_recalls, X, T = evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
+                #
+                # save_prediction_material(save_dir, X, T, dl_tr, dl_val, dl_ev)
+                # post_to_wandb(epoch, val_recalls)
 
                 if dl_ev:
                     test_recalls, X, T = evaluate_cos(model, dl_ev, epoch, args)
@@ -379,8 +381,8 @@ def plot_tSNE(X, data_viz_frame, dataloader, pictures_to_predict, train_dest, va
     df["comp-1"] = z[:, 0]
     df["comp-2"] = z[:, 1]
 
-    params = ['prediction', 'truth']
-    degrees = ['fine', 'coarse']
+    params = ['truth']
+    degrees = ['fine']
     for deg in degrees:
         for para in params:
             import seaborn as sns
