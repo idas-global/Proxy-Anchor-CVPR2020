@@ -314,6 +314,8 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
         pbar = tqdm(enumerate(dl_tr))
 
         for batch_idx, (x, y) in pbar:
+            if batch_idx > 0:
+                break
             run_batch(batch_idx, dl_tr, epoch, losses_per_epoch, model, pbar, x, y)
 
         losses_list.append(np.mean(losses_per_epoch))
@@ -322,7 +324,7 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
 
         if epoch >= 0 and (epoch % 2 == 0 or epoch == args.nb_epochs - 1):
             with torch.no_grad():
-                save_dir = '{}/{}_{}'.format(LOG_DIR, wandb.run.name, np.round(best_recall[key_to_opt].values[0], 3))
+                save_dir = '{}/{}/{}_{}'.format(LOG_DIR, wandb.run.name, wandb.run.name, np.round(best_recall[key_to_opt].values[0], 3))
                 os.makedirs(save_dir, exist_ok=True)
 
                 val_recalls, X, T = evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
@@ -554,15 +556,15 @@ if __name__ == '__main__':
     model = create_model(args)
 
     # Directory for Log
-    LOG_DIR = args.LOG_DIR + '/logs_{}/{}_{}_embedding{}_alpha{}_mrg{}_{}_lr{}_batch{}{}'.format(args.dataset,
-                                                                                                 args.model,
-                                                                                                 args.loss,
-                                                                                                 args.sz_embedding,
-                                                                                                 args.alpha,
-                                                                                                 args.mrg,
-                                                                                                 args.optimizer,
-                                                                                                 args.lr, args.sz_batch,
-                                                                                                 args.remark)
+    LOG_DIR = args.LOG_DIR + '/{}/{}_{}_embedding{}_alpha{}_mrg{}_{}_lr{}_batch{}{}'.format(args.dataset,
+                                                                                            args.model,
+                                                                                            args.loss,
+                                                                                            args.sz_embedding,
+                                                                                            args.alpha,
+                                                                                            args.mrg,
+                                                                                            args.optimizer,
+                                                                                            args.lr, args.sz_batch,
+                                                                                            args.remark)
     # Wandb Initialization
     wandb.login(key='f0a1711b34f7b07e32150c85c67697eb82c5120f')
     wandb.init(project=args.dataset + '_ProxyAnchor', notes=LOG_DIR)

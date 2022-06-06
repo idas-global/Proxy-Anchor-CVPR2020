@@ -3,7 +3,7 @@ from .cub import CUBirds
 from .SOP import SOP
 from .note_styles import Notes
 from .note_families import Families
-from . import utils
+from .Paper import Paper
 from .base import BaseDataset
 
 _type = {
@@ -13,7 +13,8 @@ _type = {
     'note_styles': Notes,
     'note_families_front': Families,
     'note_families_back': Families,
-    'note_families_seal': Families
+    'note_families_seal': Families,
+    'paper' : Paper,
 }
 
 
