@@ -190,7 +190,7 @@ if __name__ == '__main__':
 
     notes_per_family = get_notes_per_family(notes_loc, genuine_notes_loc)
 
-    for note_type in ['front', 'back', 'seal']:
+    for note_type in ['back', 'seal']:
         img_inputs = []
         whole_front_predictions = []
         whole_back_predictions = []
