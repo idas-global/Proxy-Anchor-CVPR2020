@@ -190,14 +190,6 @@ if __name__ == '__main__':
 
     notes_per_family = get_notes_per_family(notes_loc, genuine_notes_loc)
 
-    X_test_fnt, T_test_fnt = get_X_T('eval_', front_model_dir)
-    X_test_bck, T_test_bck = get_X_T('eval_', back_model_dir)
-    X_test_seal, T_test_seal = get_X_T('eval_', seal_model_dir)
-
-    X_val_fnt, T_val_fnt = get_X_T('val_', front_model_dir)
-    X_val_bck, T_val_bck = get_X_T('val_', back_model_dir)
-    X_val_seal, T_val_seal = get_X_T('val_', seal_model_dir)
-
     for note_type in ['front', 'back', 'seal']:
         img_inputs = []
         whole_front_predictions = []
@@ -211,6 +203,20 @@ if __name__ == '__main__':
         tile_embeddings = []
         note_labels = []
         circ_labels = []
+        
+        if note_type == 'front':
+            X_test, T_test = get_X_T('eval_', front_model_dir)
+        if note_type == 'back':
+            X_test, T_test = get_X_T('eval_', back_model_dir)
+        if note_type == 'seal':
+            X_test, T_test = get_X_T('eval_', seal_model_dir)
+
+        if note_type == 'front':
+            X_val, T_val = get_X_T('val_', front_model_dir)
+        if note_type == 'back':
+            X_val, T_val = get_X_T('val_', back_model_dir)
+        if note_type == 'seal':
+            X_val, T_val = get_X_T('val_', seal_model_dir)
 
         for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
             pnt_key = notes_frame["parent note"].values[0]
@@ -233,19 +239,19 @@ if __name__ == '__main__':
                     _, tiles, y_fac, x_fac = create_tiles(note_image)
 
                     if note_type == 'front':
-                        whole_front_label, embedding_front = predict_from_image(note_image, front_model, X_test_fnt, T_test_fnt, False,
+                        whole_front_label, embedding_front = predict_from_image(note_image, front_model, X_test, T_test, False,
                                                                coarse_test_fnt)
                         whole_front_predictions.append(whole_front_label == pnt_key)
                         whole_front_embeddings.append(embedding_front)
 
                     if note_type == 'back':
-                        whole_back_label, embedding_back = predict_from_image(back_note_image, back_model, X_test_bck, T_test_bck, False,
+                        whole_back_label, embedding_back = predict_from_image(back_note_image, back_model, X_test, T_test, False,
                                                               coarse_test_bck)
                         whole_back_predictions.append(whole_back_label == pnt_key)
                         whole_back_embeddings.append(embedding_back)
 
                     if note_type == 'seal':
-                        whole_seal_label, embedding_seal = predict_from_image(seal, seal_model, X_test_seal, T_test_seal, False,
+                        whole_seal_label, embedding_seal = predict_from_image(seal, seal_model, X_test, T_test, False,
                                                               coarse_test_seal)
                         whole_seal_predictions.append(whole_seal_label == pnt_key)
                         whole_seal_embeddings.append(embedding_seal)
