@@ -15,7 +15,7 @@ _type = {
     'note_families_front': Families,
     'note_families_back': Families,
     'note_families_seal': Families,
-    'paper' : Paper,
+    'paper': Paper,
 }
 
 
