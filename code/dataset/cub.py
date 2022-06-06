@@ -23,10 +23,24 @@ class CUBirds(BaseDataset):
             self.perplex = 55
 
         BaseDataset.__init__(self, self.root, self.mode, self.transform)
-        index = 0
+        ys = []
+        im_paths = []
+        for i in torchvision.datasets.ImageFolder(root=os.path.join(self.root, 'images')).imgs:
+            # i[1]: label, i[0]: the full path to an image
+            ys.append(i[1])
+            im_paths.append(i[0])
 
-        for i in torchvision.datasets.ImageFolder(root = 
-                os.path.join(self.root, 'images')).imgs:
+        self.class_names = im_paths
+        self.class_names_coarse = [parse_im_name(specific_species, exclude_trailing_consonants=False)
+                                   for specific_species in self.class_names]
+        self.class_names_fine = [parse_im_name(specific_species, exclude_trailing_consonants=False, fine=True)
+                                 for specific_species in self.class_names]
+
+        self.class_names_coarse_dict = dict(zip(ys, self.class_names_coarse))
+        self.class_names_fine_dict = dict(zip(ys, self.class_names_fine))
+
+        index = 0
+        for i in torchvision.datasets.ImageFolder(root=os.path.join(self.root, 'images')).imgs:
             # i[1]: label, i[0]: the full path to an image
             y = i[1]
             # fn needed for removing non-images starting with `._`
@@ -34,23 +48,21 @@ class CUBirds(BaseDataset):
             if y in self.classes and fn[:2] != '._':
                 self.ys += [y]
                 self.I += [index]
-                self.im_paths.append(i[0])
-                index += 1
+            index += 1
+        self.im_paths = im_paths
 
-        self.class_names = self.im_paths
-        self.class_names_coarse = [parse_im_name(specific_species, exclude_trailing_consonants=False)
-                                   for specific_species in self.class_names]
-        self.class_names_fine = [parse_im_name(specific_species, exclude_trailing_consonants=False, fine=True)
-                                   for specific_species in self.class_names]
-
-        self.class_names_coarse_dict = dict(zip(self.ys, self.class_names_coarse))
-        self.class_names_fine_dict = dict(zip(self.ys, self.class_names_fine))
-        self.tsne_labels = ['_'.join(os.path.split(i)[-1].split('_')[0:4]) for i in self.im_paths]
+        for param in ['class_names', 'class_names_coarse', 'class_names_fine', 'im_paths']:
+            setattr(self, param, slice_to_make_set(self.I, getattr(self, param)))
 
         chosen_idxs = self.choose_train_test_slice(seed, self.ys)
 
-        for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys', 'tsne_labels']:
+        for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys']:
             setattr(self, param, slice_to_make_set(chosen_idxs, getattr(self, param)))
+
+        self.tsne_labels = ['_'.join(os.path.split(i)[-1].split('_')[0:4]) for i in self.im_paths]
+        print('----------')
+        for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys', 'tsne_labels']:
+            print(getattr(self, param)[0:5])
 
     def choose_train_test_slice(self, seed, ys):
         if self.mode == 'train' or self.mode == 'validation':
@@ -60,10 +72,12 @@ class CUBirds(BaseDataset):
 
             if self.mode == 'validation':
                 chosen_idxs = [i for i in range(len(observations)) if i not in chosen_idxs]
+                random.shuffle(chosen_idxs)
 
         elif self.mode == 'eval':
             observations = [i for i, y in zip(self.class_names, ys) if y in self.classes]
             chosen_idxs = list(range(len(observations)))
+            random.shuffle(chosen_idxs)
         return chosen_idxs
 
 def parse_im_name(specific_species, exclude_trailing_consonants=False, fine=False):

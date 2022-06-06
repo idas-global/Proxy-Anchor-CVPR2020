@@ -27,21 +27,30 @@ class Cars(BaseDataset):
         self.class_names_fine = [name for name in [' '.join(name.split(' ')[0:-1]) for name in self.class_names]]
 
         ys = [int(a[5][0] - 1) for a in cars['annotations'][0]]
+        self.class_names_coarse_dict = dict(zip(ys, self.class_names_coarse))
+        self.class_names_fine_dict = dict(zip(ys, self.class_names_fine))
 
         chosen_idxs = self.choose_train_test_slice(seed, ys)
 
         im_paths = [a[0][0] for a in cars['annotations'][0]]
+        k = 0
+        ii = []
         for im_path, y in zip(im_paths, ys):
             if y in self.classes: # choose only specified classes
+                ii.append(k)
                 self.im_paths.append(os.path.join(self.root, im_path))
                 self.ys.append(y)
+            k += 1
 
-        self.class_names_coarse_dict = dict(zip(self.ys, self.class_names_coarse))
-        self.class_names_fine_dict = dict(zip(self.ys, self.class_names_fine))
-        self.tsne_labels = ['_'.join(os.path.split(i)[-1].split('_')[0:4]) for i in self.im_paths]
+        for param in ['class_names', 'class_names_coarse', 'class_names_fine']:
+            setattr(self, param, slice_to_make_set(ii, getattr(self, param)))
 
-        for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys', 'tsne_labels']:
+        for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys']:
             setattr(self, param, slice_to_make_set(chosen_idxs, getattr(self, param)))
+
+        self.tsne_labels = ['_'.join(os.path.split(i)[-1].split('_')[0:4]) for i in self.im_paths]
+        for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys', 'tsne_labels']:
+            print(getattr(self, param)[0:5])
 
     def choose_train_test_slice(self, seed, ys):
         if self.mode == 'train' or self.mode == 'validation':

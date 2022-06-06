@@ -28,13 +28,13 @@ class Families(BaseDataset):
                 self.perplex = 50
         else:
             if mode == 'train':
-                self.root = f'D:/1604_{plate}s_augmented/'
+                self.root = f'D:/raw_data/1604_data/1604_{plate}s_augmented/'
                 self.perplex = 50
             if mode == 'validation':
-                self.root = f'D:/1604_{plate}s_augmented/'
+                self.root = f'D:/raw_data/1604_data/1604_{plate}s_augmented/'
                 self.perplex = 20
             if mode == 'eval':
-                self.root = f'D:/1604_{plate}s_augmented/'
+                self.root = f'D:/raw_data/1604_data/1604_{plate}s_augmented/'
                 self.perplex = 50
 
         BaseDataset.__init__(self, self.root, self.mode, self.transform)
@@ -66,6 +66,10 @@ class Families(BaseDataset):
 
         for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys', 'tsne_labels']:
             setattr(self, param, slice_to_make_set(chosen_idxs, getattr(self, param)))
+
+        print('------------')
+        for param in ['im_paths', 'class_names', 'class_names_coarse', 'class_names_fine', 'ys', 'tsne_labels']:
+            print(getattr(self, param))
 
         self.classes = set(self.ys)
 

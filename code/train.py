@@ -4,6 +4,7 @@ import traceback
 
 import cv2
 import mplcursors
+from PIL import ImageColor
 from matplotlib.colors import ListedColormap
 from sklearn.manifold import TSNE
 import pickle
@@ -164,7 +165,7 @@ def create_generators(args, data_root):
         dl_ev = torch.utils.data.DataLoader(
             ev_dataset,
             batch_size=args.sz_batch,
-            shuffle=False,
+            shuffle=True,
             num_workers=args.nb_workers,
             pin_memory=True
         )
@@ -322,15 +323,15 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
         wandb.log({'loss': losses_list[-1]}, step=epoch)
         scheduler.step()
 
-        if epoch >= 0 and (epoch % 2 == 0 or epoch == args.nb_epochs - 1):
+        if epoch >= 0 and (epoch % np.floor(args.nb_epochs/5) == 0 or epoch == args.nb_epochs - 1):
             with torch.no_grad():
                 save_dir = '{}/{}/{}_{}'.format(LOG_DIR, wandb.run.name, wandb.run.name, np.round(best_recall[key_to_opt].values[0], 3))
                 os.makedirs(save_dir, exist_ok=True)
 
-                # val_recalls, X, T = evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
-                #
-                # save_prediction_material(save_dir, X, T, dl_tr, dl_val, dl_ev)
-                # post_to_wandb(epoch, val_recalls)
+                val_recalls, X, T = evaluate_cos(model, dl_tr, epoch, args, validation=dl_val)
+
+                save_prediction_material(save_dir, X, T, dl_tr, dl_val, dl_ev)
+                post_to_wandb(epoch, val_recalls)
 
                 if dl_ev:
                     test_recalls, X, T = evaluate_cos(model, dl_ev, epoch, args)
@@ -343,12 +344,14 @@ def train_model(args, model, dl_tr, dl_val, dl_ev):
                     if key_to_opt not in best_recall.keys():
                         best_recall[key_to_opt] = [0]
 
+            torch_save(save_dir)
+
             # Best model save
             if best_recall[key_to_opt].values[0] < test_recalls[key_to_opt].values[0]:
                 best_recall, best_epoch = test_recalls, epoch
 
-                torch_save(save_dir)
-                text_save(test_recalls, best_epoch)
+            text_save(test_recalls, best_epoch)
+
 
 
 def post_to_wandb(epoch, val_recalls, postpend='_validation'):
@@ -405,10 +408,12 @@ def plot_tSNE(X, data_viz_frame, dataloader, pictures_to_predict, train_dest, va
                                   alpha=1
                                 )
             axes_obj.annots = labels
-            axes_obj.im_paths = dataloader.dataset.tsne_labels
+            axes_obj.labels = labels
+            if dataloader.dataset.mode != 'validation':
+                axes_obj.im_paths = list(np.array(dataloader.dataset.tsne_labels)[pictures_to_predict])
+            else:
+                axes_obj.im_paths = list(np.array(dataloader.dataset.tsne_labels))
 
-            plt.legend(labels=labels)
-            ax.legend(bbox_to_anchor=(1.02, 1))
             mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(sel.artist.annots[sel.target.index]))
             mplcursors.cursor(fig).connect("add", lambda sel: sel.annotation.set_text(sel.artist.im_paths[sel.target.index]))
             # save
@@ -443,7 +448,7 @@ def evaluate_cos(model, dataloader, epoch, args, validation=None):
     X, T, Y, neighbors = get_X_T_Y(dataloader, model, validation) # X: Embeddings, T: True Labels,
                                                                   # Y: True Labels of neighbors
 
-    pictures_to_predict = random.choices(range(len(X)), k=int(round(len(X)*50/100)))
+    pictures_to_predict = np.sort(random.choices(range(len(X)), k=int(round(len(X)*50/100))))
     dl_loader = dataloader
     if validation is not None:
         pictures_to_predict = list(range(len(X) - len(validation.dataset.ys), len(X)))
@@ -511,7 +516,7 @@ def test_generator_labels(dl_tr, dl_val, dl_ev):
             dl_list = [dl_ev, dl_tr, dl_val]
 
         for dataloader in dl_list:
-            for i in random.choices(range(len(dataloader.dataset.im_paths)), k=5):
+            for i in random.choices(range(len(dataloader.dataset.im_paths)), k=15):
                 x, y = dataloader.dataset.__getitem__(i)
                 fig, axs = plt.subplots(1, 2)
                 HWC = np.moveaxis(np.array(x), 0, -1)
@@ -521,7 +526,7 @@ def test_generator_labels(dl_tr, dl_val, dl_ev):
                 plt.suptitle(dataloader.dataset.class_names_fine_dict[y])
                 plt.show()
 
-        for i in random.choices(range(len(dl_tr.dataset.im_paths)), k=5):
+        for i in random.choices(range(len(dl_tr.dataset.im_paths)), k=15):
             train_y = dl_tr.dataset.ys[i]
             plt.imshow(cv2.imread(dl_tr.dataset.im_paths[i]))
             plt.title(dl_tr.dataset.class_names_fine_dict[train_y])
