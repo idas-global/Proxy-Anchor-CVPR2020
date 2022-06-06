@@ -111,7 +111,7 @@ def get_transform(args, train, ds='default'):
 
 
 def create_generators(args, data_root):
-    if args.dataset in ['note_styles', 'note_families_front', 'note_families_back', 'note_families_seal']:
+    if args.dataset in ['note_styles', 'note_families_front', 'note_families_back', 'note_families_seal', 'paper']:
         ds = 'notes'
     else:
         ds = 'default'

@@ -106,33 +106,24 @@ def get_X_T(set, model_directory):
     return X, T
 
 
-def load_model(args, model_directory=None):
+def load_model(args, model_name=None):
     if sys.platform != 'linux':
-        notes_loc = 'D:/1604_notes/'
-        genuine_notes_loc = 'D:/genuines/Pack_100_4/'
-        if model_directory is None:
-            model_directory = '../logs/logs_note_families_front/bn_inception_Proxy_Anchor_embedding512_alpha32_mrg0.1_adamw_lr0.0001_batch32/noble-haze-96_94.049/'
+        notes_loc = 'D:/raw_data/1604_data/1604_notes/'
+        genuine_notes_loc = 'D:/raw_data/genuines/Pack_100_4/'
+        model_locations = 'D:/model_outputs/proxy_anchor/logs/'
     else:
         notes_loc = '/mnt/ssd1/Genesys_2_Capture/counterfeit/'
         genuine_notes_loc = '/mnt/ssd1/Genesys_2_Capture/genuine/100_4/'
-        LOG_DIR = args.LOG_DIR + '/logs_{}/{}_{}_embedding{}_alpha{}_mrg{}_{}_lr{}_batch{}{}/'.format(args.dataset,
-                                                                                                      args.model,
-                                                                                                      args.loss,
-                                                                                                      args.sz_embedding,
-                                                                                                      args.alpha,
-                                                                                                      args.mrg,
-                                                                                                      args.optimizer,
-                                                                                                      args.lr,
-                                                                                                      args.sz_batch,
-                                                                                                      args.remark)
-        if os.path.exists(LOG_DIR):
-            model_directory = sorted([LOG_DIR + i for i in os.listdir(LOG_DIR) if os.path.isdir(LOG_DIR + i)],
-                                     key=lambda i: float(i.split('_')[-1]))[2]
-            model_directory += '/'
-            print(f'model directory is {model_directory}')
-        else:
-            print(f'{LOG_DIR} does not exist')
-            sys.exit()
+        model_locations = '../logs/'
+
+    for (root, dirs, files) in os.walk(model_locations):
+        for dir in dirs:
+            if dir == model_name:
+                model_directory = sorted([f'{root}/{dir}/{i}' for i in os.listdir(f'{root}/{dir}')
+                                          if os.path.isdir(f'{root}/{dir}/{i}')],
+                                         key=lambda i: float(i.split('_')[-1]))[-2]
+                model_directory += '/'
+
     model = create_model(args)
     checkpoint = torch.load(model_directory + [i for i in os.listdir(model_directory) if i.endswith('.pth')][0])
     model.load_state_dict(checkpoint['model_state_dict'])
@@ -162,17 +153,17 @@ def predict_from_image(note_image, model, X, T, train, coarse_dict):
     return whole_note_label, embedding
 
 
-def load_model_stack():
+def load_model_stack(models):
     front_model, coarse_test_fnt, fine_test_fnt, \
-        coarse_val_fnt, fine_val_fnt, _, _, front_model_dir = load_model(args)
+        coarse_val_fnt, fine_val_fnt, _, _, front_model_dir = load_model(args, models['front'])
 
     args.dataset = 'note_families_back'
     back_model, coarse_test_bck, fine_test_bck, \
-        coarse_val_bck, fine_val_bck, _, _, back_model_dir = load_model(args)
+        coarse_val_bck, fine_val_bck, _, _, back_model_dir = load_model(args, models['back'])
 
     args.dataset = 'note_families_seal'
     seal_model, coarse_test_seal, fine_test_seal, \
-        coarse_val_seal, fine_val_seal, notes_loc, genuine_notes_loc, seal_model_dir = load_model(args)
+        coarse_val_seal, fine_val_seal, notes_loc, genuine_notes_loc, seal_model_dir = load_model(args, models['seal'])
 
     return [front_model, front_model_dir, seal_model, seal_model_dir, back_model, back_model_dir],\
            [fine_val_fnt, coarse_val_fnt, fine_val_seal, coarse_val_seal, fine_val_bck, coarse_val_bck], \
@@ -187,11 +178,12 @@ if __name__ == '__main__':
 
     args = parse_arguments()
 
+    models = {'front': 'swept-pine-110', 'back': 'dark-surf-14', 'seal': 'major-fire-14'}
     [front_model, front_model_dir, seal_model, seal_model_dir, back_model, back_model_dir], \
     [fine_val_fnt, coarse_val_fnt, fine_val_seal, coarse_val_seal, fine_val_bck, coarse_val_bck], \
     [fine_test_fnt, coarse_test_fnt, fine_test_seal, coarse_test_seal, fine_test_bck, coarse_test_bck], \
         notes_loc, \
-        genuine_notes_loc = load_model_stack()
+        genuine_notes_loc = load_model_stack(models)
 
     notes_per_family = get_notes_per_family(notes_loc, genuine_notes_loc)
 
@@ -215,7 +207,6 @@ if __name__ == '__main__':
     X_val_bck, T_val_bck = get_X_T('val_', back_model_dir)
     X_val_seal, T_val_seal = get_X_T('val_', seal_model_dir)
 
-
     img_inputs = []
     for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
         pnt_key = notes_frame["parent note"].values[0]
@@ -224,11 +215,15 @@ if __name__ == '__main__':
 
         valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], ['Front'])
 
+        if pnt_key == 'GENUINE':
+            valid_notes = valid_notes[0:-20]
+
         if len(valid_notes) > 0:
             pbar = tqdm(valid_notes, total=len(valid_notes))
 
             for iter, (side, spec, pack, note_num, note_dir) in enumerate(pbar):
                 root_loc = f'{notes_loc}Pack_{pack}/'
+
                 note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn)
 
                 _, tiles, y_fac, x_fac = create_tiles(note_image)
