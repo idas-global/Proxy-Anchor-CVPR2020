@@ -350,6 +350,10 @@ if __name__ == '__main__':
         mplcursors.cursor(fig).connect("add", lambda sel: sel.annotation.set_text(sel.artist.im_paths[sel.target.index]))
         # save
         fig.suptitle("TSNE")
-        os.makedirs(f'D:/applied_models/{model_type}/', exist_ok=True)
-        pickle.dump(fig, open(f'D:/applied_models/{model_type}/tSNE.pkl', 'wb'))
-        plt.show()
+        if sys.platform != 'linux':
+            os.makedirs(f'D:/applied_models/{model_type}/', exist_ok=True)
+            pickle.dump(fig, open(f'D:/applied_models/{model_type}/tSNE.pkl', 'wb'))
+        else:
+            os.makedirs(f'../applied_models/{model_type}/', exist_ok=True)
+            pickle.dump(fig, open(f'../applied_models/{model_type}/tSNE.pkl', 'wb'))
+        plt.close()
