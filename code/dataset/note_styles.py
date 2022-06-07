@@ -49,8 +49,9 @@ class Notes(BaseDataset):
         self.ys = le.transform(self.class_names_fine)
         self.class_names_fine_dict = dict(zip(range(len(self.label_encoder.classes_)), self.label_encoder.classes_))
         self.class_names_coarse_dict = dict(zip(range(len(self.label_encoder.classes_)), [name.split('_')[0] for name in self.label_encoder.classes_]))
+        self.class_names_coarse_dict[9999] = 'oversaturated'
+        self.class_names_fine_dict[9999] = 'oversaturated'
 
         self.im_paths = im_paths
         self.classes = set(self.ys)
         self.tsne_labels = ['_'.join(os.path.split(i)[-1].split('_')[0:4]) for i in self.im_paths]
-

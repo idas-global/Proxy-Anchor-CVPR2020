@@ -160,7 +160,7 @@ def get_X_T_Y(dataloader, model, validation):
     X = torch.from_numpy(X)
     # get predictions by assigning nearest 8 neighbors with cosine
 
-    K = min(32, len(X) - 1)
+    K = min(64, len(X) - 1)
     cos_sim = F.linear(X, X)
     neighbors = cos_sim.topk(1 + K)[1][:, 1:]
 
@@ -363,6 +363,11 @@ def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict, metrics):
         neighbors_to_pic = np.array(neighbors[pic, :][~np.in1d(neighbors[pic, :], pictures_to_predict)])
 
         preds, counts = np.unique(T[neighbors_to_pic[0:7]], return_counts=True)
+        if len(counts) == 0:
+            y_preds[idx] = 9999
+            y_preds_mode[idx] = 9999
+            continue
+
         close_preds = preds[counts >= np.max(counts) - 1]
         y_preds_mode[idx] = preds[np.argsort(counts)[-1]]
         predictions = {}
