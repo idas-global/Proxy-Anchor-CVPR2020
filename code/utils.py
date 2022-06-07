@@ -368,7 +368,15 @@ def get_accuracies(T, X, dataloader, neighbors, pictures_to_predict, metrics):
             y_preds_mode[idx] = 9999
             continue
 
-        close_preds = preds[counts >= np.max(counts) - 1]
+        try:
+            close_preds = preds[counts >= np.max(counts) - 1]
+        except Exception:
+            print(counts)
+            print(traceback.format_exc())
+            y_preds[idx] = 9999
+            y_preds_mode[idx] = 9999
+            continue
+            
         y_preds_mode[idx] = preds[np.argsort(counts)[-1]]
         predictions = {}
 
