@@ -1,9 +1,15 @@
 import pickle
 import os
+import random
 
 import cv2
 import matplotlib.pyplot as plt
 import mplcursors
+
+import numpy as np
+
+from augment_paper import get_front_back_seal
+from maskrcnn import MaskRCNN
 
 
 def parse(name):
@@ -36,6 +42,10 @@ def split(word):
     return [char for char in word]
 
 
+def parse_paper(param):
+    pass
+
+
 def onclick(event):
     global ix, iy
     ix, iy = event.xdata, event.ydata
@@ -44,28 +54,50 @@ def onclick(event):
     # Calculate, based on the axis extent, a reasonable distance
     # from the actual point in which the click has to occur (in this case 5%)
     ax = plt.gca()
-    dx = 5*0.010449 * (ax.get_xlim()[1] - ax.get_xlim()[0])
-    dy = 5*0.009607 * (ax.get_ylim()[1] - ax.get_ylim()[0])
+    dx = 20*0.010449 * (ax.get_xlim()[1] - ax.get_xlim()[0])
+    dy = 20*0.009607 * (ax.get_ylim()[1] - ax.get_ylim()[0])
     #root =
     global x, y
     # Check for every point if the click was close enough:
     bench = 9999
     for i in range(len(x)):
         if(x[i] > ix-dx and x[i] < ix+dx and y[i] > iy-dy and y[i] < iy+dy):
-            dist = abs((x[i] - ix) ** 2 + (y[i] - iy) ** 2)
+            dist = abs(np.sqrt((x[i] - ix) ** 2 + (y[i] - iy) ** 2))
             if dist < bench:
                 bench = dist
                 i_close = i
 
-    if ds.startswith('note_families_') or ds.startswith('paper_') :
+    if ds.startswith('note_families_'):
         name = parse(im_paths[i_close])
         img = cv2.imread(name)
         img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
         cv2.imshow(im_paths[i_close], cv2.resize(img, (1600, 800)))
+
+    if ds.startswith('paper'):
+        name = parse(im_paths[i_close])
+        note_image, back_note_image, seal, df = get_front_back_seal(name, maskrcnn, True, True)
+
+        scaleY = note_image.shape[0] / 512
+        scaleX = note_image.shape[1] / 1024
+
+        if not df[df['className'] == 'FedSeal']['roi'].empty:
+            fed_roi = df[df['className'] == 'FedSeal']['roi'].values[0]
+            paper = note_image[int(round((fed_roi[2] + random.choice(np.arange(15, 25, 1))) * scaleY)):
+                        int(round((fed_roi[2] + random.choice(np.arange(30, 50, 1))) * scaleY)),
+                        int(round((fed_roi[3] - random.choice(np.arange(18, 30, 1))) * scaleX)):
+                        int(round((fed_roi[3] - random.choice(np.arange(0, 10, 1))) * scaleX))]
+            paper = cv2.cvtColor(paper, cv2.COLOR_BGR2RGB)
+            fig, axs = plt.subplots()
+            axs.imshow(paper)
+            axs.set_text.title(im_paths[i_close])
+            axs.axis('off')
+            fig.show()
+
     if ds.startswith('cars'):
         name = parse_cars(im_paths[i_close])
         img = cv2.imread(name)
         cv2.imshow(im_paths[i_close], cv2.resize(img, (1200, 1200)))
+
     if ds.startswith('cub'):
         name = parse_cub(im_paths[i_close])
         img = cv2.imread(name)
@@ -125,4 +157,6 @@ def main():
                 plt.show(block=True)
 
 if __name__ == '__main__':
+
+    maskrcnn = MaskRCNN()
     main()

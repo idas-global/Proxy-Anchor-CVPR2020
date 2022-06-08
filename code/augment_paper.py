@@ -48,50 +48,62 @@ def main():
             shutil.rmtree(dest_seal)
             continue
 
-        iters = aug_fac - len(valid_notes)
-        extra_notes_per_note = iters/len(valid_notes)
+        extra_notes_per_note =  {'BACK' : None,
+                                 'FRONT' : None,
+                                 'SEAL' : None,
+                                 'PAPER' : None
+                                 }
+        for key, fac in aug_fac.items():
+            iters = fac - len(valid_notes)
+            extra_notes_per_note[key] = iters/len(valid_notes)
 
         for iter, (side, spec, pack, note_num, note_dir) in tqdm(enumerate(valid_notes), desc=f'{len(valid_notes)} Originals'):
             note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn, DO_PAPER, DO_SEAL)
 
-            if extra_notes_per_note < 0:
-                iters = 1
-            else:
-                frac, iters = math.modf(extra_notes_per_note)
-                iters += 1 + random.choices(range(2), weights=[1 - frac, frac])[0]
+            iters_dict = {'BACK': None,
+                          'FRONT': None,
+                          'SEAL': None,
+                          'PAPER': None
+                          }
 
-            iters = int(iters)
+            for key, fac in extra_notes_per_note.items():
+                if fac < 0:
+                    iters = 1
+                else:
+                    frac, iters = math.modf(fac)
+                    iters += 1 + random.choices(range(2), weights=[1 - frac, frac])[0]
 
-            for aug_num in range(iters):
-                aug_obj = augment()
-                aug_key = f'pack_{pack}_note_{note_num}_aug_{aug_num}_{str(uuid.uuid4())[0:4]}'
+                iters_dict[key] = int(iters)
 
-                if DO_FRONT or DO_PAPER:
-                    aug_image = aug_obj(image=note_image)['image']
+            for feature, iters in iters_dict.items():
+                for aug_num in range(iters):
+                    aug_obj = augment()
+                    aug_key = f'pack_{pack}_note_{note_num}_aug_{aug_num}_{str(uuid.uuid4())[0:4]}'
 
-                if DO_BACK:
-                    back_aug_image = aug_obj(image=back_note_image)['image']
-                    back_aug_image = cv2.resize(back_aug_image, (int(back_aug_image.shape[1] / 10),
-                                                                 int(back_aug_image.shape[0] / 10)))
-                    cv2.imwrite(dest_back + f'/{aug_key}_{spec}_{side}.bmp', back_aug_image)
+                    if DO_BACK and feature == 'BACK':
+                        back_aug_image = aug_obj(image=back_note_image)['image']
+                        back_aug_image = cv2.resize(back_aug_image, (int(back_aug_image.shape[1] / 10),
+                                                                     int(back_aug_image.shape[0] / 10)))
+                        cv2.imwrite(dest_back + f'/{aug_key}_{spec}_{side}.bmp', back_aug_image)
 
-                if DO_FRONT:
-                    aug_image_rz = cv2.resize(aug_image, (int(aug_image.shape[1] / 10), int(aug_image.shape[0] / 10)))
-                    cv2.imwrite(dest_front + f'/{aug_key}_{spec}_{side}.bmp', aug_image_rz)
+                    if DO_FRONT and feature == 'FRONT':
+                        aug_image = aug_obj(image=note_image)['image']
+                        aug_image_rz = cv2.resize(aug_image, (int(aug_image.shape[1] / 10), int(aug_image.shape[0] / 10)))
+                        cv2.imwrite(dest_front + f'/{aug_key}_{spec}_{side}.bmp', aug_image_rz)
 
-                if DO_SEAL and not df[df['className'] == 'TrsSeal']['roi'].empty:
-                    aug_seal = aug_obj(image=seal)['image']
-                    aug_seal = cv2.resize(aug_seal, (int(aug_seal.shape[1] / 2), int(aug_seal.shape[0] / 2)))
-                    cv2.imwrite(dest_seal + f'/{aug_key}_{spec}_{side}.bmp', aug_seal)
+                    if DO_SEAL and feature == 'SEAL' and not df[df['className'] == 'TrsSeal']['roi'].empty:
+                        aug_seal = aug_obj(image=seal)['image']
+                        aug_seal = cv2.resize(aug_seal, (int(aug_seal.shape[1] / 2), int(aug_seal.shape[0] / 2)))
+                        cv2.imwrite(dest_seal + f'/{aug_key}_{spec}_{side}.bmp', aug_seal)
 
-                if DO_PAPER and not df[df['className'] == 'FedSeal']['roi'].empty:
-                    scaleY = note_image.shape[0] / 512
-                    scaleX = note_image.shape[1] / 1024
+                    if DO_PAPER and feature == 'PAPER' and not df[df['className'] == 'FedSeal']['roi'].empty:
+                        scaleY = note_image.shape[0] / 512
+                        scaleX = note_image.shape[1] / 1024
 
-                    paper = get_paper_sample(df, note_image, scaleX, scaleY)
-                    paper = aug_obj(image=paper)['image']
-                    if paper is not None:
-                        cv2.imwrite(dest_paper + f'/{aug_key}_{spec}_{side}.bmp', paper)
+                        paper = get_paper_sample(df, note_image, scaleX, scaleY)
+                        paper = aug_obj(image=paper)['image']
+                        if paper is not None:
+                            cv2.imwrite(dest_paper + f'/{aug_key}_{spec}_{side}.bmp', paper)
 
 
 def create_dirs(circ_key, pnt_key):
@@ -332,7 +344,11 @@ if __name__ == '__main__':
 
     sides_wanted = ['Front'] # (0 / 1)
     specs_wanted = ['RGB']
-    aug_fac = 8
+    aug_fac = {'BACK' : 50,
+               'FRONT' : 50,
+               'SEAL' : 50,
+               'PAPER' : 8}
+
     # TODO make it work for non rgb/nir
     maskrcnn = MaskRCNN()
     main()
