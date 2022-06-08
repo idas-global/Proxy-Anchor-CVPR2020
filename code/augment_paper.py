@@ -88,8 +88,8 @@ def main():
                     scaleY = note_image.shape[0] / 512
                     scaleX = note_image.shape[1] / 1024
 
-                    paper = get_paper_sample(df, aug_image, scaleX, scaleY)
-
+                    paper = get_paper_sample(df, note_image, scaleX, scaleY)
+                    paper = aug_obj(image=paper)['image']
                     if paper is not None:
                         cv2.imwrite(dest_paper + f'/{aug_key}_{spec}_{side}.bmp', paper)
 
@@ -139,6 +139,14 @@ def get_front_back_seal(note_dir, maskrcnn, DO_PAPER=True, DO_SEAL=True):
 
 def get_paper_sample(df, note_image, scaleX, scaleY):
     fed_roi = df[df['className'] == 'FedSeal']['roi'].values[0]
+
+    # originally 20 40 -25 -5
+    paper_sample = note_image[int(round((fed_roi[2] + random.choice(np.arange(15, 25, 1))) * scaleY)):int(round((fed_roi[2] + random.choice(np.arange(30, 50, 1))) * scaleY)),
+                              int(round((fed_roi[3] - random.choice(np.arange(18, 30, 1))) * scaleX)): int(round((fed_roi[3] - random.choice(np.arange(0, 10, 1))) * scaleX))]
+    if True:
+        return paper_sample
+    else:
+        pass
     paper = None
     thresh_before = None
     prc_before = 0
@@ -285,9 +293,9 @@ def get_valid_dirs():
 
 if __name__ == '__main__':
     DO_PAPER = True
-    DO_SEAL = False
-    DO_FRONT = False
-    DO_BACK = False
+    DO_SEAL = True
+    DO_FRONT = True
+    DO_BACK = True
     DELETE_DATA = True
 
     if sys.platform == 'linux':
@@ -298,12 +306,12 @@ if __name__ == '__main__':
         aug_location_1604_seals = '/mnt/ssd1/Genesys_2_Capture/1604_seals_augmented/'
         aug_location_1604_paper = '/mnt/ssd1/paper_samples/'
     else:
-        location_1604_notes = 'D:/1604_notes/'
-        location_genuine_notes = 'D:/genuines/Pack_100_4/'
-        aug_location_1604_fronts = 'D:/1604_fronts_augmented/'
-        aug_location_1604_backs = 'D:/1604_backs_augmented/'
-        aug_location_1604_seals = 'D:/1604_seals_augmented/'
-        aug_location_1604_paper = 'D:/1604_paper_augmented/'
+        location_1604_notes = 'D:/raw_data/1604_data/1604_notes/'
+        location_genuine_notes = 'D:/raw_data/genuines/Pack_100_4/'
+        aug_location_1604_fronts = 'D:/raw_data/1604_data/1604_fronts_augmented/'
+        aug_location_1604_backs = 'D:/raw_data/1604_data/1604_backs_augmented/'
+        aug_location_1604_seals = 'D:/raw_data/1604_data/1604_seals_augmented/'
+        aug_location_1604_paper = 'D:/raw_data/1604_data/1604_paper_augmented/'
 
     if DELETE_DATA:
         time.sleep(5)
@@ -324,7 +332,7 @@ if __name__ == '__main__':
 
     sides_wanted = ['Front'] # (0 / 1)
     specs_wanted = ['RGB']
-    aug_fac = 50
+    aug_fac = 8
     # TODO make it work for non rgb/nir
     maskrcnn = MaskRCNN()
     main()
