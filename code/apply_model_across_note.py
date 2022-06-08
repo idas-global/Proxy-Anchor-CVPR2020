@@ -123,6 +123,7 @@ def load_model(args, model_name=None):
                                           if os.path.isdir(f'{root}/{dir}/{i}')],
                                          key=lambda i: float(i.split('_')[-1]))[1]
                 model_directory += '/'
+
     model = create_model(args)
     check_path = model_directory + [i for i in os.listdir(model_directory) if i.endswith('.pth')][0]
     checkpoint = torch.load(check_path)
@@ -175,201 +176,177 @@ def load_model_stack(models):
            genuine_notes_loc
 
 
+def count_notes(notes_per_family, genuine_notes_loc, notes_loc, args):
+    total_notes = 0
+    for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
+        pnt_key = notes_frame["parent note"].values[0]
+        if pnt_key == 'NO DATA':
+            continue
+
+        valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], ['Front'])
+        total_notes += len(valid_notes)
+
+    if args.dataset == 'note_families_tile':
+        total_notes = total_notes * 6
+    print(f'Found {total_notes} samples')
+    return total_notes
+
+
 if __name__ == '__main__':
     PLOT_IMAGES = False
     maskrcnn = MaskRCNN()
 
     args = parse_arguments()
 
-    models = {'front': 'swept-pine-110', 'back': 'dark-surf-14', 'seal': 'major-fire-14'}
-    [front_model, front_model_dir, seal_model, seal_model_dir, back_model, back_model_dir], \
-    [fine_val_fnt, coarse_val_fnt, fine_val_seal, coarse_val_seal, fine_val_bck, coarse_val_bck], \
-    [fine_test_fnt, coarse_test_fnt, fine_test_seal, coarse_test_seal, fine_test_bck, coarse_test_bck], \
-        notes_loc, \
-        genuine_notes_loc = load_model_stack(models)
+    models = {'note_families_front': 'swept-pine-110',
+              'note_families_back': 'dark-surf-14',
+              'note_families_seal': 'major-fire-14'}
+    models['note_families_tile'] = models['note_families_front']
+
+    model, coarse_test, fine_test_fnt, \
+        coarse_val_fnt, fine_val_fnt, notes_loc, genuine_notes_loc, model_dir = load_model(args, models[args.dataset])
 
     notes_per_family = get_notes_per_family(notes_loc, genuine_notes_loc)
 
-    for note_type in ['seal']:
-        img_inputs = []
-        whole_front_predictions = []
-        whole_back_predictions = []
-        whole_seal_predictions = []
-        tile_predictions = []
+    total_notes = count_notes(notes_per_family, genuine_notes_loc, notes_loc, args)
 
-        whole_front_embeddings = []
-        whole_back_embeddings = []
-        whole_seal_embeddings = []
-        tile_embeddings = []
-        note_labels = []
-        circ_labels = []
-        
-        if note_type == 'front':
-            X_test, T_test = get_X_T('eval_', front_model_dir)
-        if note_type == 'back':
-            X_test, T_test = get_X_T('eval_', back_model_dir)
-        if note_type == 'seal':
-            X_test, T_test = get_X_T('eval_', seal_model_dir)
+    img_inputs = []
+    predictions = []
+    embeddings = []
+    note_labels = []
+    circ_labels = []
 
-        if note_type == 'front':
-            X_val, T_val = get_X_T('val_', front_model_dir)
-        if note_type == 'back':
-            X_val, T_val = get_X_T('val_', back_model_dir)
-        if note_type == 'seal':
-            X_val, T_val = get_X_T('val_', seal_model_dir)
+    X_test, T_test = get_X_T('eval_', model_dir)
+    X_val, T_val = get_X_T('val_', model_dir)
 
-        for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
-            pnt_key = notes_frame["parent note"].values[0]
-            if pnt_key == 'NO DATA':
-                continue
+    for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
+        pnt_key = notes_frame["parent note"].values[0]
+        if pnt_key == 'NO DATA':
+            continue
 
-            valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], ['Front'])
+        valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], ['Front'])
 
-            # if pnt_key == 'GENUINE':
-            #     valid_notes = valid_notes[0:40]
+        if pnt_key == 'GENUINE':
+            valid_notes = valid_notes[0:40]
 
-            if len(valid_notes) > 0:
-                pbar = tqdm(valid_notes, total=len(valid_notes))
+        if len(valid_notes) > 0:
+            pbar = tqdm(valid_notes, total=len(valid_notes))
 
-                for iter, (side, spec, pack, note_num, note_dir) in enumerate(pbar):
-                    root_loc = f'{notes_loc}Pack_{pack}/'
+            for iter, (side, spec, pack, note_num, note_dir) in enumerate(pbar):
+                root_loc = f'{notes_loc}Pack_{pack}/'
+                note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn)
 
-                    note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn)
+                if args.dataset != 'note_families_tile':
+                    whole_label, embedding = predict_from_image(note_image, model, X_test, T_test, False,
+                                                           coarse_test)
+                    predictions.append(whole_label == pnt_key)
+                    embeddings.append(embedding)
 
+                    circ_labels.append(f'PN: {pnt_key},  C: {circ_key}')
+                    tiles = []
+                else:
                     _, tiles, y_fac, x_fac = create_tiles(note_image)
 
-                    if note_type == 'front':
-                        whole_front_label, embedding_front = predict_from_image(note_image, front_model, X_test, T_test, False,
-                                                               coarse_test_fnt)
-                        whole_front_predictions.append(whole_front_label == pnt_key)
-                        whole_front_embeddings.append(embedding_front)
+                if PLOT_IMAGES:
+                    fig, axs = plt.subplot_mosaic(
+                        """
+                        024
+                        135
+                        666
+                        777
+                        888
+                        """
+                    )
 
-                    if note_type == 'back':
-                        whole_back_label, embedding_back = predict_from_image(back_note_image, back_model, X_test, T_test, False,
-                                                              coarse_test_bck)
-                        whole_back_predictions.append(whole_back_label == pnt_key)
-                        whole_back_embeddings.append(embedding_back)
+                for idx, (tile, position) in enumerate(zip(tiles, ['_tl', '_bl', '_tc', '_bc', '_tr', '_br'])):
+                    row_no = idx % y_fac
+                    col_no = idx // y_fac
 
-                    if note_type == 'seal':
-                        whole_seal_label, embedding_seal = predict_from_image(seal, seal_model, X_test, T_test, False,
-                                                              coarse_test_seal)
-                        whole_seal_predictions.append(whole_seal_label == pnt_key)
-                        whole_seal_embeddings.append(embedding_seal)
-
+                    tile_label, embedding = predict_from_image(tile, model, X_val, T_val, False, coarse_val_fnt)
+                    predictions.append(tile_label == pnt_key)
+                    embeddings.append(embedding)
+                    circ_labels.append(f'PN: {pnt_key},  C: {circ_key + position}')
                     note_labels.append(f'pack_{pack}_note_{note_num}')
-                    circ_labels.append(f'PN: {pnt_key},  C: {circ_key}')
-                    if PLOT_IMAGES:
-                        fig, axs = plt.subplot_mosaic(
-                            """
-                            024
-                            135
-                            666
-                            777
-                            888
-                            """
-                        )
-
-                    # for idx, tile in enumerate(tiles):
-                    #     row_no = idx % y_fac
-                    #     col_no = idx // y_fac
-                    #
-                    #     tile_label, embedding = predict_from_image(tile, front_model, X_val_fnt, T_val_fnt, False,
-                    #                                                      coarse_val_fnt)
-                    #     tile_predictions.append(tile_label == pnt_key)
-                    #     tile_embeddings.append(embedding)
-                    #
-                    #     if PLOT_IMAGES:
-                    #         axs[str(idx)].imshow(tile)
-                    #         axs[str(idx)].axis('off')
-                    #         axs[str(idx)].title.set_text(tile_label)
-                    #
-                    # pbar.set_description(f'{np.round(sum(whole_front_predictions) / len(whole_front_predictions), 3)}  '
-                    #                      f'{np.round(sum(whole_back_predictions) / len(whole_back_predictions), 3)}  '
-                    #                      f'{np.round(sum(whole_seal_predictions) / len(whole_seal_predictions), 3)}  '
-                    #                      f'{np.round(sum(tile_predictions) / len(tile_predictions), 3)}')
 
                     if PLOT_IMAGES:
-                        axs[str(6)].imshow(note_image)
-                        axs[str(6)].axis('off')
-                        axs[str(6)].title.set_text(f'Whole Front: Predicted: {whole_front_label}')
+                        axs[str(idx)].imshow(tile)
+                        axs[str(idx)].axis('off')
+                        axs[str(idx)].title.set_text(tile_label)
 
-                        axs[str(7)].imshow(back_note_image)
-                        axs[str(7)].axis('off')
-                        axs[str(7)].title.set_text(f'Whole Back: Predicted: {whole_back_label}')
+                # pbar.set_description(f'{np.round(sum(whole_front_predictions) / len(whole_front_predictions), 3)}  '
+                #                      f'{np.round(sum(whole_back_predictions) / len(whole_back_predictions), 3)}  '
+                #                      f'{np.round(sum(whole_seal_predictions) / len(whole_seal_predictions), 3)}  '
+                #                      f'{np.round(sum(tile_predictions) / len(tile_predictions), 3)}')
 
-                        axs[str(8)].imshow(seal)
-                        axs[str(8)].axis('off')
-                        axs[str(8)].title.set_text(f'Whole Seal: Predicted: {whole_seal_label}')
+                if PLOT_IMAGES:
+                    axs[str(6)].imshow(note_image)
+                    axs[str(6)].axis('off')
+                    axs[str(6)].title.set_text(f'Whole Front: Predicted: {whole_label}')
 
-                        plt.suptitle(f'Whole Note: Truth: {pnt_key}')
-                        plt.tight_layout()
-                        plt.subplots_adjust(wspace=0.01, hspace=0.25)
-                        #plt.show()
-                        plot_dir = f'../training/{args.dataset}/{front_model_dir.split("/")[-2]}/plots/{os.path.splitext(os.path.split(note_dir)[-1])[0]}.png'
-                        os.makedirs(f'../training/{args.dataset}/{front_model_dir.split("/")[-2]}/plots/', exist_ok=True)
-                        print(f'Figure saved to {plot_dir}')
-                        plt.savefig(plot_dir)
-                        plt.close()
+                    axs[str(7)].imshow(back_note_image)
+                    axs[str(7)].axis('off')
+                    axs[str(7)].title.set_text(f'Whole Back: Predicted: {whole_label}')
 
-        if whole_front_predictions:
-            print(f'Front: {np.round(sum(whole_front_predictions)/len(whole_front_predictions), 3)} out of {len(whole_front_predictions)} samples')
-        if whole_back_predictions:
-            print(f'Back: {np.round(sum(whole_back_predictions)/len(whole_back_predictions), 3)} out of {len(whole_back_predictions)} samples')
-        if whole_seal_predictions:
-            print(f'Seal: {np.round(sum(whole_seal_predictions)/len(whole_seal_predictions), 3)} out of {len(whole_seal_predictions)} samples')
-        if tile_predictions:
-            print(f'tile: {np.round(sum(tile_predictions)/len(tile_predictions), 3)} out of {len(tile_predictions)} samples')
+                    axs[str(8)].imshow(seal)
+                    axs[str(8)].axis('off')
+                    axs[str(8)].title.set_text(f'Whole Seal: Predicted: {whole_label}')
 
-        for model_type, model in zip(['front', 'back', 'seal', 'tile'], [whole_front_embeddings, whole_back_embeddings, whole_seal_embeddings, tile_embeddings]):
-            if not model:
-                continue
+                    plt.suptitle(f'Whole Note: Truth: {pnt_key}')
+                    plt.tight_layout()
+                    plt.subplots_adjust(wspace=0.01, hspace=0.25)
+                    #plt.show()
+                    plot_dir = f'../training/{args.dataset}/{model_dir.split("/")[-2]}/plots/{os.path.splitext(os.path.split(note_dir)[-1])[0]}.png'
+                    os.makedirs(f'../training/{args.dataset}/{model_dir.split("/")[-2]}/plots/', exist_ok=True)
+                    print(f'Figure saved to {plot_dir}')
+                    plt.savefig(plot_dir)
+                    plt.close()
 
-            label_array = circ_labels
-            path_array = note_labels
-            if model_type == 'tile':
-                label_array = np.repeat(circ_labels, 6)
-                path_array = np.repeat(note_labels, 6)
+    print(f'{args.dataset}: {np.round(sum(predictions)/len(predictions), 3)} out of {len(predictions)} samples')
 
-            tsne = TSNE(n_components=2, verbose=0, perplexity=30)
-            xxx = torch.cat(model)
-            z = tsne.fit_transform(xxx.detach().numpy())
-            df = pd.DataFrame()
-            df["comp-1"] = z[:, 0]
-            df["comp-2"] = z[:, 1]
+    label_array = circ_labels
+    path_array = note_labels
 
-            cmap = ListedColormap(sns.color_palette("husl", len(np.unique(label_array))).as_hex())
-            colours = {pnt: cmap.colors[idx] for idx, pnt in enumerate(np.unique(label_array))}
+    tsne = TSNE(n_components=2, verbose=0, perplexity=30)
+    xxx = torch.cat(embeddings)
+    z = tsne.fit_transform(xxx.detach().numpy())
+    df = pd.DataFrame()
+    df["comp-1"] = z[:, 0]
+    df["comp-2"] = z[:, 1]
 
-            fig = plt.figure(figsize=(12, 12))
-            ax = plt.axes()
+    cmap = ListedColormap(sns.color_palette("husl", len(np.unique(circ_labels))).as_hex())
+    colours = {pnt: cmap.colors[idx] for idx, pnt in enumerate(np.unique(circ_labels))}
 
-            x = df["comp-1"]
-            y = df["comp-2"]
-            col = [colours[i] for i in list(label_array)]
-            labels = [i for i in list(label_array)]
+    fig = plt.figure(figsize=(12, 12))
+    ax = plt.axes()
 
-            axes_obj = ax.scatter(x,
-                                  y,
-                                  s=30,
-                                  c=col,
-                                  marker='o',
-                                  alpha=1
-                                  )
-            axes_obj.annots = labels
-            axes_obj.im_paths = path_array
+    x = df["comp-1"]
+    y = df["comp-2"]
+    col = [colours[i] for i in list(circ_labels)]
+    labels = [i for i in list(circ_labels)]
 
-            plt.legend(labels=labels)
+    axes_obj = ax.scatter(x,
+                          y,
+                          s=30,
+                          c=col,
+                          marker='o',
+                          alpha=1
+                          )
+    axes_obj.annots = labels
+    axes_obj.im_paths = note_labels
 
-            ax.legend(bbox_to_anchor=(1.02, 1))
-            mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(
-                sel.artist.annots[sel.target.index]))
-            mplcursors.cursor(fig).connect("add", lambda sel: sel.annotation.set_text(sel.artist.im_paths[sel.target.index]))
-            # save
-            fig.suptitle("TSNE")
-            if sys.platform != 'linux':
-                os.makedirs(f'D:/applied_models/{model_type}/', exist_ok=True)
-                pickle.dump(fig, open(f'D:/applied_models/{model_type}/tSNE.pkl', 'wb'))
-            else:
-                os.makedirs(f'../applied_models/{model_type}/', exist_ok=True)
-                pickle.dump(fig, open(f'../applied_models/{model_type}/tSNE.pkl', 'wb'))
-            plt.close()
+    plt.legend(labels=labels)
+
+    ax.legend(bbox_to_anchor=(1.02, 1))
+    mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(
+        sel.artist.annots[sel.target.index]))
+    mplcursors.cursor(fig).connect("add", lambda sel: sel.annotation.set_text(sel.artist.im_paths[sel.target.index]))
+    # save
+    fig.suptitle("TSNE")
+    if sys.platform != 'linux':
+        outpath = f'D:/model_outputs/proxy_anchor/applied_models/{args.dataset}/tSNE.pkl'
+        os.makedirs(os.path.split(outpath)[0], exist_ok=True)
+        pickle.dump(fig, open(outpath, 'wb'))
+    else:
+        os.makedirs(f'../applied_models/{args.dataset}/', exist_ok=True)
+        pickle.dump(fig, open(f'../applied_models/{args.dataset}/tSNE.pkl', 'wb'))
+    plt.close()

@@ -385,7 +385,7 @@ def plot_tSNE(X, data_viz_frame, dataloader, pictures_to_predict, train_dest, va
     df["comp-2"] = z[:, 1]
 
     params = ['truth']
-    degrees = ['fine']
+    degrees = ['fine', 'coarse']
     for deg in degrees:
         for para in params:
             import seaborn as sns

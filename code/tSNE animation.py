@@ -89,7 +89,7 @@ def onclick(event):
             paper = cv2.cvtColor(paper, cv2.COLOR_BGR2RGB)
             fig, axs = plt.subplots()
             axs.imshow(paper)
-            axs.set_text.title(im_paths[i_close])
+            #axs.set_text.title(im_paths[i_close])
             axs.axis('off')
             fig.show()
 
@@ -123,20 +123,20 @@ def main():
             plt.figure()
             plt.close()
 
-            # fig = pickle.load(open(f'D:/model_outputs/proxy_anchor/applied_models/back/tSNE.pkl', 'rb'))
-            # mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(
-            #     sel.artist.annots[sel.target.index]))
-            # import matplotlib
-            # aaa = fig.axes[0].get_children()
-            # for obj in aaa:
-            #     if isinstance(obj, matplotlib.collections.PathCollection):
-            #         global x, y, im_paths
-            #         im_paths = obj.im_paths
-            #         x, y = zip(*obj.get_offsets())
-            #         break
-            # print(x)
-            # cid = fig.canvas.mpl_connect('button_press_event', onclick)
-            # plt.show(block=True)
+            fig = pickle.load(open(f'D:/model_outputs/proxy_anchor/applied_models/note_families_front/tSNE.pkl', 'rb'))
+            mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(
+                sel.artist.annots[sel.target.index]))
+            import matplotlib
+            aaa = fig.axes[0].get_children()
+            for obj in aaa:
+                if isinstance(obj, matplotlib.collections.PathCollection):
+                    global x, y, im_paths
+                    im_paths = obj.im_paths
+                    x, y = zip(*obj.get_offsets())
+                    break
+            print(x)
+            cid = fig.canvas.mpl_connect('button_press_event', onclick)
+            plt.show(block=True)
 
             for idx, x in enumerate(tSNE_plots):
                 fig = pickle.load(open(x, 'rb'))
