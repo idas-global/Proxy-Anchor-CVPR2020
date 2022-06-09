@@ -184,6 +184,7 @@ def count_notes(notes_per_family, genuine_notes_loc, notes_loc, args):
             continue
 
         valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], ['Front'])
+
         total_notes += len(valid_notes)
 
     if args.dataset == 'note_families_tile':
@@ -210,24 +211,22 @@ if __name__ == '__main__':
 
     total_notes = count_notes(notes_per_family, genuine_notes_loc, notes_loc, args)
 
-    img_inputs = []
-    predictions = []
-    embeddings = []
-    note_labels = []
-    circ_labels = []
+    predictions = np.zeros(total_notes)
+    embeddings  = np.zeros((total_notes, args.sz_embedding))
+    note_labels = np.zeros(total_notes, dtype=object)
+    circ_labels = np.zeros(total_notes, dtype=object)
+    im_paths    = np.zeros(total_notes, dtype=object)
 
     X_test, T_test = get_X_T('eval_', model_dir)
     X_val, T_val = get_X_T('val_', model_dir)
 
+    note_idx = 0
     for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
         pnt_key = notes_frame["parent note"].values[0]
         if pnt_key == 'NO DATA':
             continue
 
         valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], ['Front'])
-
-        if pnt_key == 'GENUINE':
-            valid_notes = valid_notes[0:40]
 
         if len(valid_notes) > 0:
             pbar = tqdm(valid_notes, total=len(valid_notes))
@@ -239,10 +238,12 @@ if __name__ == '__main__':
                 if args.dataset != 'note_families_tile':
                     whole_label, embedding = predict_from_image(note_image, model, X_test, T_test, False,
                                                            coarse_test)
-                    predictions.append(whole_label == pnt_key)
-                    embeddings.append(embedding)
+                    predictions[note_idx] = whole_label == pnt_key
+                    embeddings[note_idx]  = embedding.detach().numpy()
+                    circ_labels[note_idx] = f'PN: {pnt_key},  C: {circ_key}'
+                    note_labels[note_idx] = f'pack_{pack}_note_{note_num}'
 
-                    circ_labels.append(f'PN: {pnt_key},  C: {circ_key}')
+                    note_idx += 1
                     tiles = []
                 else:
                     _, tiles, y_fac, x_fac = create_tiles(note_image)
@@ -263,10 +264,11 @@ if __name__ == '__main__':
                     col_no = idx // y_fac
 
                     tile_label, embedding = predict_from_image(tile, model, X_val, T_val, False, coarse_val_fnt)
-                    predictions.append(tile_label == pnt_key)
-                    embeddings.append(embedding)
-                    circ_labels.append(f'PN: {pnt_key},  C: {circ_key + position}')
-                    note_labels.append(f'pack_{pack}_note_{note_num}')
+                    predictions[note_idx] = tile_label == pnt_key
+                    embeddings[note_idx]  = embedding
+                    circ_labels[note_idx] = f'PN: {pnt_key},  C: {circ_key + position}'
+                    note_labels[note_idx] = f'pack_{pack}_note_{note_num}'
+                    note_idx += 1
 
                     if PLOT_IMAGES:
                         axs[str(idx)].imshow(tile)
@@ -307,8 +309,10 @@ if __name__ == '__main__':
     path_array = note_labels
 
     tsne = TSNE(n_components=2, verbose=0, perplexity=30)
-    xxx = torch.cat(embeddings)
-    z = tsne.fit_transform(xxx.detach().numpy())
+    embeddings = l2_norm(embeddings)
+
+    xxx = torch.from_numpy(embeddings)
+    z = tsne.fit_transform(embeddings)
     df = pd.DataFrame()
     df["comp-1"] = z[:, 0]
     df["comp-2"] = z[:, 1]
@@ -340,13 +344,13 @@ if __name__ == '__main__':
     mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(
         sel.artist.annots[sel.target.index]))
     mplcursors.cursor(fig).connect("add", lambda sel: sel.annotation.set_text(sel.artist.im_paths[sel.target.index]))
-    # save
+
     fig.suptitle("TSNE")
     if sys.platform != 'linux':
-        outpath = f'D:/model_outputs/proxy_anchor/applied_models/{args.dataset}/{models[args.dataset]}_tSNE.pkl'
-        os.makedirs(os.path.split(outpath)[0], exist_ok=True)
-        pickle.dump(fig, open(outpath, 'wb'))
+        outpath = f'D:/model_outputs/proxy_anchor/training/{args.dataset}/{models[args.dataset]}/true_validation/nonaug_truth_fine_tSNE.pkl'
     else:
-        os.makedirs(f'../applied_models/{args.dataset}/{models[args.dataset]}', exist_ok=True)
-        pickle.dump(fig, open(f'../applied_models/{args.dataset}/{models[args.dataset]}/{models[args.dataset]}_tSNE.pkl', 'wb'))
+        outpath = f'../training/{args.dataset}/{models[args.dataset]}/{models[args.dataset]}/true_validation/nonaug_truth_fine_tSNE.pkl'
+
+    os.makedirs(os.path.split(outpath)[0], exist_ok=True)
+    pickle.dump(fig, open(outpath, 'wb'))
     plt.close()

@@ -108,7 +108,7 @@ def main():
     global ds, x, y, im_paths
 
     for ds in ['cars', 'cub', 'note_families_front', 'note_families_back', 'note_families_seal', 'note_styles', 'paper']:
-        for model_name in ['radiant-paper-7', 'blooming-pine-134', 'tough-yogurt-5', 'pleasant-donkey-171', 'glowing-sun-314', 'elated-pyramid-116', 'magic-wave-15', 'dutiful-snowflake-17']:
+        for model_name in ['swept-pine-110', 'radiant-paper-7', 'blooming-pine-134', 'tough-yogurt-5', 'pleasant-donkey-171', 'glowing-sun-314', 'elated-pyramid-116', 'magic-wave-15', 'dutiful-snowflake-17']:
             generator = 'test'
             if ds == 'cars' or ds == 'cub':
                 generator = 'validation'
@@ -122,21 +122,6 @@ def main():
             tSNE_plots = sorted(tSNE_plots, key=lambda x: int(x.split('\\')[-3])) # Sort by epoch
             plt.figure()
             plt.close()
-
-            fig = pickle.load(open(f'D:/model_outputs/proxy_anchor/applied_models/note_families_front/tSNE.pkl', 'rb'))
-            mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(
-                sel.artist.annots[sel.target.index]))
-            import matplotlib
-            aaa = fig.axes[0].get_children()
-            for obj in aaa:
-                if isinstance(obj, matplotlib.collections.PathCollection):
-                    global x, y, im_paths
-                    im_paths = obj.im_paths
-                    x, y = zip(*obj.get_offsets())
-                    break
-            print(x)
-            cid = fig.canvas.mpl_connect('button_press_event', onclick)
-            plt.show(block=True)
 
             for idx, x in enumerate(tSNE_plots):
                 fig = pickle.load(open(x, 'rb'))
