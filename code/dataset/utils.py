@@ -95,7 +95,7 @@ def make_transform(is_train = True, is_inception = False, dataset = 'default'):
                 RGBToBGR(),
                 transforms.RandomHorizontalFlip() if is_train else Identity(),
                 transforms.RandomVerticalFlip() if is_train else Identity(),
-                transforms.Resize(inception_sz_resize),
+                transforms.Resize((inception_sz_resize, inception_sz_resize)),
                 transforms.ToTensor(),
                 ScaleIntensities([0, 1], [0, 255]),
                 transforms.Normalize(mean=inception_mean, std=inception_std)
