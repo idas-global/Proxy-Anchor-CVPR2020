@@ -292,7 +292,7 @@ if __name__ == '__main__':
 
     args = parse_arguments()
 
-    models = {'note_families_front': 'swept-pine-110',
+    models = {'note_families_front': 'ancient-brook-119',
               'note_families_back': 'gentle-river-20',
               'note_families_seal': 'laced-totem-16'}
     models['note_families_tile'] = models['note_families_front']

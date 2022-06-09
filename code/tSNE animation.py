@@ -71,7 +71,11 @@ def onclick(event):
         name = parse(im_paths[i_close])
         img = cv2.imread(name)
         img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
-        cv2.imshow(im_paths[i_close], cv2.resize(img, (1600, 800)))
+
+        fig = plt.figure()
+        fig1 = fig.add_subplot(1, 1, 1)
+        fig1.imshow(img)
+        plt.show(block=False)
 
     if ds.startswith('paper'):
         name = parse(im_paths[i_close])
@@ -87,28 +91,34 @@ def onclick(event):
                         int(round((fed_roi[3] - random.choice(np.arange(18, 30, 1))) * scaleX)):
                         int(round((fed_roi[3] - random.choice(np.arange(0, 10, 1))) * scaleX))]
             paper = cv2.cvtColor(paper, cv2.COLOR_BGR2RGB)
-            fig, axs = plt.subplots()
-            axs.imshow(paper)
-            #axs.set_text.title(im_paths[i_close])
-            axs.axis('off')
-            fig.show()
+            fig = plt.figure()
+            fig1 = fig.add_subplot(1, 1, 1)
+            fig1.imshow(paper)
+            plt.show(block=False)
 
     if ds.startswith('cars'):
         name = parse_cars(im_paths[i_close])
         img = cv2.imread(name)
-        cv2.imshow(im_paths[i_close], cv2.resize(img, (1200, 1200)))
+        fig = plt.figure()
+        fig1 = fig.add_subplot(1, 1, 1)
+        fig1.imshow(img)
+        plt.show(block=False)
 
     if ds.startswith('cub'):
         name = parse_cub(im_paths[i_close])
         img = cv2.imread(name)
-        cv2.imshow(im_paths[i_close], cv2.resize(img, (1200, 1200)))
+        fig = plt.figure()
+        fig1 = fig.add_subplot(1, 1, 1)
+        fig1.imshow(img)
+        plt.show(block=False)
 
 def main():
     root_dir = 'D:/model_outputs/proxy_anchor/training/'
     global ds, x, y, im_paths
 
     for ds in ['cars', 'cub', 'note_families_front', 'note_families_back', 'note_families_seal', 'note_styles', 'paper']:
-        for model_name in ['swept-pine-110', 'radiant-paper-7', 'blooming-pine-134', 'tough-yogurt-5', 'pleasant-donkey-171', 'glowing-sun-314', 'elated-pyramid-116', 'magic-wave-15', 'dutiful-snowflake-17']:
+        #for model_name in ['swept-pine-110', 'radiant-paper-7', 'blooming-pine-134', 'tough-yogurt-5', 'pleasant-donkey-171', 'glowing-sun-314', 'elated-pyramid-116', 'magic-wave-15', 'dutiful-snowflake-17']:
+        for model_name in ['ancient-brook-119', 'radiant-paper-7']:
             generator = 'test'
             if ds == 'cars' or ds == 'cub':
                 generator = 'validation'
