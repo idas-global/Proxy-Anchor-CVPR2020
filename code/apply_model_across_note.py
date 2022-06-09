@@ -121,7 +121,7 @@ def load_model(args, model_name=None):
             if dir == model_name:
                 model_directory = sorted([f'{root}/{dir}/{i}' for i in os.listdir(f'{root}/{dir}')
                                           if os.path.isdir(f'{root}/{dir}/{i}')],
-                                         key=lambda i: float(i.split('_')[-1]))[1]
+                                         key=lambda i: float(i.split('_')[-1]))[-1]
                 model_directory += '/'
 
     model = create_model(args)
@@ -198,9 +198,9 @@ if __name__ == '__main__':
 
     args = parse_arguments()
 
-    models = {'note_families_front': 'swept-pine-110',
-              'note_families_back': 'dark-surf-14',
-              'note_families_seal': 'major-fire-14'}
+    models = {'note_families_front': 'ancient-brook-119',
+              'note_families_back': 'gentle-river-20',
+              'note_families_seal': 'laced-totem-16'}
     models['note_families_tile'] = models['note_families_front']
 
     model, coarse_test, fine_test_fnt, \
@@ -343,10 +343,10 @@ if __name__ == '__main__':
     # save
     fig.suptitle("TSNE")
     if sys.platform != 'linux':
-        outpath = f'D:/model_outputs/proxy_anchor/applied_models/{args.dataset}/tSNE.pkl'
+        outpath = f'D:/model_outputs/proxy_anchor/applied_models/{args.dataset}/{models[args.dataset]}_tSNE.pkl'
         os.makedirs(os.path.split(outpath)[0], exist_ok=True)
         pickle.dump(fig, open(outpath, 'wb'))
     else:
-        os.makedirs(f'../applied_models/{args.dataset}/', exist_ok=True)
-        pickle.dump(fig, open(f'../applied_models/{args.dataset}/tSNE.pkl', 'wb'))
+        os.makedirs(f'../applied_models/{args.dataset}/{models[args.dataset]}', exist_ok=True)
+        pickle.dump(fig, open(f'../applied_models/{args.dataset}/{models[args.dataset]}/{models[args.dataset]}_tSNE.pkl', 'wb'))
     plt.close()
