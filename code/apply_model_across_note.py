@@ -73,7 +73,7 @@ def create_tiles(im):
         box = (start, im.shape[0] / 2, end, im.shape[0])
         tiles.append(im[int(round(box[1])):int(round(box[3])), int(round(box[0])):int(round(box[2]))])
 
-    return note_dir, tiles, 2, 3
+    return tiles, 2, 3
 
 
 def get_transformed_image(tile, train=True):
@@ -176,21 +176,114 @@ def load_model_stack(models):
            genuine_notes_loc
 
 
-def count_notes(notes_per_family, genuine_notes_loc, notes_loc, args):
-    total_notes = 0
+def get_embeddings(notes_per_family, genuine_notes_loc, notes_loc, args, total_notes, COUNT_ONLY=False):
     for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
         pnt_key = notes_frame["parent note"].values[0]
         if pnt_key == 'NO DATA':
-            continue
+            pnt_key = circ_key
+            if pnt_key == 'NO DATA':
+                continue
 
         valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], ['Front'])
 
-        total_notes += len(valid_notes)
+        if COUNT_ONLY:
+            total_notes += len(valid_notes)
 
-    if args.dataset == 'note_families_tile':
-        total_notes = total_notes * 6
-    print(f'Found {total_notes} samples')
-    return total_notes
+        if not COUNT_ONLY:
+            predictions = np.zeros(total_notes)
+            embeddings = np.zeros((total_notes, args.sz_embedding))
+            note_labels = np.zeros(total_notes, dtype=object)
+            circ_labels = np.zeros(total_notes, dtype=object)
+
+            X_test, T_test = get_X_T('eval_', model_dir)
+            X_val, T_val = get_X_T('val_', model_dir)
+
+            note_idx = 0
+            for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
+                pnt_key = notes_frame["parent note"].values[0]
+                if pnt_key == 'NO DATA':
+                    pnt_key = circ_key
+                    if pnt_key == 'NO DATA':
+                        continue
+
+                valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], ['Front'])
+
+                if len(valid_notes) > 0:
+                    pbar = tqdm(valid_notes, total=len(valid_notes))
+
+                    for iter, (side, spec, pack, note_num, note_dir) in enumerate(pbar):
+                        note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn)
+
+                        if args.dataset != 'note_families_tile':
+                            whole_label, embedding = predict_from_image(note_image, model, X_test, T_test, False,
+                                                                        coarse_test)
+                            predictions[note_idx] = whole_label == pnt_key
+                            embeddings[note_idx] = embedding.detach().numpy()
+                            circ_labels[note_idx] = f'PN: {pnt_key},  C: {circ_key}'
+                            note_labels[note_idx] = f'pack_{pack}_note_{note_num}'
+
+                            note_idx += 1
+                            tiles = []
+                        else:
+                            tiles, y_fac, x_fac = create_tiles(note_image)
+
+                        if PLOT_IMAGES:
+                            fig, axs = plt.subplot_mosaic(
+                                """
+                                024
+                                135
+                                666
+                                777
+                                888
+                                """
+                            )
+
+                        for idx, (tile, position) in enumerate(zip(tiles, ['_tl', '_bl', '_tc', '_bc', '_tr', '_br'])):
+                            tile_label, embedding = predict_from_image(tile, model, X_val, T_val, False, coarse_val_fnt)
+                            predictions[note_idx] = tile_label == pnt_key
+                            embeddings[note_idx] = embedding
+                            circ_labels[note_idx] = f'PN: {pnt_key},  C: {circ_key + position}'
+                            note_labels[note_idx] = f'pack_{pack}_note_{note_num}'
+                            note_idx += 1
+
+                            if PLOT_IMAGES:
+                                axs[str(idx)].imshow(tile)
+                                axs[str(idx)].axis('off')
+                                axs[str(idx)].title.set_text(tile_label)
+
+                        # pbar.set_description(f'{np.round(sum(whole_front_predictions) / len(whole_front_predictions), 3)}  '
+                        #                      f'{np.round(sum(whole_back_predictions) / len(whole_back_predictions), 3)}  '
+                        #                      f'{np.round(sum(whole_seal_predictions) / len(whole_seal_predictions), 3)}  '
+                        #                      f'{np.round(sum(tile_predictions) / len(tile_predictions), 3)}')
+
+                        if PLOT_IMAGES:
+                            axs[str(6)].imshow(note_image)
+                            axs[str(6)].axis('off')
+                            axs[str(6)].title.set_text(f'Whole Front: Predicted: {whole_label}')
+
+                            axs[str(7)].imshow(back_note_image)
+                            axs[str(7)].axis('off')
+                            axs[str(7)].title.set_text(f'Whole Back: Predicted: {whole_label}')
+
+                            axs[str(8)].imshow(seal)
+                            axs[str(8)].axis('off')
+                            axs[str(8)].title.set_text(f'Whole Seal: Predicted: {whole_label}')
+
+                            plt.suptitle(f'Whole Note: Truth: {pnt_key}')
+                            plt.tight_layout()
+                            plt.subplots_adjust(wspace=0.01, hspace=0.25)
+                            # plt.show()
+                            plot_dir = f'../training/{args.dataset}/{model_dir.split("/")[-2]}/plots/{os.path.splitext(os.path.split(note_dir)[-1])[0]}.png'
+                            os.makedirs(f'../training/{args.dataset}/{model_dir.split("/")[-2]}/plots/', exist_ok=True)
+                            print(f'Figure saved to {plot_dir}')
+                            plt.savefig(plot_dir)
+                            plt.close()
+    if COUNT_ONLY:
+        if args.dataset == 'note_families_tile':
+            total_notes = total_notes * 6
+        print(f'Found {total_notes} samples')
+        return total_notes
+    return predictions, embeddings, note_labels, circ_labels
 
 
 if __name__ == '__main__':
@@ -199,7 +292,7 @@ if __name__ == '__main__':
 
     args = parse_arguments()
 
-    models = {'note_families_front': 'ancient-brook-119',
+    models = {'note_families_front': 'swept-pine-110',
               'note_families_back': 'gentle-river-20',
               'note_families_seal': 'laced-totem-16'}
     models['note_families_tile'] = models['note_families_front']
@@ -209,99 +302,19 @@ if __name__ == '__main__':
 
     notes_per_family = get_notes_per_family(notes_loc, genuine_notes_loc)
 
-    total_notes = count_notes(notes_per_family, genuine_notes_loc, notes_loc, args)
+    total_notes = get_embeddings(notes_per_family, 
+                                 genuine_notes_loc, 
+                                 notes_loc, 
+                                 args, 
+                                 0, 
+                                 COUNT_ONLY=True)
 
-    predictions = np.zeros(total_notes)
-    embeddings  = np.zeros((total_notes, args.sz_embedding))
-    note_labels = np.zeros(total_notes, dtype=object)
-    circ_labels = np.zeros(total_notes, dtype=object)
-    im_paths    = np.zeros(total_notes, dtype=object)
-
-    X_test, T_test = get_X_T('eval_', model_dir)
-    X_val, T_val = get_X_T('val_', model_dir)
-
-    note_idx = 0
-    for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
-        pnt_key = notes_frame["parent note"].values[0]
-        if pnt_key == 'NO DATA':
-            continue
-
-        valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], ['Front'])
-
-        if len(valid_notes) > 0:
-            pbar = tqdm(valid_notes, total=len(valid_notes))
-
-            for iter, (side, spec, pack, note_num, note_dir) in enumerate(pbar):
-                root_loc = f'{notes_loc}Pack_{pack}/'
-                note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn)
-
-                if args.dataset != 'note_families_tile':
-                    whole_label, embedding = predict_from_image(note_image, model, X_test, T_test, False,
-                                                           coarse_test)
-                    predictions[note_idx] = whole_label == pnt_key
-                    embeddings[note_idx]  = embedding.detach().numpy()
-                    circ_labels[note_idx] = f'PN: {pnt_key},  C: {circ_key}'
-                    note_labels[note_idx] = f'pack_{pack}_note_{note_num}'
-
-                    note_idx += 1
-                    tiles = []
-                else:
-                    _, tiles, y_fac, x_fac = create_tiles(note_image)
-
-                if PLOT_IMAGES:
-                    fig, axs = plt.subplot_mosaic(
-                        """
-                        024
-                        135
-                        666
-                        777
-                        888
-                        """
-                    )
-
-                for idx, (tile, position) in enumerate(zip(tiles, ['_tl', '_bl', '_tc', '_bc', '_tr', '_br'])):
-                    row_no = idx % y_fac
-                    col_no = idx // y_fac
-
-                    tile_label, embedding = predict_from_image(tile, model, X_val, T_val, False, coarse_val_fnt)
-                    predictions[note_idx] = tile_label == pnt_key
-                    embeddings[note_idx]  = embedding
-                    circ_labels[note_idx] = f'PN: {pnt_key},  C: {circ_key + position}'
-                    note_labels[note_idx] = f'pack_{pack}_note_{note_num}'
-                    note_idx += 1
-
-                    if PLOT_IMAGES:
-                        axs[str(idx)].imshow(tile)
-                        axs[str(idx)].axis('off')
-                        axs[str(idx)].title.set_text(tile_label)
-
-                # pbar.set_description(f'{np.round(sum(whole_front_predictions) / len(whole_front_predictions), 3)}  '
-                #                      f'{np.round(sum(whole_back_predictions) / len(whole_back_predictions), 3)}  '
-                #                      f'{np.round(sum(whole_seal_predictions) / len(whole_seal_predictions), 3)}  '
-                #                      f'{np.round(sum(tile_predictions) / len(tile_predictions), 3)}')
-
-                if PLOT_IMAGES:
-                    axs[str(6)].imshow(note_image)
-                    axs[str(6)].axis('off')
-                    axs[str(6)].title.set_text(f'Whole Front: Predicted: {whole_label}')
-
-                    axs[str(7)].imshow(back_note_image)
-                    axs[str(7)].axis('off')
-                    axs[str(7)].title.set_text(f'Whole Back: Predicted: {whole_label}')
-
-                    axs[str(8)].imshow(seal)
-                    axs[str(8)].axis('off')
-                    axs[str(8)].title.set_text(f'Whole Seal: Predicted: {whole_label}')
-
-                    plt.suptitle(f'Whole Note: Truth: {pnt_key}')
-                    plt.tight_layout()
-                    plt.subplots_adjust(wspace=0.01, hspace=0.25)
-                    #plt.show()
-                    plot_dir = f'../training/{args.dataset}/{model_dir.split("/")[-2]}/plots/{os.path.splitext(os.path.split(note_dir)[-1])[0]}.png'
-                    os.makedirs(f'../training/{args.dataset}/{model_dir.split("/")[-2]}/plots/', exist_ok=True)
-                    print(f'Figure saved to {plot_dir}')
-                    plt.savefig(plot_dir)
-                    plt.close()
+    predictions, embeddings, note_labels, circ_labels = get_embeddings(notes_per_family,
+                                                                       genuine_notes_loc,
+                                                                       notes_loc,
+                                                                       args,
+                                                                       total_notes,
+                                                                       COUNT_ONLY=False)
 
     print(f'{args.dataset}: {np.round(sum(predictions)/len(predictions), 3)} out of {len(predictions)} samples')
 
