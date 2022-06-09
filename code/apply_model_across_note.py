@@ -16,10 +16,10 @@ from tqdm import tqdm
 from augment_paper import get_valid_notes, get_front_back_seal, form_genuine_frame, form_1604_frame, augment, \
     get_notes_per_family
 from maskrcnn import MaskRCNN
-from utils import l2_norm
+from utils import l2_norm, parse_arguments
 from dataset.utils import RGBToBGR, ScaleIntensities, Identity
 from noteclasses import ImageBMP
-from train import parse_arguments, create_model, create_generators, get_transform
+from train import create_model, create_generators, get_transform
 import matplotlib.pyplot as plt
 from torchvision import transforms
 import torch.nn.functional as F
@@ -318,6 +318,15 @@ if __name__ == '__main__':
 
     print(f'{args.dataset}: {np.round(sum(predictions)/len(predictions), 3)} out of {len(predictions)} samples')
 
+    if sys.platform != 'linux':
+        outpath = f'D:/model_outputs/proxy_anchor/training/{args.dataset}/{models[args.dataset]}/true_validation/nonaug_truth_fine_tSNE.pkl'
+    else:
+        outpath = f'../training/{args.dataset}/{models[args.dataset]}/true_validation/nonaug_truth_fine_tSNE.pkl'
+
+    np.save(os.path.split(outpath)[0] + f'/{args.dataset}_embeddings.npy', embeddings)
+    np.save(os.path.split(outpath)[0] + f'/{args.dataset}_circ_labels.npy', circ_labels)
+    np.save(os.path.split(outpath)[0] + f'/{args.dataset}_note_labels.npy', note_labels)
+
     label_array = circ_labels
     path_array = note_labels
 
@@ -359,11 +368,8 @@ if __name__ == '__main__':
     mplcursors.cursor(fig).connect("add", lambda sel: sel.annotation.set_text(sel.artist.im_paths[sel.target.index]))
 
     fig.suptitle("TSNE")
-    if sys.platform != 'linux':
-        outpath = f'D:/model_outputs/proxy_anchor/training/{args.dataset}/{models[args.dataset]}/true_validation/nonaug_truth_fine_tSNE.pkl'
-    else:
-        outpath = f'../training/{args.dataset}/{models[args.dataset]}/{models[args.dataset]}/true_validation/nonaug_truth_fine_tSNE.pkl'
 
     os.makedirs(os.path.split(outpath)[0], exist_ok=True)
     pickle.dump(fig, open(outpath, 'wb'))
+
     plt.close()

@@ -13,8 +13,8 @@ import albumentations as aug
 import pandas as pd
 from tqdm import tqdm
 
+from utils import get_front_back_seal
 from maskrcnn import MaskRCNN
-from noteclasses import ImageBMP
 import random
 
 
@@ -118,37 +118,6 @@ def create_dirs(circ_key, pnt_key):
     return dest_back, dest_front, dest_paper, dest_seal
 
 
-def get_front_back_seal(note_dir, maskrcnn, DO_PAPER=True, DO_SEAL=True):
-    note_object = ImageBMP(note_dir,
-                           straighten=True, rotation=None)
-    note_image = note_object.array
-
-    if 'Front' in note_dir:
-        note_object = ImageBMP(note_dir.replace('Front', 'Back'),
-                               straighten=True, rotation=None)
-    else:
-        note_object = ImageBMP(note_dir.replace('_0.bmp', '_1.bmp'),
-                               straighten=True, rotation=None)
-    back_note_image = note_object.array
-
-    df = pd.DataFrame()
-    seal = None
-    if DO_PAPER or DO_SEAL:
-        df = maskrcnn.detect(note_image, determineOrientation=False)
-
-        scaleY = note_image.shape[0] / 512
-        scaleX = note_image.shape[1] / 1024
-
-        df = df[~df['classID'].duplicated(keep='first')]
-
-        if not df[df['className'] == 'TrsSeal']['roi'].empty:
-            seal_roi = df[df['className'] == 'TrsSeal']['roi'].values[0]
-
-            seal = note_image[int(round(seal_roi[0] * scaleY)):int(round(seal_roi[2] * scaleY)),
-                              int(round(seal_roi[1] * scaleX)): int(round(seal_roi[3] * scaleX))]
-    return note_image, back_note_image, seal, df
-
-
 def get_paper_sample(df, note_image, scaleX, scaleY):
     fed_roi = df[df['className'] == 'FedSeal']['roi'].values[0]
 
@@ -231,9 +200,23 @@ def get_valid_notes(location_genuine_notes, location_1604_notes, notes_frame, sp
                         print(f'{root_loc}{note_num}/{note_num}_{spec}_{side}.bmp')
                         missing_per_frame += 1
                         continue
-
-                valid_notes.append((side, spec, pack, note_num, note_dir))
+                if _all_specs_present(note_dir):
+                    valid_notes.append((side, spec, pack, note_num, note_dir))
     return valid_notes
+
+
+def _all_specs_present(note_dir):
+    needed_specs = []
+    needed_specs += [('RGB_Front', 'RGB_0.bmp')]
+    needed_specs += [('RGB_Back', 'RGB_1.bmp')]
+    present_specs = []
+    for spec in needed_specs:
+        if any([True if spec[0] in file else False for file in os.listdir(os.path.split(note_dir)[0])]) or \
+                any([True if spec[1] in file else False for file in os.listdir(os.path.split(note_dir)[0])]):
+            present_specs += [True]
+        else:
+            present_specs += [False]
+    return all(present_specs)
 
 
 def form_genuine_frame(location_genuine_notes):

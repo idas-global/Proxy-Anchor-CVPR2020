@@ -7,9 +7,7 @@ import matplotlib.pyplot as plt
 import mplcursors
 
 import numpy as np
-
-from augment_paper import get_front_back_seal
-from maskrcnn import MaskRCNN
+from utils import parse_arguments, get_front_back_seal
 
 
 def parse(name):
@@ -54,8 +52,8 @@ def onclick(event):
     # Calculate, based on the axis extent, a reasonable distance
     # from the actual point in which the click has to occur (in this case 5%)
     ax = plt.gca()
-    dx = 20*0.010449 * (ax.get_xlim()[1] - ax.get_xlim()[0])
-    dy = 20*0.009607 * (ax.get_ylim()[1] - ax.get_ylim()[0])
+    dx = 0.10 * (ax.get_xlim()[1] - ax.get_xlim()[0])
+    dy = 0.10 * (ax.get_ylim()[1] - ax.get_ylim()[0])
     #root =
     global x, y
     # Check for every point if the click was close enough:
@@ -69,10 +67,24 @@ def onclick(event):
 
     if ds.startswith('note_families_'):
         name = parse(im_paths[i_close])
-        img = cv2.imread(name)
-        img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+
+        if ds == 'note_families_seal':
+            note_image, back_note_image, seal, df = get_front_back_seal(name, maskrcnn, True,
+                                                                        ds == 'note_families_seal')
+            img = cv2.rotate(seal, cv2.ROTATE_180)
+
+        if ds == 'note_families_back':
+            img = cv2.imread(name.replace('Front', 'Back'))
+            img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+        if ds == 'note_families_front':
+            img = cv2.imread(name)
+            img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         fig = plt.figure()
+        plt.title(im_paths[i_close])
         fig1 = fig.add_subplot(1, 1, 1)
         fig1.imshow(img)
         plt.show(block=False)
@@ -92,6 +104,7 @@ def onclick(event):
                         int(round((fed_roi[3] - random.choice(np.arange(0, 10, 1))) * scaleX))]
             paper = cv2.cvtColor(paper, cv2.COLOR_BGR2RGB)
             fig = plt.figure()
+            plt.title(im_paths[i_close])
             fig1 = fig.add_subplot(1, 1, 1)
             fig1.imshow(paper)
             plt.show(block=False)
@@ -101,6 +114,7 @@ def onclick(event):
         img = cv2.imread(name)
         fig = plt.figure()
         fig1 = fig.add_subplot(1, 1, 1)
+        plt.title(im_paths[i_close])
         fig1.imshow(img)
         plt.show(block=False)
 
@@ -109,49 +123,75 @@ def onclick(event):
         img = cv2.imread(name)
         fig = plt.figure()
         fig1 = fig.add_subplot(1, 1, 1)
+        plt.title(im_paths[i_close])
         fig1.imshow(img)
         plt.show(block=False)
+
 
 def main():
     root_dir = 'D:/model_outputs/proxy_anchor/training/'
     global ds, x, y, im_paths
+    ds = args.dataset
 
-    for ds in ['cars', 'cub', 'note_families_front', 'note_families_back', 'note_families_seal', 'note_styles', 'paper']:
-        #for model_name in ['swept-pine-110', 'radiant-paper-7', 'blooming-pine-134', 'tough-yogurt-5', 'pleasant-donkey-171', 'glowing-sun-314', 'elated-pyramid-116', 'magic-wave-15', 'dutiful-snowflake-17']:
-        for model_name in ['ancient-brook-119', 'radiant-paper-7']:
-            generator = 'test'
-            if ds == 'cars' or ds == 'cub':
-                generator = 'validation'
+    default_models = {'cars': 'glowing-sun-314',
+                      'cub': 'pleasant-donkey-171',
+                      'note_families_front': 'ancient-brook-119',
+                      'note_families_back': 'gentle-river-20',
+                      'note_families_seal': 'laced-totem-16',
+                      'paper': 'fanciful-bee-10'}
 
-            tSNE_plots = []
-            for (root, dirs, files) in os.walk(root_dir):
-                for file in files:
-                    if (generator in root) and (ds in root) and (model_name in root) and ('truth_fine_tSNE.pkl' in file):
-                        tSNE_plots.append(os.path.join(root,  file))
+    default_generator = {'cars': 'validation',
+                         'cub': 'validation',
+                         'note_families_front': 'test',
+                         'note_families_back': 'test',
+                         'note_families_seal': 'test',
+                         'paper': 'validation'}
 
-            tSNE_plots = sorted(tSNE_plots, key=lambda x: int(x.split('\\')[-3])) # Sort by epoch
-            plt.figure()
-            plt.close()
+    if args.model_name is None:
+        model_name = default_models[args.dataset]
+    else:
+        model_name = args.model_name
 
-            for idx, x in enumerate(tSNE_plots):
-                fig = pickle.load(open(x, 'rb'))
-                plt.title(f"{model_name} {ds} - {generator}, epoch {int(idx*5)}/{int(len(tSNE_plots)*5 - 5)}")
-                mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(
-                    sel.artist.annots[sel.target.index]))
-                # mplcursors.cursor(fig).connect("add", lambda sel: sel.annotation.set_text(
-                #   sel.artist.im_paths[sel.target.index]))
-                import matplotlib
-                aaa = fig.axes[0].get_children()
-                for obj in aaa:
-                    if isinstance(obj, matplotlib.collections.PathCollection):
-                        im_paths = obj.im_paths
-                        x, y = zip(*obj.get_offsets())
-                        break
-                cid = fig.canvas.mpl_connect('button_press_event', onclick)
-                plt.rcParams['keymap.quit'].append(' ')
-                plt.show(block=True)
+    if args.gen is None:
+        generator = default_generator[args.dataset]
+    else:
+        generator = args.gen
+
+    tSNE_plots = []
+    for (root, dirs, files) in os.walk(root_dir):
+        for file in files:
+            if (generator in root) and (ds in root) and (model_name in root) and ('truth_fine_tSNE.pkl' in file):
+                x = os.path.join(root,  file)
+                if x.split('\\')[-3].isdigit() or generator == 'true_validation':
+                    tSNE_plots.append(x)
+
+    if len(tSNE_plots) > 1:
+        tSNE_plots = sorted(tSNE_plots, key=lambda x: int(x.split('\\')[-3])) # Sort by epoch
+    plt.figure()
+    plt.close()
+
+    for idx, x in enumerate(tSNE_plots):
+        fig = pickle.load(open(x, 'rb'))
+        plt.title(f"{model_name} {ds} - {generator}, epoch {int(idx*5)}/{int(len(tSNE_plots)*5 - 5)}")
+        mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(
+            sel.artist.annots[sel.target.index]))
+        # mplcursors.cursor(fig).connect("add", lambda sel: sel.annotation.set_text(
+        #   sel.artist.im_paths[sel.target.index]))
+        import matplotlib
+        aaa = fig.axes[0].get_children()
+        for obj in aaa:
+            if isinstance(obj, matplotlib.collections.PathCollection):
+                im_paths = obj.im_paths
+                x, y = zip(*obj.get_offsets())
+                break
+        cid = fig.canvas.mpl_connect('button_press_event', onclick)
+        plt.rcParams['keymap.quit'].append(' ')
+        plt.show(block=True)
+
 
 if __name__ == '__main__':
-
-    maskrcnn = MaskRCNN()
+    args = parse_arguments()
+    if args.dataset == 'paper' or args.dataset == 'note_families_seal':
+        from maskrcnn import MaskRCNN
+        maskrcnn = MaskRCNN()
     main()

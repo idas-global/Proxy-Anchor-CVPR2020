@@ -1,20 +1,16 @@
+import argparse
 import os
 import functools
 import traceback
-import uuid
 import itertools
-import warnings
 from collections import Counter
 from operator import itemgetter
 import pandas as pd
 import numpy as np
 import torch
-import random
-from matplotlib.colors import ListedColormap
 import networkx as nx
 
 from scipy.spatial import distance_matrix
-from sklearn.decomposition import KernelPCA
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
 from sklearn.preprocessing import MinMaxScaler
 
@@ -24,10 +20,122 @@ import torch.nn.functional as F
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# from dsprofiling.src.clustering_tools import break_down_clusters
+from noteclasses import ImageBMP
 
-plt.ioff()
-import mplcursors
+
+def get_front_back_seal(note_dir, maskrcnn, DO_PAPER=True, DO_SEAL=True):
+    note_object = ImageBMP(note_dir,
+                           straighten=True, rotation=None)
+    note_image = note_object.array
+
+    if 'Front' in note_dir:
+        note_object = ImageBMP(note_dir.replace('Front', 'Back'),
+                               straighten=True, rotation=None)
+    else:
+        note_object = ImageBMP(note_dir.replace('_0.bmp', '_1.bmp'),
+                               straighten=True, rotation=None)
+    back_note_image = note_object.array
+
+    df = pd.DataFrame()
+    seal = None
+    if DO_PAPER or DO_SEAL:
+        df = maskrcnn.detect(note_image, determineOrientation=False)
+
+        scaleY = note_image.shape[0] / 512
+        scaleX = note_image.shape[1] / 1024
+
+        df = df[~df['classID'].duplicated(keep='first')]
+
+        if not df[df['className'] == 'TrsSeal']['roi'].empty:
+            seal_roi = df[df['className'] == 'TrsSeal']['roi'].values[0]
+
+            seal = note_image[int(round(seal_roi[0] * scaleY)):int(round(seal_roi[2] * scaleY)),
+                              int(round(seal_roi[1] * scaleX)): int(round(seal_roi[3] * scaleX))]
+    return note_image, back_note_image, seal, df
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description=
+                                     'Official implementation of `Proxy Anchor Loss for Deep Metric Learning`'
+                                     + 'Our code is modified from `https://github.com/dichotomies/proxy-nca`'
+                                     )
+    # export directory, training and val datasets, test datasets
+    parser.add_argument('--LOG_DIR',
+                        default='../logs',
+                        help='Path to log folder'
+                        )
+    parser.add_argument('--dataset',
+                        default='cub',
+                        help='Training dataset, e.g. cub, cars, SOP, Inshop'
+                        )
+    parser.add_argument('--embedding-size', default=512, type=int,
+                        dest='sz_embedding',
+                        help='Size of embedding that is appended to backbone model.'
+                        )
+    parser.add_argument('--batch-size', default=150, type=int,
+                        dest='sz_batch',
+                        help='Number of samples per batch.'
+                        )
+    parser.add_argument('--epochs', default=60, type=int,
+                        dest='nb_epochs',
+                        help='Number of training epochs.'
+                        )
+    parser.add_argument('--gpu-id', default=0, type=int,
+                        help='ID of GPU that is used for training.'
+                        )
+    parser.add_argument('--workers', default=0, type=int,
+                        dest='nb_workers',
+                        help='Number of workers for dataloader.'
+                        )
+    parser.add_argument('--model', default='bn_inception',
+                        help='Model for training'
+                        )
+    parser.add_argument('--model_name', default=None,
+                        help='Model for tSNE'
+                        )
+    parser.add_argument('--gen', default=None,
+                        help='generator for tSNE'
+                        )
+    parser.add_argument('--loss', default='Proxy_Anchor',
+                        help='Criterion for training'
+                        )
+    parser.add_argument('--optimizer', default='adamw',
+                        help='Optimizer setting'
+                        )
+    parser.add_argument('--lr', default=1e-4, type=float,
+                        help='Learning rate setting'
+                        )
+    parser.add_argument('--weight-decay', default=1e-4, type=float,
+                        help='Weight decay setting'
+                        )
+    parser.add_argument('--lr-decay-step', default=10, type=int,
+                        help='Learning decay step setting'
+                        )
+    parser.add_argument('--lr-decay-gamma', default=0.5, type=float,
+                        help='Learning decay gamma setting'
+                        )
+    parser.add_argument('--alpha', default=32, type=float,
+                        help='Scaling Parameter setting'
+                        )
+    parser.add_argument('--mrg', default=0.1, type=float,
+                        help='Margin parameter setting'
+                        )
+    parser.add_argument('--IPC', type=int,
+                        help='Balanced sampling, images per class'
+                        )
+    parser.add_argument('--warm', default=1, type=int,
+                        help='Warmup training epochs'
+                        )
+    parser.add_argument('--bn-freeze', default=1, type=int,
+                        help='Batch normalization parameter freeze'
+                        )
+    parser.add_argument('--l2-norm', default=1, type=int,
+                        help='L2 normlization'
+                        )
+    parser.add_argument('--remark', default='',
+                        help='Any reamrk'
+                        )
+    return parser.parse_args()
 
 
 def l2_norm(input):
@@ -335,7 +443,7 @@ def cosine_similarity(v1, v2):
     "compute cosine similarity of v1 to v2: (v1 dot v2)/{||v1||*||v2||)"
     sumxx, sumxy, sumyy = 0, 0, 0
     for i in range(len(v1)):
-        x = v1[i];
+        x = v1[i]
         y = v2[i]
         sumxx += x * x
         sumyy += y * y
