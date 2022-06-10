@@ -25,6 +25,6 @@ for idx, book in zip(book_idxs, book_dirs):
         for file in os.listdir(path):
             dest_file = file.replace(path.split('/')[-2], flder)
             print(f'{path + file}    ----> {dest_path + dest_file}')
-            #shutil.copy(path + file, dest_path + dest_file)
+            shutil.copy(path + file, dest_path + dest_file)
 
 
