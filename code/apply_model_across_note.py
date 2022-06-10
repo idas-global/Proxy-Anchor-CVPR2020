@@ -188,7 +188,7 @@ def get_embeddings(notes_per_family, genuine_notes_loc, notes_loc, args, total_n
         X_val, T_val = get_X_T('val_', model_dir)
 
 
-    for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family'):
+    for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family', disable=COUNT_ONLY):
         pnt_key = notes_frame["parent note"].values[0]
         if pnt_key == 'NO DATA':
             pnt_key = circ_key
