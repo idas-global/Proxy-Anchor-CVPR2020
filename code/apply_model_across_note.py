@@ -202,12 +202,12 @@ def get_embeddings(notes_per_family, genuine_notes_loc, notes_loc, args, total_n
 
         if not COUNT_ONLY:
             if len(valid_notes) > 0:
-                predict_valid_notes(X_test, X_val,
-                                    T_test, T_val,
-                                    predictions, circ_key,
-                                    circ_labels, embeddings,
-                                    valid_notes, note_labels,
-                                    pnt_key, args, note_idx)
+                note_idx = predict_valid_notes(X_test, X_val,
+                                               T_test, T_val,
+                                               predictions, circ_key,
+                                               circ_labels, embeddings,
+                                               valid_notes, note_labels,
+                                               pnt_key, args, note_idx)
     if COUNT_ONLY:
         if args.dataset == 'note_families_tile':
             total_notes = total_notes * 6
@@ -291,7 +291,7 @@ def predict_valid_notes(X_test, X_val, T_test, T_val, predictions, circ_key, cir
             print(f'Figure saved to {plot_dir}')
             plt.savefig(plot_dir)
             plt.close()
-
+    return note_idx
 
 if __name__ == '__main__':
     PLOT_IMAGES = False

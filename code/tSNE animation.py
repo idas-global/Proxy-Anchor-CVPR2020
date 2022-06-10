@@ -138,6 +138,7 @@ def main():
                       'note_families_front': 'ancient-brook-119',
                       'note_families_back': 'gentle-river-20',
                       'note_families_seal': 'laced-totem-16',
+                      'note_styles' : 'fresh-pond-138',
                       'paper': 'fanciful-bee-10'}
 
     default_generator = {'cars': 'validation',
@@ -145,6 +146,7 @@ def main():
                          'note_families_front': 'test',
                          'note_families_back': 'test',
                          'note_families_seal': 'test',
+                         'note_styles': 'test',
                          'paper': 'validation'}
 
     if args.model_name is None:
