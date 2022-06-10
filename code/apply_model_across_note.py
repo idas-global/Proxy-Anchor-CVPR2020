@@ -330,6 +330,7 @@ if __name__ == '__main__':
     else:
         outpath = f'../training/{args.dataset}/{models[args.dataset]}/true_validation/nonaug_truth_fine_tSNE.pkl'
 
+    os.makedirs(os.path.split(outpath)[0], exist_ok=True)
     np.save(os.path.split(outpath)[0] + f'/{args.dataset}_embeddings.npy', embeddings)
     np.save(os.path.split(outpath)[0] + f'/{args.dataset}_circ_labels.npy', circ_labels)
     np.save(os.path.split(outpath)[0] + f'/{args.dataset}_note_labels.npy', note_labels)
@@ -376,7 +377,6 @@ if __name__ == '__main__':
 
     fig.suptitle("TSNE")
 
-    os.makedirs(os.path.split(outpath)[0], exist_ok=True)
     pickle.dump(fig, open(outpath, 'wb'))
 
     plt.close()
