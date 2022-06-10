@@ -204,7 +204,7 @@ def get_embeddings(notes_per_family, genuine_notes_loc, notes_loc, args, total_n
             if len(valid_notes) > 0:
                 predict_valid_notes(X_test, X_val,
                                     T_test, T_val,
-                                    predictions, circ_key, 
+                                    predictions, circ_key,
                                     circ_labels, embeddings,
                                     valid_notes, note_labels,
                                     pnt_key, args, note_idx)
@@ -220,10 +220,15 @@ def predict_valid_notes(X_test, X_val, T_test, T_val, predictions, circ_key, cir
                         note_labels, pnt_key, args, note_idx):
     pbar = tqdm(valid_notes, total=len(valid_notes))
     for iter, (side, spec, pack, note_num, note_dir) in enumerate(pbar):
-        note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn)
+        note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn, DO_PAPER=False,
+                                                                    DO_SEAL=(args.dataset == 'note_families_seal'))
+
+        if args.dataset == 'note_families_back': img = back_note_image
+        if args.dataset == 'note_families_front': img = note_image
+        if args.dataset == 'note_families_seal': img = seal
 
         if args.dataset != 'note_families_tile':
-            whole_label, embedding = predict_from_image(note_image, model, X_test, T_test, False,
+            whole_label, embedding = predict_from_image(img, model, X_test, T_test, False,
                                                         coarse_test)
             predictions[note_idx] = whole_label == pnt_key
             embeddings[note_idx] = embedding.detach().numpy()
