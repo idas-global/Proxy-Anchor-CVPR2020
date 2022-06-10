@@ -11,13 +11,13 @@ from utils import parse_arguments, get_front_back_seal
 
 
 def parse(name):
-    pack = name.split("pack_")[-1][0:1]
+    pack = name.split("_")[1]
     note = name.split("note_")[-1][0::]
 
-    if pack == '1' and int(note) > 8:
-        pass
     if pack == 'G':
         return f'D:/raw_data/genuines/Pack_100_4/{note}/{note}_RGB_0.bmp'
+    if pack == 'Gsmall':
+        return f'D:/raw_data/1604_data/1604_notes/Pack_{pack}/{note}/{note}_RGB_0.bmp'
     return f'D:/raw_data/1604_data/1604_notes/Pack_{pack}/{note}/{note}_RGB_Front.bmp'
 
 
@@ -88,6 +88,8 @@ def onclick(event):
             img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
 
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        if 'pack_0' in im_paths[i_close]:
+            img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
         fig = plt.figure()
         plt.title(im_paths[i_close])

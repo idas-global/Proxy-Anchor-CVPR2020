@@ -187,7 +187,6 @@ def get_embeddings(notes_per_family, genuine_notes_loc, notes_loc, args, total_n
         X_test, T_test = get_X_T('eval_', model_dir)
         X_val, T_val = get_X_T('val_', model_dir)
 
-
     for circ_key, notes_frame in tqdm(notes_per_family, desc='Unique Family', disable=COUNT_ONLY):
         pnt_key = notes_frame["parent note"].values[0]
         if pnt_key == 'NO DATA':
@@ -331,9 +330,29 @@ if __name__ == '__main__':
         outpath = f'../training/{args.dataset}/{models[args.dataset]}/true_validation/nonaug_truth_fine_tSNE.pkl'
 
     os.makedirs(os.path.split(outpath)[0], exist_ok=True)
-    np.save(os.path.split(outpath)[0] + f'/{args.dataset}_embeddings.npy', embeddings)
-    np.save(os.path.split(outpath)[0] + f'/{args.dataset}_circ_labels.npy', circ_labels)
-    np.save(os.path.split(outpath)[0] + f'/{args.dataset}_note_labels.npy', note_labels)
+    embed_path = f'/{args.dataset}'
+
+    if os.path.exists(os.path.split(outpath)[0] + f'{embed_path}_embeddings.npy'):
+        import uuid
+
+        embeddings_existing  = np.load(os.path.split(outpath)[0] + f'{embed_path}_embeddings.npy', allow_pickle=True)
+        circ_labels_existing = np.load(os.path.split(outpath)[0] + f'{embed_path}_circ_labels.npy', allow_pickle=True)
+        note_labels_existing = np.load(os.path.split(outpath)[0] + f'{embed_path}_note_labels.npy', allow_pickle=True)
+
+        print('COLLATING EMBEDDINGS')
+
+        embeddings  = np.vstack((embeddings, embeddings_existing))
+        circ_labels = np.hstack((circ_labels, circ_labels_existing))
+        note_labels = np.hstack((note_labels, note_labels_existing))
+        _, unique_idxs = np.unique(note_labels, return_index=True)
+
+        embeddings  = embeddings[unique_idxs, :]
+        circ_labels = circ_labels[unique_idxs]
+        note_labels = note_labels[unique_idxs]
+
+    np.save(os.path.split(outpath)[0] + f'{embed_path}_embeddings.npy', embeddings)
+    np.save(os.path.split(outpath)[0] + f'{embed_path}_circ_labels.npy', circ_labels)
+    np.save(os.path.split(outpath)[0] + f'{embed_path}_note_labels.npy', note_labels)
 
     label_array = circ_labels
     path_array = note_labels
