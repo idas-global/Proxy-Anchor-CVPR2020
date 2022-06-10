@@ -17,8 +17,8 @@ def parse(name):
     if pack == '1' and int(note) > 8:
         pass
     if pack == 'G':
-        return f'E:/Genesys_2_Capture/genuine/100_4/{note}/{note}_RGB_0.bmp'
-    return f'E:/Genesys_2_Capture/counterfeit/Pack_{pack}/{note}/{note}_RGB_Front.bmp'
+        return f'D:/raw_data/genuines/Pack_100_4/{note}/{note}_RGB_0.bmp'
+    return f'D:/raw_data/1604_data/1604_notes/Pack_{pack}/{note}/{note}_RGB_Front.bmp'
 
 
 def parse_cars(param):
@@ -44,16 +44,21 @@ def parse_paper(param):
     pass
 
 
+def parse_note_styles(param):
+    book = param.split('book_')[1][0:1]
+    note = param.split('note_')[-1][0::]
+    return f'D:/raw_data/rupert_book/Book {book}/{note}/{note}_RGB_0.bmp'
+
+
 def onclick(event):
     global ix, iy
     ix, iy = event.xdata, event.ydata
-    print("I clicked at x={0:5.2f}, y={1:5.2f}".format(ix,iy))
 
     # Calculate, based on the axis extent, a reasonable distance
     # from the actual point in which the click has to occur (in this case 5%)
     ax = plt.gca()
-    dx = 0.10 * (ax.get_xlim()[1] - ax.get_xlim()[0])
-    dy = 0.10 * (ax.get_ylim()[1] - ax.get_ylim()[0])
+    dx = 0.02 * (ax.get_xlim()[1] - ax.get_xlim()[0])
+    dy = 0.02 * (ax.get_ylim()[1] - ax.get_ylim()[0])
     #root =
     global x, y
     # Check for every point if the click was close enough:
@@ -65,6 +70,7 @@ def onclick(event):
                 bench = dist
                 i_close = i
 
+    print(f'Clicked on {im_paths[i_close]}')
     if ds.startswith('note_families_'):
         name = parse(im_paths[i_close])
 
@@ -127,6 +133,19 @@ def onclick(event):
         fig1.imshow(img)
         plt.show(block=False)
 
+    if ds.startswith('note_styles'):
+        name = parse_note_styles(im_paths[i_close])
+
+        img = cv2.imread(name)
+        img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        fig = plt.figure()
+        plt.title(im_paths[i_close])
+        fig1 = fig.add_subplot(1, 1, 1)
+        fig1.imshow(img)
+        plt.show(block=False)
 
 def main():
     root_dir = 'D:/model_outputs/proxy_anchor/training/'
