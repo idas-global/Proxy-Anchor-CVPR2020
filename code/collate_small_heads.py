@@ -19,11 +19,11 @@ for idx, book in zip(book_idxs, book_dirs):
         notes = sorted(notes, key= lambda x: int(x.split('/')[-2]))
         path = notes[int(note_num)]
         flder = str(len(os.listdir(dest)))
-        dest_path = path.replace(note_num, flder).replace(root, dest).replace(f"Book {idx}", "")
+        dest_path = path.replace(path.split('/')[-2], flder).replace(root, dest).replace(f"Book {idx}", "")
         os.makedirs(dest_path, exist_ok=True)
 
         for file in os.listdir(path):
-            dest_file = file.replace(note_num, flder)
+            dest_file = file.replace(path.split('/')[-2], flder)
             print(f'{path + file}    ----> {dest_path + dest_file}')
             #shutil.copy(path + file, dest_path + dest_file)
 
