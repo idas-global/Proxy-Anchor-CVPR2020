@@ -254,7 +254,7 @@ def predict_valid_notes(X_test, X_val, T_test, T_val, predictions, circ_key, cir
         for idx, (tile, position) in enumerate(zip(tiles, ['_tl', '_bl', '_tc', '_bc', '_tr', '_br'])):
             tile_label, embedding = predict_from_image(tile, model, X_val, T_val, False, coarse_val_fnt)
             predictions[note_idx] = tile_label == pnt_key
-            embeddings[note_idx] = embedding
+            embeddings[note_idx] = embedding.detach().numpy()
             circ_labels[note_idx] = f'PN: {pnt_key},  C: {circ_key + position}'
             note_labels[note_idx] = f'pack_{pack}_note_{note_num}'
             note_idx += 1
