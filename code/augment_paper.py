@@ -22,6 +22,8 @@ def get_notes_per_family(notes_loc, genuine_notes_loc):
     global_csv = form_1604_frame(notes_loc)
     genuine_frame = form_genuine_frame(genuine_notes_loc)
     global_csv = pd.concat((global_csv, genuine_frame))
+    global_csv = global_csv.dropna(how='all')
+    global_csv['pack position'] = global_csv['pack position'].astype(int)
     notes_per_family = global_csv.groupby(['circular 1'])
     return notes_per_family
 
