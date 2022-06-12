@@ -17,16 +17,29 @@ def parse(name):
 
     if sys.platform != 'linux':
         if pack == 'G':
-            return f'D:/raw_data/genuines/Pack_100_4/{note}/{note}_RGB_0.bmp'
-        if pack == 'Gsmall':
-            return f'D:/raw_data/1604_data/1604_notes/Pack_{pack}/{note}/{note}_RGB_0.bmp'
-        return f'D:/raw_data/1604_data/1604_notes/Pack_{pack}/{note}/{note}_RGB_Front.bmp'
+            path = f'D:/raw_data/genuines/Pack_100_4/{note}/{note}_RGB_0.bmp'
+        elif pack == 'Gsmall':
+            path = f'D:/raw_data/1604_data/1604_notes/Pack_{pack}/{note}/{note}_RGB_0.bmp'
+        else:
+            path = f'D:/raw_data/1604_data/1604_notes/Pack_{pack}/{note}/{note}_RGB_Front.bmp'
     else:
         if pack == 'G':
-            return f'/mnt/ssd1/Genesys_2_Capture/genuine/100_4/{note}/{note}_RGB_0.bmp'
-        if pack == 'Gsmall':
-            return f'/mnt/ssd1/Genesys_2_Capture/counterfeit/Pack_{pack}/{note}/{note}_RGB_0.bmp'
-        return f'/mnt/ssd1/Genesys_2_Capture/counterfeit/Pack_{pack}/{note}/{note}_RGB_Front.bmp'
+            path = f'/mnt/ssd1/Genesys_2_Capture/genuine/100_4/{note}/{note}_RGB_0.bmp'
+        elif pack == 'Gsmall':
+            path = f'/mnt/ssd1/Genesys_2_Capture/counterfeit/Pack_{pack}/{note}/{note}_RGB_0.bmp'
+        else:
+            path = f'/mnt/ssd1/Genesys_2_Capture/counterfeit/Pack_{pack}/{note}/{note}_RGB_Front.bmp'
+
+    if not os.path.exists(path) and '_0.bmp' in path:
+        path = path.replace('_0.bmp', '_Front.bmp')
+    if not os.path.exists(path) and '_Front.bmp' in path:
+        path = path.replace('_Front.bmp', '_0.bmp')
+    if not os.path.exists(path) and '_1.bmp' in path:
+        path = path.replace('_1.bmp', '_Back.bmp')
+    if not os.path.exists(path) and '_Back.bmp' in path:
+        path = path.replace('_Back.bmp', '_1.bmp')
+
+    return path
 
 
 def parse_cars(param):

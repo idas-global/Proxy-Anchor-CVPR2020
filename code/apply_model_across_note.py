@@ -298,9 +298,32 @@ if __name__ == '__main__':
 
     args = parse_arguments()
 
-    models = {'note_families_front': 'ancient-brook-119',
-              'note_families_back': 'gentle-river-20',
-              'note_families_seal': 'laced-totem-16'}
+    default_models = {'cars': 'glowing-sun-314',
+                      'cub': 'pleasant-donkey-171',
+                      'note_families_front': 'ancient-brook-119',
+                      'note_families_back': 'gentle-river-20',
+                      'note_families_seal': 'laced-totem-16',
+                      'note_styles': 'fresh-pond-138',
+                      'paper': 'fanciful-bee-10'}
+
+    default_generator = {'cars': 'validation',
+                         'cub': 'validation',
+                         'note_families_front': 'test',
+                         'note_families_back': 'test',
+                         'note_families_seal': 'test',
+                         'note_styles': 'test',
+                         'paper': 'validation'}
+
+    if args.model_name is None:
+        model_name = default_models[args.dataset]
+    else:
+        model_name = args.model_name
+
+    if args.gen is None:
+        generator = default_generator[args.dataset]
+    else:
+        generator = args.gen
+
     models['note_families_tile'] = models['note_families_front']
 
     model, coarse_test, fine_test_fnt, \

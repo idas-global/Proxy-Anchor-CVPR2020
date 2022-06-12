@@ -23,7 +23,7 @@ def get_notes_per_family(notes_loc, genuine_notes_loc):
     genuine_frame = form_genuine_frame(genuine_notes_loc)
     global_csv = pd.concat((global_csv, genuine_frame))
     global_csv = global_csv.dropna(how='all')
-    global_csv['pack position'] = global_csv['pack position'].astype(int)
+    global_csv['pack position'] = [int(a) for a in global_csv['pack position']]
     notes_per_family = global_csv.groupby(['circular 1'])
     return notes_per_family
 
@@ -39,7 +39,8 @@ def main():
             if pnt_key == 'NO DATA':
                 continue
 
-        dest_back, dest_front, dest_paper, dest_seal = create_dirs(circ_key, pnt_key)
+        dest_back, dest_front, dest_paper, dest_seal = create_dirs(circ_key, pnt_key, aug_location_1604_fronts, aug_location_1604_backs, aug_location_1604_seals,
+                aug_location_1604_paper)
 
         valid_notes = get_valid_notes(location_genuine_notes, location_1604_notes, notes_frame, specs_wanted, sides_wanted)
 
@@ -108,7 +109,8 @@ def main():
                             cv2.imwrite(dest_paper + f'/{aug_key}_{spec}_{side}.bmp', paper)
 
 
-def create_dirs(circ_key, pnt_key):
+def create_dirs(circ_key, pnt_key, aug_location_1604_fronts, aug_location_1604_backs, aug_location_1604_seals,
+                aug_location_1604_paper):
     dest_front = get_filepath(aug_location_1604_fronts, f'{pnt_key}_{circ_key}')
     dest_back = get_filepath(aug_location_1604_backs, f'{pnt_key}_{circ_key}')
     dest_seal = get_filepath(aug_location_1604_seals, f'{pnt_key}_{circ_key}')
@@ -289,11 +291,11 @@ def get_valid_dirs():
 
 
 if __name__ == '__main__':
-    DO_PAPER = True
+    DO_PAPER = False
     DO_SEAL = True
     DO_FRONT = True
-    DO_BACK = True
-    DELETE_DATA = True
+    DO_BACK = False
+    DELETE_DATA = False
 
     if sys.platform == 'linux':
         location_1604_notes = '/mnt/ssd1/Genesys_2_Capture/counterfeit/'
