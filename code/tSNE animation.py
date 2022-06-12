@@ -1,6 +1,7 @@
 import pickle
 import os
 import random
+import sys
 
 import cv2
 import matplotlib.pyplot as plt
@@ -14,11 +15,18 @@ def parse(name):
     pack = name.split("_")[1]
     note = name.split("note_")[-1][0::]
 
-    if pack == 'G':
-        return f'D:/raw_data/genuines/Pack_100_4/{note}/{note}_RGB_0.bmp'
-    if pack == 'Gsmall':
-        return f'D:/raw_data/1604_data/1604_notes/Pack_{pack}/{note}/{note}_RGB_0.bmp'
-    return f'D:/raw_data/1604_data/1604_notes/Pack_{pack}/{note}/{note}_RGB_Front.bmp'
+    if sys.platform != 'linux':
+        if pack == 'G':
+            return f'D:/raw_data/genuines/Pack_100_4/{note}/{note}_RGB_0.bmp'
+        if pack == 'Gsmall':
+            return f'D:/raw_data/1604_data/1604_notes/Pack_{pack}/{note}/{note}_RGB_0.bmp'
+        return f'D:/raw_data/1604_data/1604_notes/Pack_{pack}/{note}/{note}_RGB_Front.bmp'
+    else:
+        if pack == 'G':
+            return f'/mnt/ssd1/Genesys_2_Capture/genuine/100_4/{note}/{note}_RGB_0.bmp'
+        if pack == 'Gsmall':
+            return f'/mnt/ssd1/Genesys_2_Capture/counterfeit/Pack_{pack}/{note}/{note}_RGB_0.bmp'
+        return f'/mnt/ssd1/Genesys_2_Capture/counterfeit/Pack_{pack}/{note}/{note}_RGB_Front.bmp'
 
 
 def parse_cars(param):
