@@ -93,6 +93,9 @@ def parse_arguments():
     parser.add_argument('--model_name', default=None,
                         help='Model for tSNE'
                         )
+    parser.add_argument('--wandb', default=None,
+                        help='Model for tSNE'
+                        )
     parser.add_argument('--gen', default=None,
                         help='generator for tSNE'
                         )

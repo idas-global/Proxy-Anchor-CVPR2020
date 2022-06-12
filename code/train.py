@@ -493,10 +493,18 @@ if __name__ == '__main__':
                                                                                             args.optimizer,
                                                                                             args.lr, args.sz_batch,
                                                                                             args.remark)
-    # Wandb Initialization
-    wandb.login(key='f0a1711b34f7b07e32150c85c67697eb82c5120f')
-    wandb.init(project=args.dataset + '_ProxyAnchor', notes=LOG_DIR)
-    wandb.config.update(args)
+
+    if args.model_name is None:
+        # Wandb Initialization
+        wandb.login(key='f0a1711b34f7b07e32150c85c67697eb82c5120f')
+        wandb.init(project=args.dataset + '_ProxyAnchor', notes=LOG_DIR)
+        wandb.config.update(args)
+    else:
+        # Wandb Initialization
+        wandb.login(key='f0a1711b34f7b07e32150c85c67697eb82c5120f')
+        wandb.init(project=args.dataset + '_ProxyAnchor', notes=LOG_DIR, name=args.model_name)
+        print(wandb.run.name)
+        wandb.config.update(args)
 
     os.chdir('../data/')
     data_root = os.getcwd()

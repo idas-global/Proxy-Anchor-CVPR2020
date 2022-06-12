@@ -1,11 +1,9 @@
-import json
 import shutil
 
 import cv2
 import matplotlib.pyplot as plt
 
 import os
-import numpy
 from tqdm import tqdm
 
 from augment_paper import get_notes_per_family, get_valid_notes, create_dirs

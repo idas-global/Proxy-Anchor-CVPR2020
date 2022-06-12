@@ -298,7 +298,7 @@ if __name__ == '__main__':
 
     args = parse_arguments()
 
-    default_models = {'cars': 'glowing-sun-314',
+    models = {'cars': 'glowing-sun-314',
                       'cub': 'pleasant-donkey-171',
                       'note_families_front': 'ancient-brook-119',
                       'note_families_back': 'gentle-river-20',
@@ -306,28 +306,15 @@ if __name__ == '__main__':
                       'note_styles': 'fresh-pond-138',
                       'paper': 'fanciful-bee-10'}
 
-    default_generator = {'cars': 'validation',
-                         'cub': 'validation',
-                         'note_families_front': 'test',
-                         'note_families_back': 'test',
-                         'note_families_seal': 'test',
-                         'note_styles': 'test',
-                         'paper': 'validation'}
-
     if args.model_name is None:
-        model_name = default_models[args.dataset]
+        model_name = models[args.dataset]
     else:
         model_name = args.model_name
-
-    if args.gen is None:
-        generator = default_generator[args.dataset]
-    else:
-        generator = args.gen
-
+        models[args.dataset] = model_name
     models['note_families_tile'] = models['note_families_front']
 
     model, coarse_test, fine_test_fnt, \
-        coarse_val_fnt, fine_val_fnt, notes_loc, genuine_notes_loc, model_dir = load_model(args, models[args.dataset])
+        coarse_val_fnt, fine_val_fnt, notes_loc, genuine_notes_loc, model_dir = load_model(args, model_name)
 
     notes_per_family = get_notes_per_family(notes_loc, genuine_notes_loc)
 
