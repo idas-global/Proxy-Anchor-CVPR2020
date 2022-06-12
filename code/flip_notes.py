@@ -1,4 +1,5 @@
 import json
+import shutil
 
 import cv2
 import matplotlib.pyplot as plt
@@ -32,9 +33,7 @@ def main():
                                       sides_wanted)
         for iter, (side, spec, pack, note_num, note_dir) in tqdm(enumerate(valid_notes),
                                                                  desc=f'{len(valid_notes)} Originals'):
-            k += 1
-            if k > 3:
-                break
+
             note_image, back_note_image, seal, df = get_front_back_seal(note_dir, None, False, False)
             note_image = cv2.resize(note_image, (200, 200))
             plt.imshow(note_image)
@@ -56,6 +55,18 @@ def main():
     return flipped_dict
 
 
+def apply_flips(flipped_dict):
+    for note_dir, flip_bool in tqdm(flipped_dict.items()):
+        note_dir = note_dir.replace('D:/raw_data/1604_data/1604_notes/', '/mnt/ssd1/Genesys_2_Capture/counterfeit/')
+
+        back_note_dir = note_dir.replace('Front', 'Back')
+        if os.path.exists(back_note_dir) and flip_bool:
+            shutil.copy(back_note_dir, back_note_dir.replace('Back', 'Temp'))
+            shutil.copy(note_dir, note_dir.replace('Front', 'Back'))
+            shutil.copy(back_note_dir.replace('Back', 'Temp'), note_dir)
+            os.remove(back_note_dir.replace('Back', 'Temp'))
+
+
 if __name__ == '__main__':
     if sys.platform == 'linux':
         location_1604_notes = '/mnt/ssd1/Genesys_2_Capture/counterfeit/'
@@ -74,4 +85,14 @@ if __name__ == '__main__':
 
     sides_wanted = ['Front']  # (0 / 1)
     specs_wanted = ['RGB']
-    main()
+    # if sys.platform != 'linux':
+    #     flipped_dict = main()
+    #     apply_flips(flipped_dict)
+    # else:
+    #     with open('./flipped_dict.json', 'r+') as handle:
+    #         flipped_dict = json.load(handle)
+    #     apply_flips(flipped_dict)
+    with open('./flipped_dict.json', 'r+') as handle:
+        flipped_dict = json.load(handle)
+    apply_flips(flipped_dict)
+
