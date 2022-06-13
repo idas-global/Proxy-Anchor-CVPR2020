@@ -78,5 +78,6 @@ for dest in lo_dests:
         list_of_dicts.append(note)
 
     frame_1604 = pd.DataFrame(list_of_dicts)
+    print(f'Writing to {data_loc + dest.replace(destination, "")}.csv')
     frame_1604.to_csv(data_loc + dest.replace(destination, '') + '.csv')
 
