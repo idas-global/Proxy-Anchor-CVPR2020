@@ -7,15 +7,15 @@ import pandas as pd
 
 if sys.platform != 'linux':
     root = 'D:/raw_data/rupert_book/'
-    dest = 'D:/raw_data/1604_data/1604_notes/'
+    destination = 'D:/raw_data/1604_data/1604_notes/'
     data_loc = 'D:/raw_data/1604_data/1604_notes/1604 data/'
 else:
     root = '/mnt/sanshare/Datasets/notes/genesys_capture/genuine/Rupert_Binders/'
-    dest = '/mnt/ssd1/Genesys_2_Capture/counterfeit/'
+    destination = '/mnt/ssd1/Genesys_2_Capture/counterfeit/'
     data_loc = '/mnt/ssd1/Genesys_2_Capture/counterfeit/1604 data/'
 
 
-lo_dests = [dest + i for i in ['PACK_G100small', 'PACK_G100medium', 'PACK_G100large',
+lo_dests = [destination + i for i in ['PACK_G100small', 'PACK_G100medium', 'PACK_G100large',
                                'PACK_G50small', 'PACK_G50medium', 'PACK_G50large',
                                'PACK_G20small', 'PACK_G20medium', 'PACK_G20large']]
 
@@ -78,5 +78,5 @@ for dest in lo_dests:
         list_of_dicts.append(note)
 
     frame_1604 = pd.DataFrame(list_of_dicts)
-    frame_1604.to_csv(data_loc + dest.split('/')[-1] + '.csv')
+    frame_1604.to_csv(data_loc + dest.replace(destination, '') + '.csv')
 
