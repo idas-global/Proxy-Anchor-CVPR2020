@@ -62,7 +62,7 @@ for dest in lo_dests:
     'ZIPCode Original' : np.nan,
     'Bank Name' : np.nan,
     'Bank Routing Number': np.nan,
-    'Circular 1' : dest.split('/')[-1].replace('PACK_', ''),
+    'Circular 1' : dest.split('/')[-2].replace('PACK_', ''),
     'Circular 2' : np.nan,
     'Parent Note' : np.nan,
     'OriginalLat' : np.nan,
