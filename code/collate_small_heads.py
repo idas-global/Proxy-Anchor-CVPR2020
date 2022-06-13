@@ -12,7 +12,7 @@ if sys.platform != 'linux':
 else:
     root = '/mnt/sanshare/Datasets/notes/genesys_capture/genuine/Rupert_Binders/'
     destination = '/mnt/ssd1/Genesys_2_Capture/counterfeit/'
-    data_loc = '/mnt/ssd1/Genesys_2_Capture/counterfeit/1604 data/'
+    data_loc = '/mnt/ssd1/Genesys_2_Capture/counterfeit/1604 Data/'
 
 
 lo_dests = [destination + i + '/' for i in ['PACK_G100small', 'PACK_G100medium', 'PACK_G100large',
