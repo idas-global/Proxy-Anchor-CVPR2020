@@ -39,6 +39,11 @@ def main():
             if pnt_key == 'NO DATA':
                 continue
 
+        if pnt_key not in ['G100small', 'G100medium', 'G100large',
+                           'G50small', 'G50medium', 'G50large',
+                           'G20small', 'G20medium', 'G20large']:
+            continue
+
         dest_back, dest_front, dest_paper, dest_seal = create_dirs(circ_key, pnt_key, aug_location_1604_fronts, aug_location_1604_backs, aug_location_1604_seals,
                 aug_location_1604_paper)
 
@@ -56,6 +61,7 @@ def main():
                                  'SEAL' : None,
                                  'PAPER' : None
                                  }
+
         for key, fac in aug_fac.items():
             iters = fac - len(valid_notes)
             extra_notes_per_note[key] = iters/len(valid_notes)
