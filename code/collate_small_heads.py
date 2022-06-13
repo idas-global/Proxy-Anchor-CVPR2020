@@ -15,7 +15,7 @@ else:
     data_loc = '/mnt/ssd1/Genesys_2_Capture/counterfeit/1604 data/'
 
 
-lo_dests = [destination + i for i in ['PACK_G100small', 'PACK_G100medium', 'PACK_G100large',
+lo_dests = [destination + i + '/' for i in ['PACK_G100small', 'PACK_G100medium', 'PACK_G100large',
                                'PACK_G50small', 'PACK_G50medium', 'PACK_G50large',
                                'PACK_G20small', 'PACK_G20medium', 'PACK_G20large']]
 
@@ -34,7 +34,7 @@ note_nums = {'PACK_G100small' : ['0', '56', '57', '58'],
              }
 
 for dest in lo_dests:
-    note_num = note_nums[dest.split('/')[-1]]
+    note_num = note_nums[dest.split('/')[-2]]
     os.makedirs(dest, exist_ok=True)
 
     for idx, book in zip(book_idxs, book_dirs):
@@ -78,6 +78,8 @@ for dest in lo_dests:
         list_of_dicts.append(note)
 
     frame_1604 = pd.DataFrame(list_of_dicts)
-    print(f'Writing to {data_loc + dest.replace(destination, "")}.csv')
-    frame_1604.to_csv(data_loc + dest.replace(destination, '') + '.csv')
+
+    outpath = data_loc + dest.replace(destination, '')[0:-1] + '.csv'
+    print(f'Writing to {outpath}')
+    frame_1604.to_csv(outpath)
 
