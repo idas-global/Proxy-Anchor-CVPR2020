@@ -244,7 +244,7 @@ def main():
                 x, y, im_paths = tuple(x), tuple(y), np.array(im_paths)
                 break
         plt.close()
-        
+
         fig2 = plt.figure(figsize=(12, 12))
         ax = plt.axes()
         cmap = ListedColormap(sns.color_palette("husl", len(np.unique(labels))).as_hex())
