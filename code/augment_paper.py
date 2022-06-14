@@ -25,6 +25,7 @@ def get_notes_per_family(notes_loc, genuine_notes_loc):
     global_csv = global_csv.dropna(how='all')
     global_csv['pack position'] = [int(a) for a in global_csv['pack position']]
     notes_per_family = global_csv.groupby(['circular 1'])
+    print(f'Circulars Found {np.unique(global_csv["circular 1"])}')
     return notes_per_family
 
 
@@ -298,7 +299,7 @@ def get_valid_dirs():
 
 if __name__ == '__main__':
     DO_PAPER = False
-    DO_SEAL = True
+    DO_SEAL = False
     DO_FRONT = True
     DO_BACK = False
     DELETE_DATA = False
