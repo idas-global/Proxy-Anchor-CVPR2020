@@ -6,8 +6,10 @@ import sys
 import cv2
 import matplotlib.pyplot as plt
 import mplcursors
-
+import seaborn as sns
 import numpy as np
+from matplotlib.colors import ListedColormap
+
 from utils import parse_arguments, get_front_back_seal
 
 
@@ -188,7 +190,7 @@ def main():
                          'note_families_front': 'test',
                          'note_families_back': 'test',
                          'note_families_seal': 'test',
-                         'note_styles': 'test',
+                         'note_styles': 'validation',
                          'paper': 'validation'}
 
     if args.model_name is None:
@@ -216,9 +218,6 @@ def main():
 
     for idx, x in enumerate(tSNE_plots):
         fig = pickle.load(open(x, 'rb'))
-        plt.title(f"{model_name} {ds} - {generator}, epoch {int(idx*5)}/{int(len(tSNE_plots)*5 - 5)}")
-        mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(
-            sel.artist.annots[sel.target.index]))
         # mplcursors.cursor(fig).connect("add", lambda sel: sel.annotation.set_text(
         #   sel.artist.im_paths[sel.target.index]))
         import matplotlib
@@ -226,9 +225,45 @@ def main():
         for obj in aaa:
             if isinstance(obj, matplotlib.collections.PathCollection):
                 im_paths = obj.im_paths
+                labels = obj.annots
+                idxs_to_remove = []
+                for img in ['pack_0_note_1652363711763', 'pack_G100small_note_22', 'pack_G100small_note_10', 'pack_G100small_note_18']:
+                    arr = np.where(im_paths == img)[0]
+                    if arr:
+                        idxs_to_remove.append(arr[0])
+
                 x, y = zip(*obj.get_offsets())
+                x, y, im_paths = list(x), list(y), list(im_paths)
+
+                for i in np.sort(idxs_to_remove)[::-1]:
+                    del x[i]
+                    del y[i]
+                    del im_paths[i]
+                    del labels[i]
+
+                x, y, im_paths = tuple(x), tuple(y), np.array(im_paths)
                 break
-        cid = fig.canvas.mpl_connect('button_press_event', onclick)
+        plt.close()
+        
+        fig2 = plt.figure(figsize=(12, 12))
+        ax = plt.axes()
+        cmap = ListedColormap(sns.color_palette("husl", len(np.unique(labels))).as_hex())
+        colours = {pnt: cmap.colors[idx] for idx, pnt in enumerate(np.unique(labels))}
+        col = [colours[i] for i in labels]
+        axes_obj = ax.scatter(x,
+                              y,
+                              s=30,
+                              c=col,
+                              marker='o',
+                              alpha=1
+                              )
+        axes_obj.labels = labels
+        axes_obj.im_paths = im_paths
+        axes_obj.annots = labels
+        plt.title(f"{model_name} {ds} - {generator}, epoch {int(idx * 5)}/{int(len(tSNE_plots) * 5 - 5)}")
+        mplcursors.cursor(fig2, hover=True).connect("add", lambda sel: sel.annotation.set_text(
+            sel.artist.annots[sel.target.index]))
+        cid = fig2.canvas.mpl_connect('button_press_event', onclick)
         plt.rcParams['keymap.quit'].append(' ')
         plt.show(block=True)
 
