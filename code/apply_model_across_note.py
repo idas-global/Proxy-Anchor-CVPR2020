@@ -106,7 +106,7 @@ def get_X_T(set, model_directory):
     return X, T
 
 
-def load_model(args, model_name=None):
+def load_model(args, model_name=None, ii=-1):
     if sys.platform != 'linux':
         notes_loc = 'D:/raw_data/1604_data/1604_notes/'
         genuine_notes_loc = 'D:/raw_data/genuines/Pack_100_4/'
@@ -121,7 +121,7 @@ def load_model(args, model_name=None):
             if dir == model_name:
                 model_directory = sorted([f'{root}/{dir}/{i}' for i in os.listdir(f'{root}/{dir}')
                                           if os.path.isdir(f'{root}/{dir}/{i}')],
-                                         key=lambda i: float(i.split('_')[-1]))[-1]
+                                         key=lambda i: float(i.split('_')[-1]))[ii]
                 model_directory += '/'
 
     model = create_model(args)
@@ -313,99 +313,98 @@ if __name__ == '__main__':
         models[args.dataset] = model_name
     models['note_families_tile'] = models['note_families_front']
 
-    model, coarse_test, fine_test_fnt, \
-        coarse_val_fnt, fine_val_fnt, notes_loc, genuine_notes_loc, model_dir = load_model(args, model_name)
+    for ii in [-1, -3, -4]:
+        model, coarse_test, fine_test_fnt, \
+            coarse_val_fnt, fine_val_fnt, notes_loc, genuine_notes_loc, model_dir = load_model(args, model_name, ii)
 
-    notes_per_family = get_notes_per_family(notes_loc, genuine_notes_loc)
+        notes_per_family = get_notes_per_family(notes_loc, genuine_notes_loc)
 
-    total_notes = get_embeddings(notes_per_family, 
-                                 genuine_notes_loc, 
-                                 notes_loc, 
-                                 args, 
-                                 0, 
-                                 COUNT_ONLY=True)
+        total_notes = get_embeddings(notes_per_family,
+                                     genuine_notes_loc,
+                                     notes_loc,
+                                     args,
+                                     0,
+                                     COUNT_ONLY=True)
 
-    predictions, embeddings, note_labels, circ_labels = get_embeddings(notes_per_family,
-                                                                       genuine_notes_loc,
-                                                                       notes_loc,
-                                                                       args,
-                                                                       total_notes,
-                                                                       COUNT_ONLY=False)
+        predictions, embeddings, note_labels, circ_labels = get_embeddings(notes_per_family,
+                                                                           genuine_notes_loc,
+                                                                           notes_loc,
+                                                                           args,
+                                                                           total_notes,
+                                                                           COUNT_ONLY=False)
 
-    print(f'{args.dataset}: {np.round(sum(predictions)/len(predictions), 3)} out of {len(predictions)} samples')
+        print(f'{args.dataset}: {np.round(sum(predictions)/len(predictions), 3)} out of {len(predictions)} samples')
 
-    if sys.platform != 'linux':
-        outpath = f'D:/model_outputs/proxy_anchor/training/{args.dataset}/{models[args.dataset]}/true_validation/nonaug_truth_fine_tSNE.pkl'
-    else:
-        outpath = f'../training/{args.dataset}/{models[args.dataset]}/true_validation/nonaug_truth_fine_tSNE.pkl'
+        if sys.platform != 'linux':
+            outpath = f'D:/model_outputs/proxy_anchor/training/{args.dataset}/{models[args.dataset]}/true_validation_{ii}/nonaug_truth_fine_tSNE.pkl'
+        else:
+            outpath = f'../training/{args.dataset}/{models[args.dataset]}/true_validation_{ii}/nonaug_truth_fine_tSNE.pkl'
 
-    os.makedirs(os.path.split(outpath)[0], exist_ok=True)
-    embed_path = f'/{args.dataset}'
+        os.makedirs(os.path.split(outpath)[0], exist_ok=True)
+        embed_path = f'/{args.dataset}'
 
-    if os.path.exists(os.path.split(outpath)[0] + f'{embed_path}_embeddings.npy'):
-        import uuid
+        if os.path.exists(os.path.split(outpath)[0] + f'{embed_path}_embeddings.npy'):
+            embeddings_existing  = np.load(os.path.split(outpath)[0] + f'{embed_path}_embeddings.npy', allow_pickle=True)
+            circ_labels_existing = np.load(os.path.split(outpath)[0] + f'{embed_path}_circ_labels.npy', allow_pickle=True)
+            note_labels_existing = np.load(os.path.split(outpath)[0] + f'{embed_path}_note_labels.npy', allow_pickle=True)
 
-        embeddings_existing  = np.load(os.path.split(outpath)[0] + f'{embed_path}_embeddings.npy', allow_pickle=True)
-        circ_labels_existing = np.load(os.path.split(outpath)[0] + f'{embed_path}_circ_labels.npy', allow_pickle=True)
-        note_labels_existing = np.load(os.path.split(outpath)[0] + f'{embed_path}_note_labels.npy', allow_pickle=True)
+            print('COLLATING EMBEDDINGS')
 
-        print('COLLATING EMBEDDINGS')
+            embeddings  = np.vstack((embeddings, embeddings_existing))
+            circ_labels = np.hstack((circ_labels, circ_labels_existing))
+            note_labels = np.hstack((note_labels, note_labels_existing))
+            _, unique_idxs = np.unique(note_labels, return_index=True)
 
-        embeddings  = np.vstack((embeddings, embeddings_existing))
-        circ_labels = np.hstack((circ_labels, circ_labels_existing))
-        note_labels = np.hstack((note_labels, note_labels_existing))
-        _, unique_idxs = np.unique(note_labels, return_index=True)
+            embeddings  = embeddings[unique_idxs, :]
+            circ_labels = circ_labels[unique_idxs]
+            note_labels = note_labels[unique_idxs]
 
-        embeddings  = embeddings[unique_idxs, :]
-        circ_labels = circ_labels[unique_idxs]
-        note_labels = note_labels[unique_idxs]
+        np.save(os.path.split(outpath)[0] + f'{embed_path}_embeddings.npy', embeddings)
+        np.save(os.path.split(outpath)[0] + f'{embed_path}_circ_labels.npy', circ_labels)
+        np.save(os.path.split(outpath)[0] + f'{embed_path}_note_labels.npy', note_labels)
 
-    np.save(os.path.split(outpath)[0] + f'{embed_path}_embeddings.npy', embeddings)
-    np.save(os.path.split(outpath)[0] + f'{embed_path}_circ_labels.npy', circ_labels)
-    np.save(os.path.split(outpath)[0] + f'{embed_path}_note_labels.npy', note_labels)
+        label_array = circ_labels
+        path_array = note_labels
 
-    label_array = circ_labels
-    path_array = note_labels
+        tsne = TSNE(n_components=2, verbose=0, perplexity=30)
+        embeddings = l2_norm(embeddings)
 
-    tsne = TSNE(n_components=2, verbose=0, perplexity=30)
-    embeddings = l2_norm(embeddings)
+        xxx = torch.from_numpy(embeddings)
+        z = tsne.fit_transform(embeddings)
+        df = pd.DataFrame()
+        df["comp-1"] = z[:, 0]
+        df["comp-2"] = z[:, 1]
 
-    xxx = torch.from_numpy(embeddings)
-    z = tsne.fit_transform(embeddings)
-    df = pd.DataFrame()
-    df["comp-1"] = z[:, 0]
-    df["comp-2"] = z[:, 1]
+        cmap = ListedColormap(sns.color_palette("husl", len(np.unique(circ_labels))).as_hex())
+        colours = {pnt: cmap.colors[idx] for idx, pnt in enumerate(np.unique(circ_labels))}
 
-    cmap = ListedColormap(sns.color_palette("husl", len(np.unique(circ_labels))).as_hex())
-    colours = {pnt: cmap.colors[idx] for idx, pnt in enumerate(np.unique(circ_labels))}
+        fig = plt.figure(figsize=(12, 12))
+        ax = plt.axes()
 
-    fig = plt.figure(figsize=(12, 12))
-    ax = plt.axes()
+        x = df["comp-1"]
+        y = df["comp-2"]
+        col = [colours[i] for i in list(circ_labels)]
+        labels = [i for i in list(circ_labels)]
 
-    x = df["comp-1"]
-    y = df["comp-2"]
-    col = [colours[i] for i in list(circ_labels)]
-    labels = [i for i in list(circ_labels)]
+        axes_obj = ax.scatter(x,
+                              y,
+                              s=30,
+                              c=col,
+                              marker='o',
+                              alpha=1
+                              )
+        axes_obj.annots = labels
+        axes_obj.im_paths = note_labels
 
-    axes_obj = ax.scatter(x,
-                          y,
-                          s=30,
-                          c=col,
-                          marker='o',
-                          alpha=1
-                          )
-    axes_obj.annots = labels
-    axes_obj.im_paths = note_labels
+        plt.legend(labels=labels)
 
-    plt.legend(labels=labels)
+        ax.legend(bbox_to_anchor=(1.02, 1))
+        mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(
+            sel.artist.annots[sel.target.index]))
+        mplcursors.cursor(fig).connect("add", lambda sel: sel.annotation.set_text(sel.artist.im_paths[sel.target.index]))
 
-    ax.legend(bbox_to_anchor=(1.02, 1))
-    mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(
-        sel.artist.annots[sel.target.index]))
-    mplcursors.cursor(fig).connect("add", lambda sel: sel.annotation.set_text(sel.artist.im_paths[sel.target.index]))
+        fig.suptitle("TSNE")
 
-    fig.suptitle("TSNE")
+        pickle.dump(fig, open(outpath, 'wb'))
 
-    pickle.dump(fig, open(outpath, 'wb'))
-
-    plt.close()
+        plt.close()

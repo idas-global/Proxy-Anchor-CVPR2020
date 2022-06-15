@@ -42,7 +42,9 @@ def main():
 
         if pnt_key not in ['G100small', 'G100medium', 'G100large',
                            'G50small', 'G50medium', 'G50large',
-                           'G20small', 'G20medium', 'G20large']:
+                           'G20small', 'G20medium', 'G20large',
+                           'G10small', 'G10medium', 'G10large',
+                           'G5small', 'G5medium', 'G5large']:
             continue
 
         dest_back, dest_front, dest_paper, dest_seal = create_dirs(circ_key, pnt_key, aug_location_1604_fronts, aug_location_1604_backs, aug_location_1604_seals,
