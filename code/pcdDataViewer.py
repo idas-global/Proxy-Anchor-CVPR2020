@@ -19,17 +19,21 @@ def mapLabelsToColours(labels):
     return cv2.applyColorMap(to_uint8(labels), cmapy.cmap('jet')) / 255.0
 
 
-def mapDataAsPointCloud(data):
+def mapDataAsPointCloud(data, data_other):
     pts    = data[:, :3]
     labels = data[:, 3]
+    pts_other    = data_other[:, :3]
+    labels_other = data_other[:, 3]
     colors = mapLabelsToColours(labels)
 
     pcd = o3d.geometry.PointCloud()
+    pcd_other = o3d.geometry.PointCloud()
 
     pcd.colors = o3d.utility.Vector3dVector(colors[:,0,:])
     pcd.points = o3d.utility.Vector3dVector(pts)
+    pcd_other.points = o3d.utility.Vector3dVector(pts_other)
 
-    o3d.visualization.draw([pcd], show_ui=True)
+    o3d.visualization.draw([pcd, pcd_other], show_ui=True)
 
 
 def createRandomClusterData(n=1200):
@@ -39,14 +43,16 @@ def createRandomClusterData(n=1200):
     embeddings = l2_norm(data)
 
     z = tsne.fit_transform(embeddings)
+    array = np.array([True if 'G50' in lab or idx in [911, 912, 913] else False for idx, lab in enumerate(labels)])
 
-    data = np.hstack([z, labels.reshape(-1, 1)])
-    return data
+    data = np.hstack([z[array, :], labels.reshape(-1, 1)[array, :]])
+    return data, np.hstack([z[~array, :], labels.reshape(-1, 1)[~array, :]])
+
 
 if __name__ == '__main__':
     dataPath = ''
     #data = np.load(dataPath)
-    data = createRandomClusterData()
+    data, data_other = createRandomClusterData()
 
     # Data is rows of [x,y,z,labels] (x,y,z - floats) (labels - floats / ints)
-    mapDataAsPointCloud(data)
+    mapDataAsPointCloud(data, data_other)

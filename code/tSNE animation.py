@@ -226,6 +226,7 @@ def main():
             if isinstance(obj, matplotlib.collections.PathCollection):
                 im_paths = obj.im_paths
                 labels = obj.annots
+
                 idxs_to_remove = []
                 for img in ['pack_0_note_1652363711763', 'pack_G100small_note_22', 'pack_G100small_note_10', 'pack_G100small_note_18']:
                     arr = np.where(im_paths == img)[0]

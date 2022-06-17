@@ -40,6 +40,9 @@ def main():
             if pnt_key == 'NO DATA':
                 continue
 
+        if circ_key == 'NOLABEL':
+            continue
+
         if pnt_key not in ['G100small', 'G100medium', 'G100large',
                            'G50small', 'G50medium', 'G50large',
                            'G20small', 'G20medium', 'G20large',
@@ -303,11 +306,11 @@ def get_valid_dirs():
 
 
 if __name__ == '__main__':
-    DO_PAPER = False
-    DO_SEAL = False
+    DO_PAPER = True
+    DO_SEAL = True
     DO_FRONT = True
-    DO_BACK = False
-    DELETE_DATA = False
+    DO_BACK = True
+    DELETE_DATA = True
 
     if sys.platform == 'linux':
         location_1604_notes = '/mnt/ssd1/Genesys_2_Capture/counterfeit/'
