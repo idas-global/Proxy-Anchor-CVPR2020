@@ -212,7 +212,7 @@ def get_embeddings(notes_per_family, genuine_notes_loc, notes_loc, args, total_n
             if pnt_key == 'NO DATA':
                 continue
 
-        valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], ['Front'])
+        valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], ['Back'])
 
         if COUNT_ONLY:
             total_notes += len(valid_notes)
