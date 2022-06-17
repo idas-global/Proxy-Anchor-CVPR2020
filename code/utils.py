@@ -60,7 +60,7 @@ def parse_arguments():
                                      + 'Our code is modified from `https://github.com/dichotomies/proxy-nca`'
                                      )
     # export directory, training and val datasets, test datasets
-    parser.add_argument('--LOG_DIR',
+    parser.add_argument('--LOG-DIR',
                         default='../logs',
                         help='Path to log folder'
                         )
@@ -90,7 +90,10 @@ def parse_arguments():
     parser.add_argument('--model', default='bn_inception',
                         help='Model for training'
                         )
-    parser.add_argument('--model_name', default=None,
+    parser.add_argument('--model-name', default=None,
+                        help='Model for tSNE'
+                        )
+    parser.add_argument('--only-2004', default=False,
                         help='Model for tSNE'
                         )
     parser.add_argument('--wandb', default=None,
@@ -136,7 +139,15 @@ def parse_arguments():
                         help='L2 normlization'
                         )
     parser.add_argument('--remark', default='',
-                        help='Any reamrk'
+                        help='Any remark'
+                        )
+    parser.add_argument('--notes-loc', default=None,
+                        dest='notes_loc',
+                        help='Any remark'
+                        )
+    parser.add_argument('--gen-notes-loc', default=None,
+                        dest='gen_notes_loc',
+                        help='Any remark'
                         )
     return parser.parse_args()
 

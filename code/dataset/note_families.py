@@ -13,6 +13,9 @@ def slice_to_make_set(chosen_images, param):
 
 class Families(BaseDataset):
     def __init__(self, root, mode, seed, le, transform = None, plate='front'):
+        only_2004 = False
+        if root is True:
+            only_2004 = True
         self.name = 'note_families'
         self.mode = mode
         self.transform = transform
@@ -43,6 +46,12 @@ class Families(BaseDataset):
         for (root, dirs, files) in os.walk(self.root):
             for file in files:
                 if '.bmp' in file:
+                    if only_2004 and any([i in root for i in ['G100small', 'G100medium', 'G100large',
+                           'G50small', 'G50medium', 'G50large',
+                           'G20small', 'G20medium', 'G20large',
+                           'G10small', 'G10medium', 'G10large',
+                           'G5small', 'G5medium', 'G5large']]):
+                        continue
                     im_paths.append(os.path.join(root, file))
         self.im_paths = im_paths
 

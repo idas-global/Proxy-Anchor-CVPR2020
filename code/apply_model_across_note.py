@@ -116,6 +116,12 @@ def load_model(args, model_name=None, ii=-1):
         genuine_notes_loc = '/mnt/ssd1/Genesys_2_Capture/genuine/100_4/'
         model_locations = '../logs/'
 
+    if args.notes_loc is not None:
+        notes_loc = args.notes_loc
+
+    if args.gen_notes_loc is not None:
+        genuine_notes_loc = args.gen_notes_loc
+
     for (root, dirs, files) in os.walk(model_locations):
         for dir in dirs:
             if dir == model_name:

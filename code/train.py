@@ -509,6 +509,9 @@ if __name__ == '__main__':
     os.chdir('../data/')
     data_root = os.getcwd()
 
+    if args.only_2004:
+        data_root = True
+
     dl_tr, dl_val, dl_ev = create_generators(args, data_root)
     #test_generator_labels(dl_tr, dl_val, dl_ev)
 

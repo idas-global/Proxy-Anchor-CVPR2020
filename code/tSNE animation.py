@@ -179,7 +179,7 @@ def main():
 
     default_models = {'cars': 'glowing-sun-314',
                       'cub': 'pleasant-donkey-171',
-                      'note_families_front': 'ancient-brook-119',
+                      'note_families_front': 'babbling-tree-333',
                       'note_families_back': 'gentle-river-20',
                       'note_families_seal': 'laced-totem-16',
                       'note_styles' : 'fresh-pond-138',
@@ -208,7 +208,7 @@ def main():
         for file in files:
             if (generator in root) and (ds in root) and (model_name in root) and ('truth_fine_tSNE.pkl' in file):
                 x = os.path.join(root,  file)
-                if x.split('\\')[-3].isdigit() or generator == 'true_validation':
+                if x.split('\\')[-3].isdigit() or 'true_validation' in generator:
                     tSNE_plots.append(x)
 
     if len(tSNE_plots) > 1:
@@ -231,6 +231,10 @@ def main():
                     arr = np.where(im_paths == img)[0]
                     if arr:
                         idxs_to_remove.append(arr[0])
+                arr = np.where(im_paths == 'pack_G50small_note_7')[0]
+                if arr:
+                    labels[arr[0]] = 'PN: G50medium, C: G50medium'
+                    im_paths[arr[0]] = 'pack_G50medium_note_3'
 
                 x, y = zip(*obj.get_offsets())
                 x, y, im_paths = list(x), list(y), list(im_paths)
