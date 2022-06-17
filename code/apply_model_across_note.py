@@ -135,7 +135,19 @@ def load_model(args, model_name=None, ii=-1):
     checkpoint = torch.load(check_path)
     print(f'model directory is {check_path}')
 
-    model.load_state_dict(checkpoint['model_state_dict'])
+    if args.gpu_id != -1:
+        from collections import OrderedDict
+        new_state_dict = OrderedDict()
+        for k, v in checkpoint['model_state_dict'].items():
+            if 'module' in k:
+                k = k.replace('module.', '')
+            else:
+                k = k.replace('module.features.', 'features.module.')
+            new_state_dict[k] = v
+        model.load_state_dict(new_state_dict)
+    else:
+        model.load_state_dict(checkpoint['model_state_dict'])
+
     model_is_training = model.training
     model.eval()
     with open(f'{model_directory}eval_coarse_dict.pkl', 'rb') as f:
