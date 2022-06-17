@@ -234,25 +234,28 @@ def _all_specs_present(note_dir):
 
 def form_genuine_frame(location_genuine_notes):
     genuine_frame = []
-    for i in [location_genuine_notes + i for i in os.listdir(location_genuine_notes)
-              if os.path.isdir(location_genuine_notes + i)]:
-        genuine_frame.append({
-            'pack position'       : int(os.path.split(i)[-1]),
-            'serial number'       : 'PLACEHOLDER',
-            'date of activity'    : pd.NaT,
-            'zip code bank'       : 'PLACEHOLDER',
-            'zip code original'   : 'PLACEHOLDER',
-            'bank name'           : 'PLACEHOLDER',
-            'bank routing number' : np.nan,
-            'circular 1'          : 'GENUINE',
-            'parent note'         : 'GENUINE',
-            'originallat'         : np.nan,
-            'originallng'         : np.nan,
-            'banklat'             : np.nan,
-            'banklng'             : np.nan,
-        })
-    genuine_frame = pd.DataFrame(genuine_frame)
-    genuine_frame['pack'] = 'G'
+    if os.path.isdir(location_genuine_notes):
+        for i in [location_genuine_notes + i for i in os.listdir(location_genuine_notes)
+                  if os.path.isdir(location_genuine_notes + i)]:
+            genuine_frame.append({
+                'pack position'       : int(os.path.split(i)[-1]),
+                'serial number'       : 'PLACEHOLDER',
+                'date of activity'    : pd.NaT,
+                'zip code bank'       : 'PLACEHOLDER',
+                'zip code original'   : 'PLACEHOLDER',
+                'bank name'           : 'PLACEHOLDER',
+                'bank routing number' : np.nan,
+                'circular 1'          : 'GENUINE',
+                'parent note'         : 'GENUINE',
+                'originallat'         : np.nan,
+                'originallng'         : np.nan,
+                'banklat'             : np.nan,
+                'banklng'             : np.nan,
+            })
+        genuine_frame = pd.DataFrame(genuine_frame)
+        genuine_frame['pack'] = 'G'
+    else:
+        genuine_frame = pd.DataFrame([])
     return genuine_frame
 
 
