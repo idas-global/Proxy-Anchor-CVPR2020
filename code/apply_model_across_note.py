@@ -213,7 +213,11 @@ def get_embeddings(notes_per_family, genuine_notes_loc, notes_loc, args, total_n
             if pnt_key == 'NO DATA':
                 continue
 
-        valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], ['Back'])
+        side = ['Front']
+        if args.dataset == 'note_families_back':
+            side = ['Back']
+
+        valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], side)
 
         if COUNT_ONLY:
             total_notes += len(valid_notes)
@@ -221,11 +225,11 @@ def get_embeddings(notes_per_family, genuine_notes_loc, notes_loc, args, total_n
         if not COUNT_ONLY:
             if len(valid_notes) > 0:
                 note_idx = predict_valid_notes(X_test, X_val,
-                                                                T_test, T_val,
-                                                                predictions, circ_key,
-                                                                circ_labels, embeddings,
-                                                                valid_notes, note_labels,
-                                                                pnt_key, args, note_idx, notes_to_remove)
+                                               T_test, T_val,
+                                               predictions, circ_key,
+                                               circ_labels, embeddings,
+                                               valid_notes, note_labels,
+                                               pnt_key, args, note_idx, notes_to_remove)
     if COUNT_ONLY:
         if args.dataset == 'note_families_tile':
             total_notes = total_notes * 6
