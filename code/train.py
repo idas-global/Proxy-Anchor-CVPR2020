@@ -513,7 +513,7 @@ if __name__ == '__main__':
         data_root = True
 
     dl_tr, dl_val, dl_ev = create_generators(args, data_root)
-    #test_generator_labels(dl_tr, dl_val, dl_ev)
+    test_generator_labels(dl_tr, dl_val, dl_ev)
 
     nb_classes = dl_tr.dataset.nb_classes()
 

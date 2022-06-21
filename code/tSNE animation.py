@@ -103,7 +103,7 @@ def onclick(event):
             img = cv2.rotate(seal, cv2.ROTATE_180)
 
         if ds == 'note_families_back':
-            img = cv2.imread(name.replace('Front', 'Back'))
+            img = cv2.imread(name.replace('Front', 'Back').replace('_0.bmp', '_1.bmp'))
             img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
         if ds == 'note_families_front':
