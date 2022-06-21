@@ -13,6 +13,12 @@ def slice_to_make_set(chosen_images, param):
 
 class Families(BaseDataset):
     def __init__(self, root, mode, seed, le, transform = None, plate='front'):
+        other_gens = ['G100small', 'G100medium', 'G100large',
+                           'G50small', 'G50medium', 'G50large',
+                           'G20small', 'G20medium', 'G20large',
+                           'G10small', 'G10medium', 'G10large',
+                           'G5small', 'G5medium', 'G5large']
+
         only_2004 = False
         if root is True:
             only_2004 = True
@@ -46,19 +52,22 @@ class Families(BaseDataset):
         for (root, dirs, files) in os.walk(self.root):
             for file in files:
                 if '.bmp' in file:
-                    if only_2004 and any([i in root for i in ['G100small', 'G100medium', 'G100large',
-                           'G50small', 'G50medium', 'G50large',
-                           'G20small', 'G20medium', 'G20large',
-                           'G10small', 'G10medium', 'G10large',
-                           'G5small', 'G5medium', 'G5large']]):
+                    if only_2004 and any([i in root for i in other_gens]):
                         continue
                     im_paths.append(os.path.join(root, file))
         self.im_paths = im_paths
 
         self.class_names = [os.path.split(os.path.split(item)[0])[-1] for item in self.im_paths]
-        self.class_names_coarse = [i[0:-1] if i[-1].isalpha() and 'GENUINE' not in i else i
+        self.class_names_coarse = [i[0:-1] if i[-1].isalpha() and 'GENUINE' not in i and i not in other_gens
+                                   else i
                                    for i in [name.split('_')[0] for name in self.class_names]]
         self.class_names_fine = [i[0:-1] if i[-1].isalpha() and 'GENUINE' not in i else i for i in self.class_names]
+
+        if plate == 'seal':
+            gen_idxs = [idx for idx, classs in enumerate(self.class_names_coarse) if classs in other_gens]
+
+            for replace, attr in zip(['GENUINE_GENUINE', 'GENUINE_GENUINE', 'GENUINE'], ['class_names', 'class_names_fine', 'class_names_coarse']):
+                setattr(self, attr, [i if idx not in gen_idxs else replace for idx, i in enumerate(getattr(self, attr))])
 
         if le is None:
             le = LabelEncoder()

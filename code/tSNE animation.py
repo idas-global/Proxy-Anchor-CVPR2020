@@ -22,6 +22,8 @@ def parse(name):
             path = f'D:/raw_data/genuines/Pack_100_4/{note}/{note}_RGB_0.bmp'
         elif pack == 'Gsmall':
             path = f'D:/raw_data/1604_data/1604_notes/Pack_{pack}/{note}/{note}_RGB_0.bmp'
+        elif pack == 'RAW':
+            path = f'/media/exthd/Pack_{pack}/{note}/{note}_RGB_0.bmp'
         else:
             path = f'D:/raw_data/1604_data/1604_notes/Pack_{pack}/{note}/{note}_RGB_Front.bmp'
     else:
@@ -29,6 +31,8 @@ def parse(name):
             path = f'/mnt/ssd1/Genesys_2_Capture/genuine/100_4/{note}/{note}_RGB_0.bmp'
         elif pack == 'Gsmall':
             path = f'/mnt/ssd1/Genesys_2_Capture/counterfeit/Pack_{pack}/{note}/{note}_RGB_0.bmp'
+        elif pack == 'RAW':
+            path = f'/media/exthd/Pack_{pack}/{note}/{note}_RGB_0.bmp'
         else:
             path = f'/mnt/ssd1/Genesys_2_Capture/counterfeit/Pack_{pack}/{note}/{note}_RGB_Front.bmp'
 

@@ -334,6 +334,43 @@ def predict_valid_notes(X_test, X_val, T_test, T_val, predictions, circ_key, cir
             plt.close()
     return note_idx
 
+
+def plot_and_return_fig(embeddings, circ_labels, note_labels):
+
+    tsne = TSNE(n_components=2, verbose=0, perplexity=30)
+    # import umap
+    # tsne = umap.UMAP(n_neighbors=15, random_state=42)
+    embeddings = l2_norm(embeddings)
+    xxx = torch.from_numpy(embeddings)
+    z = tsne.fit_transform(embeddings)
+    df = pd.DataFrame()
+    df["comp-1"] = z[:, 0]
+    df["comp-2"] = z[:, 1]
+    cmap = ListedColormap(sns.color_palette("husl", len(np.unique(circ_labels))).as_hex())
+    colours = {pnt: cmap.colors[idx] for idx, pnt in enumerate(np.unique(circ_labels))}
+    fig = plt.figure(figsize=(12, 12))
+    ax = plt.axes()
+    x = df["comp-1"]
+    y = df["comp-2"]
+    col = [colours[i] for i in list(circ_labels)]
+    labels = [i for i in list(circ_labels)]
+    axes_obj = ax.scatter(x,
+                          y,
+                          s=30,
+                          c=col,
+                          marker='o',
+                          alpha=1
+                          )
+    axes_obj.annots = labels
+    axes_obj.im_paths = note_labels
+    plt.legend(labels=labels)
+    ax.legend(bbox_to_anchor=(1.02, 1))
+    mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(
+        sel.artist.annots[sel.target.index]))
+    mplcursors.cursor(fig).connect("add", lambda sel: sel.annotation.set_text(sel.artist.im_paths[sel.target.index]))
+    fig.suptitle("TSNE")
+    return fig
+
 if __name__ == '__main__':
     PLOT_IMAGES = False
     maskrcnn = MaskRCNN()
@@ -406,47 +443,7 @@ if __name__ == '__main__':
         np.save(os.path.split(outpath)[0] + f'{embed_path}_circ_labels.npy', circ_labels)
         np.save(os.path.split(outpath)[0] + f'{embed_path}_note_labels.npy', note_labels)
 
-        label_array = circ_labels
-        path_array = note_labels
-
-        tsne = TSNE(n_components=2, verbose=0, perplexity=30)
-        embeddings = l2_norm(embeddings)
-
-        xxx = torch.from_numpy(embeddings)
-        z = tsne.fit_transform(embeddings)
-        df = pd.DataFrame()
-        df["comp-1"] = z[:, 0]
-        df["comp-2"] = z[:, 1]
-
-        cmap = ListedColormap(sns.color_palette("husl", len(np.unique(circ_labels))).as_hex())
-        colours = {pnt: cmap.colors[idx] for idx, pnt in enumerate(np.unique(circ_labels))}
-
-        fig = plt.figure(figsize=(12, 12))
-        ax = plt.axes()
-
-        x = df["comp-1"]
-        y = df["comp-2"]
-        col = [colours[i] for i in list(circ_labels)]
-        labels = [i for i in list(circ_labels)]
-
-        axes_obj = ax.scatter(x,
-                              y,
-                              s=30,
-                              c=col,
-                              marker='o',
-                              alpha=1
-                              )
-        axes_obj.annots = labels
-        axes_obj.im_paths = note_labels
-
-        plt.legend(labels=labels)
-
-        ax.legend(bbox_to_anchor=(1.02, 1))
-        mplcursors.cursor(fig, hover=True).connect("add", lambda sel: sel.annotation.set_text(
-            sel.artist.annots[sel.target.index]))
-        mplcursors.cursor(fig).connect("add", lambda sel: sel.annotation.set_text(sel.artist.im_paths[sel.target.index]))
-
-        fig.suptitle("TSNE")
+        fig = plot_and_return_fig(embeddings, circ_labels, note_labels)
 
         pickle.dump(fig, open(outpath, 'wb'))
 
