@@ -224,6 +224,7 @@ def get_embeddings(notes_per_family, genuine_notes_loc, notes_loc, args, total_n
 
         if not COUNT_ONLY:
             if len(valid_notes) > 0:
+                if len(valid_notes) > 5: valid_notes = valid_notes[0:4] # Training Wheel
                 note_idx = predict_valid_notes(X_test, X_val,
                                                T_test, T_val,
                                                predictions, circ_key,
