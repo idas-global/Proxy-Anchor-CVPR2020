@@ -3,9 +3,10 @@ import cmapy
 import random
 import numpy as np
 import open3d as o3d
+from matplotlib.colors import ListedColormap
 from sklearn.manifold import TSNE
 from sklearn.preprocessing import LabelEncoder
-
+import seaborn as sns
 from utils import l2_norm
 
 
@@ -16,7 +17,12 @@ def to_uint8(arr):
 def mapLabelsToColours(labels):
     le = LabelEncoder()
     labels = le.fit_transform(labels)
-    return cv2.applyColorMap(to_uint8(labels), cmapy.cmap('jet')) / 255.0
+    #return cv2.applyColorMap(to_uint8(labels), cmapy.cmap('husl')) / 255.0
+    cmap = ListedColormap(sns.color_palette("husl", len(np.unique(labels))))
+    colours = {pnt: cmap.colors[idx] for idx, pnt in enumerate(np.unique(labels))}
+    col = [colours[i] for i in labels]
+    return np.array(col)
+
 
 
 def mapDataAsPointCloud(data, data_other):
@@ -25,11 +31,14 @@ def mapDataAsPointCloud(data, data_other):
     pts_other    = data_other[:, :3]
     labels_other = data_other[:, 3]
     colors = mapLabelsToColours(labels)
+    colors_other = mapLabelsToColours(labels_other)
 
     pcd = o3d.geometry.PointCloud()
     pcd_other = o3d.geometry.PointCloud()
 
-    pcd.colors = o3d.utility.Vector3dVector(colors[:,0,:])
+    pcd.colors = o3d.utility.Vector3dVector(colors)
+    pcd_other.colors = o3d.utility.Vector3dVector(colors_other)
+
     pcd.points = o3d.utility.Vector3dVector(pts)
     pcd_other.points = o3d.utility.Vector3dVector(pts_other)
 

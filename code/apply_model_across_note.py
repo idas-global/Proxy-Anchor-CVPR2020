@@ -201,6 +201,7 @@ def get_embeddings(notes_per_family, genuine_notes_loc, notes_loc, args, total_n
         embeddings = np.zeros((total_notes, args.sz_embedding))
         note_labels = np.zeros(total_notes, dtype=object)
         circ_labels = np.zeros(total_notes, dtype=object)
+        notes_to_remove = []
 
         X_test, T_test = get_X_T('eval_', model_dir)
         X_val, T_val = get_X_T('val_', model_dir)
@@ -220,25 +221,44 @@ def get_embeddings(notes_per_family, genuine_notes_loc, notes_loc, args, total_n
         if not COUNT_ONLY:
             if len(valid_notes) > 0:
                 note_idx = predict_valid_notes(X_test, X_val,
-                                               T_test, T_val,
-                                               predictions, circ_key,
-                                               circ_labels, embeddings,
-                                               valid_notes, note_labels,
-                                               pnt_key, args, note_idx)
+                                                                T_test, T_val,
+                                                                predictions, circ_key,
+                                                                circ_labels, embeddings,
+                                                                valid_notes, note_labels,
+                                                                pnt_key, args, note_idx, notes_to_remove)
     if COUNT_ONLY:
         if args.dataset == 'note_families_tile':
             total_notes = total_notes * 6
         print(f'Found {total_notes} samples')
         return total_notes
+
+    predictions = np.delete(predictions, notes_to_remove, axis=0)
+    embeddings = np.delete(embeddings, notes_to_remove, axis=0)
+    note_labels = np.delete(note_labels, notes_to_remove, axis=0)
+    circ_labels = np.delete(circ_labels, notes_to_remove, axis=0)
     return predictions, embeddings, note_labels, circ_labels
 
 
 def predict_valid_notes(X_test, X_val, T_test, T_val, predictions, circ_key, circ_labels, embeddings, valid_notes,
-                        note_labels, pnt_key, args, note_idx):
+                        note_labels, pnt_key, args, note_idx, notes_to_remove):
     pbar = tqdm(valid_notes, total=len(valid_notes))
     for iter, (side, spec, pack, note_num, note_dir) in enumerate(pbar):
-        note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn, DO_PAPER=False,
-                                                                    DO_SEAL=(args.dataset == 'note_families_seal'))
+        try:
+            note_image, back_note_image, seal, df = get_front_back_seal(note_dir, maskrcnn, DO_PAPER=False,
+                                                                        DO_SEAL=(args.dataset == 'note_families_seal'))
+        except Exception:
+            print('#### CANT GRAB IMAGE ####')
+            print(note_dir)
+            print('#########################')
+
+            if args.dataset != 'note_families_tile':
+                notes_to_remove.append(note_idx)
+                note_idx += 1
+            else:
+                for position in ['_tl', '_bl', '_tc', '_bc', '_tr', '_br']:
+                    notes_to_remove.append(note_idx)
+                    note_idx += 1
+            continue
 
         if args.dataset == 'note_families_back': img = back_note_image
         if args.dataset == 'note_families_front': img = note_image
@@ -345,11 +365,12 @@ if __name__ == '__main__':
                                      COUNT_ONLY=True)
 
         predictions, embeddings, note_labels, circ_labels = get_embeddings(notes_per_family,
-                                                                           genuine_notes_loc,
-                                                                           notes_loc,
-                                                                           args,
-                                                                           total_notes,
-                                                                           COUNT_ONLY=False)
+                                                                                            genuine_notes_loc,
+                                                                                            notes_loc,
+                                                                                            args,
+                                                                                            total_notes,
+                                                                                            COUNT_ONLY=False)
+
 
         print(f'{args.dataset}: {np.round(sum(predictions)/len(predictions), 3)} out of {len(predictions)} samples')
 
