@@ -337,6 +337,7 @@ def predict_valid_notes(X_test, X_val, T_test, T_val, predictions, circ_key, cir
 
 if __name__ == '__main__':
     PLOT_IMAGES = False
+    print('Got HEREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE')
     maskrcnn = MaskRCNN()
 
     args = parse_arguments()
@@ -357,7 +358,6 @@ if __name__ == '__main__':
     models['note_families_tile'] = models['note_families_front']
 
     for ii in [-1, -3, -4]:
-        print('Got HEREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE')
         model, coarse_test, fine_test_fnt, \
             coarse_val_fnt, fine_val_fnt, notes_loc, genuine_notes_loc, model_dir = load_model(args, model_name, ii)
 
