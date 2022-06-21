@@ -122,9 +122,6 @@ def load_model(args, model_name=None, ii=-1):
     if args.gen_notes_loc is not None:
         genuine_notes_loc = args.gen_notes_loc
 
-    print(notes_loc)
-    print('Got HEREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE')
-
     for (root, dirs, files) in os.walk(model_locations):
         for dir in dirs:
             if dir == model_name:
@@ -360,6 +357,7 @@ if __name__ == '__main__':
     models['note_families_tile'] = models['note_families_front']
 
     for ii in [-1, -3, -4]:
+        print('Got HEREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE')
         model, coarse_test, fine_test_fnt, \
             coarse_val_fnt, fine_val_fnt, notes_loc, genuine_notes_loc, model_dir = load_model(args, model_name, ii)
 
