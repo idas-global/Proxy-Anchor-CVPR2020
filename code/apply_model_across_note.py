@@ -122,6 +122,9 @@ def load_model(args, model_name=None, ii=-1):
     if args.gen_notes_loc is not None:
         genuine_notes_loc = args.gen_notes_loc
 
+    print(notes_loc)
+    print('Got HEREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE')
+
     for (root, dirs, files) in os.walk(model_locations):
         for dir in dirs:
             if dir == model_name:
