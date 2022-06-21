@@ -213,11 +213,11 @@ def get_embeddings(notes_per_family, genuine_notes_loc, notes_loc, args, total_n
             if pnt_key == 'NO DATA':
                 continue
 
-        side = ['Front']
+        side_strs = ['Front']
         if args.dataset == 'note_families_back':
-            side = ['Back']
+            side_strs = ['Back']
 
-        valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], side)
+        valid_notes = get_valid_notes(genuine_notes_loc, notes_loc, notes_frame, ['RGB'], side_strs)
         if len(valid_notes) > 5: valid_notes = valid_notes[0:4]  # Training Wheel
 
         if COUNT_ONLY:
