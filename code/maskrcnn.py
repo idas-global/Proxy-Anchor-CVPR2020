@@ -28,6 +28,7 @@ class MaskRCNN:
         self.labeldf.columns = ['labelstr']
         self.labels  = list(self.labeldf['labelstr'])
 
+        print('Got HEREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE')
         self.model = modellib.MaskRCNN(mode="inference", config=self.config, model_dir="./temp")
         self.model.load_weights(modelPath, by_name=True)
 

@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 from torchvision import transforms
 import torch.nn.functional as F
 import pandas as pd
-
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 def transform(im, train=True):
     inception_sz_resize = 256
@@ -337,7 +337,6 @@ def predict_valid_notes(X_test, X_val, T_test, T_val, predictions, circ_key, cir
 
 if __name__ == '__main__':
     PLOT_IMAGES = False
-    print('Got HEREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE')
     maskrcnn = MaskRCNN()
 
     args = parse_arguments()
