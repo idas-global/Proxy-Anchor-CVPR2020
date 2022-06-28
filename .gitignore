@@ -149,7 +149,6 @@ __pycache__
 *.xlsx
 *.wandb
 *.yaml
-*.txt
 *.json
 *.pickle
 *.pkl
@@ -158,4 +157,3 @@ templates/temp_score_frame.csv
 *.pth
 code/insert embedding.py
 code/test.py
-code/insert embedding.py
