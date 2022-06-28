@@ -156,3 +156,6 @@ __pycache__
 templates/temp_score_frame.csv
 *.pkl
 *.pth
+code/insert embedding.py
+code/test.py
+code/insert embedding.py
