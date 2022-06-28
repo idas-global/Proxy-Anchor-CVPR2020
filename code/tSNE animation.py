@@ -23,7 +23,7 @@ def parse(name):
         elif pack == 'Gsmall':
             path = f'D:/raw_data/1604_data/1604_notes/Pack_{pack}/{note}/{note}_RGB_0.bmp'
         elif pack == 'RAW':
-            path = f'/media/exthd/Pack_{pack}/{note}/{note}_RGB_0.bmp'
+            path = f'F:/Pack_{pack}/{note}/{note}_RGB_0.bmp'
         else:
             path = f'D:/raw_data/1604_data/1604_notes/Pack_{pack}/{note}/{note}_RGB_Front.bmp'
     else:
@@ -86,7 +86,7 @@ def onclick(event):
     ax = plt.gca()
     dx = 0.02 * (ax.get_xlim()[1] - ax.get_xlim()[0])
     dy = 0.02 * (ax.get_ylim()[1] - ax.get_ylim()[0])
-    #root =
+
     global x, y
     # Check for every point if the click was close enough:
     bench = 9999
@@ -108,7 +108,11 @@ def onclick(event):
 
         if ds == 'note_families_back':
             img = cv2.imread(name.replace('Front', 'Back').replace('_0.bmp', '_1.bmp'))
-            img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            if 'pack_0' not in im_paths[i_close]:
+                img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            else:
+                img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+
 
         if ds == 'note_families_front':
             img = cv2.imread(name)
@@ -184,7 +188,7 @@ def main():
     default_models = {'cars': 'glowing-sun-314',
                       'cub': 'pleasant-donkey-171',
                       'note_families_front': 'babbling-tree-333',
-                      'note_families_back': 'gentle-river-20',
+                      'note_families_back': 'back-toofour-123',
                       'note_families_seal': 'laced-totem-16',
                       'note_styles' : 'fresh-pond-138',
                       'paper': 'fanciful-bee-10'}
@@ -210,7 +214,7 @@ def main():
     tSNE_plots = []
     for (root, dirs, files) in os.walk(root_dir):
         for file in files:
-            if (generator in root) and (ds in root) and (model_name in root) and ('truth_fine_tSNE.pkl' in file):
+            if (root.endswith(generator) and f'\\{generator}' in root) and (ds in root) and (model_name in root) and ('truth_fine_tSNE.pkl' in file):
                 x = os.path.join(root,  file)
                 if x.split('\\')[-3].isdigit() or 'true_validation' in generator:
                     tSNE_plots.append(x)

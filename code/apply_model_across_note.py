@@ -76,7 +76,7 @@ def create_tiles(im):
     return tiles, 2, 3
 
 
-def get_transformed_image(tile, train=True):
+def get_transformed_image(tile, args, train=True):
     im = PIL.Image.fromarray(tile)
     # convert gray to rgb
     if len(list(im.split())) == 1: im = im.convert('RGB')
@@ -163,7 +163,7 @@ def load_model(args, model_name=None, ii=-1):
 
 
 def predict_from_image(note_image, model, X, T, train, coarse_dict):
-    transformed = get_transformed_image(note_image, train=train)
+    transformed = get_transformed_image(note_image, args, train=train)
     embedding = model(transformed[None, :])
 
     # Xhat, That, neighbors = add_pred_to_set(embedding, X, T)
@@ -335,11 +335,15 @@ def predict_valid_notes(X_test, X_val, T_test, T_val, predictions, circ_key, cir
     return note_idx
 
 
-def plot_and_return_fig(embeddings, circ_labels, note_labels):
+def plot_and_return_fig(embeddings, circ_labels, note_labels, use_umap=False):
 
-    tsne = TSNE(n_components=2, verbose=0, perplexity=30)
-    # import umap
-    # tsne = umap.UMAP(n_neighbors=15, random_state=42)
+
+    if use_umap:
+        import umap
+        tsne = umap.UMAP(n_neighbors=25, random_state=42)
+    else:
+        tsne = TSNE(n_components=2, verbose=0, perplexity=30)
+
     embeddings = l2_norm(embeddings)
     xxx = torch.from_numpy(embeddings)
     z = tsne.fit_transform(embeddings)
